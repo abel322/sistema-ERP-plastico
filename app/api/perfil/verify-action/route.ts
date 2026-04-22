@@ -3,14 +3,14 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth-options';
 import { verifyActionPassword } from '@/lib/verify-action-password';
 
+export const dynamic = 'force-dynamic';
+
 export async function POST(request: Request) {
     try {
         const session = await getServerSession(authOptions);
         if (!session || !session.user?.email) {
             return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
         }
-
-export const dynamic = 'force-dynamic';
 
         const body = await request.json();
         const { password } = body;
