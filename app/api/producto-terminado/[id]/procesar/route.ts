@@ -5,6 +5,8 @@ import { prisma } from '@/lib/db';
 import { determinarDestinoProducto } from '@/lib/producto-terminado-logic';
 import { AreaProduccion } from '@prisma/client';
 
+export const dynamic = 'force-dynamic';
+
 /**
  * POST: Marca un producto como procesado en su siguiente área.
  * Esto actualiza el producto terminado existente con la nueva área de origen
@@ -19,8 +21,6 @@ export async function POST(
     if (!session) {
       return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
     }
-
-export const dynamic = 'force-dynamic';
 
     const producto = await prisma.productoTerminado.findUnique({
       where: { id: params.id },
