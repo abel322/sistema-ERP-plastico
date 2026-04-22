@@ -1,0 +1,873 @@
+generator client {
+    provider = "prisma-client-js"
+    binaryTargets = ["native", "linux-musl-arm64-openssl-3.0.x"]
+}
+
+datasource db {
+    provider = "postgresql"
+    url      = env("DATABASE_URL")
+}
+
+enum Rol {
+  admin
+  usuario
+}
+
+enum TipoProducto {
+  Bolsa
+  Bobina
+}
+
+enum UnidadVenta {
+  Unidades
+  Kilogramos
+  Metros
+}
+
+enum TipoRefilado {
+  Simple
+  Doble
+}
+
+enum TipoSellado {
+  Inferior
+  Lateral
+}
+
+enum TipoBobinaCliente {
+  Lamina
+  Manga
+}
+
+enum EstadoPedido {
+  Pendiente
+  EnProceso
+  Completado
+}
+
+enum Prioridad {
+  Baja
+  Media
+  Alta
+}
+
+enum AreaProduccion {
+  Extrusion
+  Sellado
+  Serigrafia
+  Refilado
+}
+
+enum Turno {
+  Manana
+  Tarde
+  Noche
+  Dia12H
+  Noche12H
+}
+
+enum EstadoProduccion {
+  EnProceso
+  Finalizado
+}
+
+enum EstadoDespacho {
+  Pendiente
+  EnTransito
+  Entregado
+  Cancelado
+}
+
+// Producto Terminado
+enum EstadoProductoTerminado {
+  ListoDespacho
+  PendienteArea
+  Despachado
+  Defectuoso
+}
+
+enum SiguienteArea {
+  Sellado
+  Serigrafia
+  Refilado
+  Ninguna
+}
+
+enum TipoMuestra {
+  Produccion
+  ClienteNuevo
+  Reclamo
+}
+
+enum EstadoMuestra {
+  Pendiente
+  Aprobada
+  Rechazada
+}
+
+// Fase 4: Inventario
+enum TipoMovimiento {
+  Entrada
+  Salida
+  Ajuste
+  Devolucion
+}
+
+enum CategoriaInventario {
+  MateriaPrima
+  ProductoTerminado
+  Insumo
+  Peletizado
+}
+
+// Fase 4: Facturación
+enum EstadoFactura {
+  Borrador
+  Emitida
+  Pagada
+  Anulada
+}
+
+enum MetodoPago {
+  Efectivo
+  Transferencia
+  Credito
+  Cheque
+}
+
+// Fase 4: Mantenimiento
+enum TipoMantenimiento {
+  Preventivo
+  Correctivo
+  Calibracion
+}
+
+enum EstadoMantenimiento {
+  Programado
+  EnProceso
+  Completado
+  Cancelado
+}
+
+model User {
+  id               String   @id @default(cuid())
+  email            String   @unique
+  password         String
+  actionPassword   String?
+  nombre           String   @default("Usuario")
+  rol              Rol      @default(usuario)
+  activo           Boolean  @default(true)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  accounts                   Account[]
+  sessions                   Session[]
+  notificaciones             Notificacion[]
+  configuracionNotificacion  ConfiguracionNotificacion?
+  sesionesUsuario            SesionUsuario[]
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String?
+  access_token      String?
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String?
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+model Cliente {
+  id              String        @id @default(cuid())
+  nombre          String
+  rif             String        @unique
+  contacto        String?
+  telefono        String?
+  email           String?
+  direccion       String?
+  tipoProducto    TipoProducto
+  conImpresion    Boolean       @default(false)
+  ancho           Float?
+  largo           Float?
+  calibre         Float?
+  pesoPorUnidad   Float?
+  color           String?
+  material        String?
+  unidadVenta     UnidadVenta   @default(Unidades)
+  observaciones   String?
+  fechaRegistro   DateTime      @default(now())
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  // Especificaciones del Producto Adicionales
+  anchoBobina        Float?
+  anchoValvula       Float?
+  anchoSolapa        Float?
+  anchoFuelle        Float?
+  intensidadTratador Float?
+  pesoMaximoBobina   Float?
+  perforacion        Boolean?       @default(false)
+  muleteado          Boolean?       @default(false)
+  tipoRefilado       TipoRefilado?
+  bolsasPorRollo     Int?
+  rollosPorBulto     Int?
+  tipoSellado        TipoSellado?
+  tipoBobinaCliente  TipoBobinaCliente?
+
+  // Formulación de materia prima en porcentaje
+  formFB7000           Float?
+  form3003             Float?
+  formLineal           Float?
+  form0240             Float?
+  form0348             Float?
+  form7000F            Float?
+  formDeslizante       Float?
+  formMasterbachBlanco Float?
+  formMasterbachNegro  Float?
+  formMasterbachAzul   Float?
+  formMasterbachAmarillo Float?
+
+  // Datos de serigrafía adicionales
+  color1               String?
+  color2               String?
+  color3               String?
+  color4               String?
+  color5               String?
+  color6               String?
+  cilindro             String?
+  tipoImpresion        String?
+
+  pedidos            Pedido[]
+  despachos          Despacho[]
+  muestras           Muestra[]
+  facturas           Factura[]
+  productosTerminados ProductoTerminado[]
+}
+
+model Pedido {
+  id                   String        @id @default(cuid())
+  clienteId            String
+  cantidadSolicitada   Float
+  unidad               UnidadVenta
+  fechaPedido          DateTime      @default(now())
+  fechaEntrega         DateTime
+  estado               EstadoPedido  @default(Pendiente)
+  prioridad            Prioridad     @default(Media)
+  observaciones        String?
+  cantidadProducida    Float         @default(0)
+  cantidadDespachada   Float         @default(0)
+  createdAt            DateTime      @default(now())
+  updatedAt            DateTime      @updatedAt
+
+  cliente      Cliente      @relation(fields: [clienteId], references: [id], onDelete: Cascade)
+  producciones Produccion[]
+  despachos    Despacho[]
+  muestras     Muestra[]
+
+  @@index([clienteId])
+  @@index([estado])
+  @@index([fechaEntrega])
+}
+
+model Maquina {
+  id        String          @id @default(cuid())
+  nombre    String
+  area      AreaProduccion
+  activa    Boolean         @default(true)
+  createdAt DateTime        @default(now())
+  updatedAt DateTime        @updatedAt
+
+  producciones      Produccion[]
+  peletizados       Peletizado[]
+  mantenimientos    Mantenimiento[]
+  mejorasContinuas  MejoraContinua[]
+
+  @@index([area])
+}
+
+model Produccion {
+  id                String            @id @default(cuid())
+  fecha             DateTime          @default(now())
+  turno             Turno
+  area              AreaProduccion
+  maquinaId         String
+  operario          String
+  pedidoId          String?
+  cantidadProducida Float
+  unidad            UnidadVenta
+  merma             Float             @default(0)
+  horaInicio        String?
+  horaFin           String?
+  observaciones     String?
+  estado            EstadoProduccion  @default(EnProceso)
+  finalizadoAt      DateTime?
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
+
+  maquina             Maquina             @relation(fields: [maquinaId], references: [id])
+  pedido              Pedido?             @relation(fields: [pedidoId], references: [id])
+  inspeccionesCalidad InspeccionCalidad[]
+  productoTerminado   ProductoTerminado?
+  registros           RegistroProduccion[]
+
+  @@index([fecha])
+  @@index([area])
+  @@index([maquinaId])
+  @@index([pedidoId])
+  @@index([estado])
+}
+
+model RegistroProduccion {
+  id                  String    @id @default(cuid())
+  produccionId        String
+  turno               Turno
+  fecha               DateTime  @default(now())
+  operario            String
+  cantidad            Float
+  reporte             String?
+  merma               Float     @default(0)
+  mermaSinImpresion   Float?
+  mermaImpreso        Float?
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+
+  produccion Produccion @relation(fields: [produccionId], references: [id], onDelete: Cascade)
+
+  @@index([produccionId])
+  @@index([fecha])
+}
+
+model Despacho {
+  id                    String          @id @default(cuid())
+  fecha                 DateTime        @default(now())
+  pedidoId              String?
+  productoTerminadoId   String?
+  clienteId             String
+  cantidadDespachada    Float
+  unidad                UnidadVenta
+  vehiculo              String?
+  conductor             String?
+  destino               String?
+  guiaRemision          String?
+  observaciones         String?
+  precioUnitario        Float?
+  valorTotal            Float?
+  estado                EstadoDespacho  @default(Pendiente)
+  entregadoAt           DateTime?
+  facturado             Boolean         @default(false)
+  createdAt             DateTime        @default(now())
+  updatedAt             DateTime        @updatedAt
+
+  pedido             Pedido?            @relation(fields: [pedidoId], references: [id])
+  productoTerminado  ProductoTerminado? @relation(fields: [productoTerminadoId], references: [id])
+  cliente            Cliente            @relation(fields: [clienteId], references: [id])
+  detallesFactura    DetalleFactura[]
+
+  @@index([fecha])
+  @@index([pedidoId])
+  @@index([productoTerminadoId])
+  @@index([clienteId])
+  @@index([estado])
+  @@index([facturado])
+  @@index([estado, facturado])
+}
+
+model ProductoTerminado {
+  id                  String                   @id @default(cuid())
+  produccionId        String?                  @unique
+  pedidoId            String?
+  clienteId           String
+  areaOrigen          AreaProduccion
+  descripcion         String?
+  cantidadTotal       Float
+  cantidadDisponible  Float
+  unidad              UnidadVenta
+  tipoProducto        TipoProducto
+  conImpresion        Boolean                  @default(false)
+  estado              EstadoProductoTerminado  @default(ListoDespacho)
+  siguienteArea       SiguienteArea            @default(Ninguna)
+  fechaFinalizacion   DateTime                 @default(now())
+  fechaDespacho       DateTime?
+  createdAt           DateTime                 @default(now())
+  updatedAt           DateTime                 @updatedAt
+
+  produccion  Produccion? @relation(fields: [produccionId], references: [id])
+  cliente     Cliente     @relation(fields: [clienteId], references: [id])
+  despachos   Despacho[]
+
+  @@index([estado])
+  @@index([siguienteArea])
+  @@index([areaOrigen])
+  @@index([clienteId])
+  @@index([fechaFinalizacion])
+}
+
+model Muestra {
+  id            String         @id @default(cuid())
+  fecha         DateTime       @default(now())
+  clienteId     String
+  pedidoId      String?
+  tipo          TipoMuestra
+  descripcion   String?
+  cantidad      Float
+  unidad        UnidadVenta    @default(Unidades)
+  responsable   String
+  estado        EstadoMuestra  @default(Pendiente)
+  aprobadaAt    DateTime?
+  observaciones String?
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+
+  cliente Cliente @relation(fields: [clienteId], references: [id])
+  pedido  Pedido? @relation(fields: [pedidoId], references: [id])
+
+  @@index([fecha])
+  @@index([clienteId])
+  @@index([pedidoId])
+  @@index([tipo])
+  @@index([estado])
+}
+
+model Peletizado {
+  id              String   @id @default(cuid())
+  fecha           DateTime @default(now())
+  turno           Turno
+  maquinaId       String
+  operario        String
+  materialEntrada Float
+  materialSalida  Float
+  merma           Float    @default(0)
+  colorPelet      String?
+  tipoMaterial    String?
+  observaciones   String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  maquina Maquina @relation(fields: [maquinaId], references: [id])
+
+  @@index([fecha])
+  @@index([maquinaId])
+}
+
+// Fase 4: Inventario
+model Inventario {
+  id            String               @id @default(cuid())
+  nombre        String
+  codigo        String               @unique
+  categoria     CategoriaInventario
+  cantidad      Float                @default(0)
+  unidad        String
+  stockMinimo   Float                @default(0)
+  stockMaximo   Float?
+  ubicacion     String?
+  costo         Float?
+  proveedor     String?
+  observaciones String?
+  createdAt     DateTime             @default(now())
+  updatedAt     DateTime             @updatedAt
+
+  movimientos MovimientoInventario[]
+
+  @@index([categoria])
+  @@index([codigo])
+}
+
+model MovimientoInventario {
+  id           String         @id @default(cuid())
+  inventarioId String
+  tipo         TipoMovimiento
+  cantidad     Float
+  motivo       String?
+  referencia   String?
+  responsable  String
+  fecha        DateTime       @default(now())
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+
+  inventario Inventario @relation(fields: [inventarioId], references: [id], onDelete: Cascade)
+
+  @@index([inventarioId])
+  @@index([fecha])
+  @@index([tipo])
+}
+
+// Fase 4: Facturación
+model Factura {
+  id               String        @id @default(cuid())
+  numero           String        @unique
+  clienteId        String
+  fecha            DateTime      @default(now())
+  fechaVencimiento DateTime?
+  subtotal         Float         @default(0)
+  iva              Float         @default(0)
+  total            Float         @default(0)
+  estado           EstadoFactura @default(Borrador)
+  metodoPago       MetodoPago?
+  observaciones    String?
+  pagadaAt         DateTime?
+  createdAt        DateTime      @default(now())
+  updatedAt        DateTime      @updatedAt
+
+  cliente  Cliente          @relation(fields: [clienteId], references: [id])
+  detalles DetalleFactura[]
+
+  @@index([clienteId])
+  @@index([fecha])
+  @@index([estado])
+  @@index([numero])
+  @@index([fecha, estado])
+  @@index([clienteId, fecha])
+}
+
+model DetalleFactura {
+  id             String  @id @default(cuid())
+  facturaId      String
+  despachoId     String?
+  descripcion    String
+  cantidad       Float
+  unidad         String
+  precioUnitario Float
+  subtotal       Float
+
+  factura  Factura   @relation(fields: [facturaId], references: [id], onDelete: Cascade)
+  despacho Despacho? @relation(fields: [despachoId], references: [id])
+
+  @@index([facturaId])
+  @@index([despachoId])
+  @@index([facturaId, despachoId])
+}
+
+// Fase 4: Mantenimiento
+model Mantenimiento {
+  id               String              @id @default(cuid())
+  maquinaId        String
+  tipo             TipoMantenimiento
+  descripcion      String
+  fechaProgramada  DateTime
+  fechaRealizada   DateTime?
+  responsable      String
+  costo            Float?
+  estado           EstadoMantenimiento @default(Programado)
+  observaciones    String?
+  createdAt        DateTime            @default(now())
+  updatedAt        DateTime            @updatedAt
+
+  maquina Maquina @relation(fields: [maquinaId], references: [id])
+
+  @@index([maquinaId])
+  @@index([fechaProgramada])
+  @@index([estado])
+  @@index([tipo])
+}
+
+// ==================== FASE 5 ====================
+
+// Fase 5: Notificaciones
+enum TipoNotificacion {
+  StockBajo
+  FacturaVencida
+  MantenimientoProgramado
+  PedidoUrgente
+  MejoraPendiente
+  CalidadNoConforme
+  DespachoEntregado
+  Sistema
+}
+
+model Notificacion {
+  id        String           @id @default(cuid())
+  usuarioId String
+  tipo      TipoNotificacion
+  titulo    String
+  mensaje   String
+  enlace    String?
+  leida     Boolean          @default(false)
+  fecha     DateTime         @default(now())
+  createdAt DateTime         @default(now())
+
+  usuario User @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+
+  @@index([usuarioId])
+  @@index([leida])
+  @@index([fecha])
+  @@index([tipo])
+}
+
+model ConfiguracionNotificacion {
+  id                        String  @id @default(cuid())
+  usuarioId                 String  @unique
+  stockBajo                 Boolean @default(true)
+  facturaVencida            Boolean @default(true)
+  mantenimientoProgramado   Boolean @default(true)
+  pedidoUrgente             Boolean @default(true)
+  mejoraPendiente           Boolean @default(true)
+  calidadNoConforme         Boolean @default(true)
+  despachoEntregado         Boolean @default(true)
+  pushEnabled               Boolean @default(false)
+
+  usuario User @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+}
+
+// Fase 5: Mejoras Continuas
+enum EstadoMejora {
+  Propuesta
+  EnEvaluacion
+  Aprobada
+  Implementada
+  Rechazada
+}
+
+model MejoraContinua {
+  id                    String       @id @default(cuid())
+  maquinaId             String
+  fecha                 DateTime     @default(now())
+  titulo                String
+  descripcion           String?
+  problema              String
+  solucionPropuesta     String
+  solucionImplementada  String?
+  responsable           String
+  estado                EstadoMejora @default(Propuesta)
+  costoEstimado         Float?
+  ahorroEstimado        Float?
+  fechaImplementacion   DateTime?
+  resultados            String?
+  observaciones         String?
+  creadoPor             String
+  createdAt             DateTime     @default(now())
+  updatedAt             DateTime     @updatedAt
+
+  maquina Maquina @relation(fields: [maquinaId], references: [id])
+
+  @@index([maquinaId])
+  @@index([estado])
+  @@index([fecha])
+  @@index([responsable])
+}
+
+// Fase 5: Proveedores
+enum EstadoOrdenCompra {
+  Borrador
+  Enviada
+  Confirmada
+  Recibida
+  Cancelada
+}
+
+model Proveedor {
+  id               String   @id @default(cuid())
+  nombre           String
+  rif              String   @unique
+  direccion        String?
+  telefono         String?
+  email            String?
+  contacto         String?
+  condicionesPago  String?
+  observaciones    String?
+  activo           Boolean  @default(true)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  ordenesCompra OrdenCompra[]
+
+  @@index([rif])
+  @@index([activo])
+}
+
+model OrdenCompra {
+  id            String             @id @default(cuid())
+  numero        String             @unique
+  proveedorId   String
+  fecha         DateTime           @default(now())
+  fechaEntrega  DateTime?
+  subtotal      Float              @default(0)
+  iva           Float              @default(0)
+  total         Float              @default(0)
+  estado        EstadoOrdenCompra  @default(Borrador)
+  observaciones String?
+  recibidaAt    DateTime?
+  createdAt     DateTime           @default(now())
+  updatedAt     DateTime           @updatedAt
+
+  proveedor Proveedor            @relation(fields: [proveedorId], references: [id])
+  detalles  DetalleOrdenCompra[]
+
+  @@index([proveedorId])
+  @@index([fecha])
+  @@index([estado])
+  @@index([numero])
+}
+
+model DetalleOrdenCompra {
+  id              String  @id @default(cuid())
+  ordenCompraId   String
+  inventarioId    String?
+  descripcion     String
+  cantidad        Float
+  unidad          String
+  precioUnitario  Float
+  subtotal        Float
+
+  ordenCompra OrdenCompra @relation(fields: [ordenCompraId], references: [id], onDelete: Cascade)
+
+  @@index([ordenCompraId])
+  @@index([inventarioId])
+}
+
+// Fase 5: Control de Calidad
+enum ResultadoInspeccion {
+  Aprobado
+  Rechazado
+  AprobadoConObservaciones
+}
+
+enum EstadoNoConformidad {
+  Abierta
+  EnAnalisis
+  AccionCorrectiva
+  Cerrada
+}
+
+model ParametroCalidad {
+  id           String  @id @default(cuid())
+  nombre       String  @unique
+  descripcion  String?
+  valorMinimo  Float?
+  valorMaximo  Float?
+  unidad       String
+  activo       Boolean @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  resultados ResultadoParametro[]
+
+  @@index([activo])
+}
+
+model InspeccionCalidad {
+  id            String              @id @default(cuid())
+  produccionId  String?
+  lote          String?
+  fecha         DateTime            @default(now())
+  inspector     String
+  resultado     ResultadoInspeccion
+  observaciones String?
+  createdAt     DateTime            @default(now())
+  updatedAt     DateTime            @updatedAt
+
+  produccion        Produccion?         @relation(fields: [produccionId], references: [id])
+  resultadosParams  ResultadoParametro[]
+  noConformidades   NoConformidad[]
+
+  @@index([produccionId])
+  @@index([fecha])
+  @@index([resultado])
+  @@index([lote])
+}
+
+model ResultadoParametro {
+  id              String  @id @default(cuid())
+  inspeccionId    String
+  parametroId     String
+  valorMedido     Float
+  cumple          Boolean
+
+  inspeccion InspeccionCalidad @relation(fields: [inspeccionId], references: [id], onDelete: Cascade)
+  parametro  ParametroCalidad  @relation(fields: [parametroId], references: [id])
+
+  @@index([inspeccionId])
+  @@index([parametroId])
+}
+
+model NoConformidad {
+  id                String               @id @default(cuid())
+  inspeccionId      String
+  descripcion       String
+  causa             String?
+  accionCorrectiva  String?
+  responsable       String?
+  estado            EstadoNoConformidad  @default(Abierta)
+  fechaCierre       DateTime?
+  observaciones     String?
+  createdAt         DateTime             @default(now())
+  updatedAt         DateTime             @updatedAt
+
+  inspeccion InspeccionCalidad @relation(fields: [inspeccionId], references: [id], onDelete: Cascade)
+
+  @@index([inspeccionId])
+  @@index([estado])
+}
+
+// Fase 5: Auditoría y Logs
+enum TipoAccion {
+  Crear
+  Editar
+  Eliminar
+  Login
+  Logout
+  Exportar
+  Imprimir
+}
+
+model LogActividad {
+  id           String     @id @default(cuid())
+  usuarioId    String?
+  usuarioNombre String?
+  accion       TipoAccion
+  modulo       String
+  registroId   String?
+  descripcion  String?
+  datosAntes   String?
+  datosDespues String?
+  ip           String?
+  userAgent    String?
+  fecha        DateTime   @default(now())
+
+  @@index([usuarioId])
+  @@index([accion])
+  @@index([modulo])
+  @@index([fecha])
+}
+
+// Fase 5: Sesiones de Usuario (historial de logins)
+model SesionUsuario {
+  id         String   @id @default(cuid())
+  usuarioId  String
+  ip         String?
+  userAgent  String?
+  dispositivo String?
+  fechaInicio DateTime @default(now())
+  fechaFin    DateTime?
+  activa      Boolean  @default(true)
+
+  usuario User @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+
+  @@index([usuarioId])
+  @@index([fechaInicio])
+  @@index([activa])
+}
