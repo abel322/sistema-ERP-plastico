@@ -4,14 +4,14 @@ import { prisma } from '@/lib/db';
 import { authOptions } from '@/lib/auth-options';
 import { TipoMovimiento } from '@prisma/client';
 
+export const dynamic = 'force-dynamic';
+
 export async function POST(request: Request) {
     try {
         const session = await getServerSession(authOptions);
         if (!session) {
             return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
         }
-
-export const dynamic = 'force-dynamic';
 
         const { inventarioId, cantidad, tipo, fluidez, densidad, fecha, lote } = await request.json();
 
