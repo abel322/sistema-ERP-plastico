@@ -5,6 +5,7 @@ import { prisma } from '@/lib/db';
 import { EstadoProductoTerminado, SiguienteArea, AreaProduccion, TipoProducto } from '@prisma/client';
 import { determinarDestinoProducto } from '@/lib/producto-terminado-logic';
 export const dynamic = 'force-dynamic';
+export const runtime = 'nodejs';
 
 export async function GET(request: Request) {
   try {

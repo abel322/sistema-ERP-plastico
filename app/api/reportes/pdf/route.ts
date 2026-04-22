@@ -5,6 +5,7 @@ import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 
 export const dynamic = 'force-dynamic';
+export const runtime = 'nodejs';
 
 const generateHTML = (tipo: string, data: any, periodo: { inicio: string; fin: string }) => {
   const headerStyle = `

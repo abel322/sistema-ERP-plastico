@@ -5,6 +5,7 @@ import { AreaProduccion, EstadoProduccion, EstadoMantenimiento } from '@prisma/c
 import { authOptions } from '@/lib/auth-options';
 
 export const dynamic = 'force-dynamic';
+export const runtime = 'nodejs';
 
 
 

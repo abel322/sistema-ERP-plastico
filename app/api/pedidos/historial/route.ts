@@ -6,6 +6,7 @@ import { EstadoPedido } from '@prisma/client';
 import { startOfWeek, startOfMonth, subDays } from 'date-fns';
 
 export const dynamic = 'force-dynamic';
+export const runtime = 'nodejs';
 
 export async function GET(request: Request) {
     try {

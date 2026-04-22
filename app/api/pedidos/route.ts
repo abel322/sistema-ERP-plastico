@@ -5,6 +5,7 @@ import { prisma } from '@/lib/db';
 import { EstadoPedido, Prioridad } from '@prisma/client';
 
 export const dynamic = 'force-dynamic';
+export const runtime = 'nodejs';
 
 
 // GET - Obtener todos los pedidos con filtros

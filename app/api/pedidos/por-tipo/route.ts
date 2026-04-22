@@ -4,6 +4,7 @@ import { prisma } from '@/lib/db';
 import { authOptions } from '@/lib/auth-options';
 
 export const dynamic = 'force-dynamic';
+export const runtime = 'nodejs';
 
 // Obtener pedidos filtrados por tipo de producto del cliente
 export async function GET(request: Request) {

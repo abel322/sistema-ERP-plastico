@@ -5,6 +5,7 @@ import { EstadoDespacho } from '@prisma/client';
 import { authOptions } from '@/lib/auth-options';
 
 export const dynamic = 'force-dynamic';
+export const runtime = 'nodejs';
 
 
 

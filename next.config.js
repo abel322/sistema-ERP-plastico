@@ -18,6 +18,16 @@ const nextConfig = {
   generateBuildId: async () => {
     return 'build-' + Date.now();
   },
+  // Configuración para evitar errores de build con rutas API
+  webpack: (config, { isServer }) => {
+    if (isServer) {
+      config.externals = config.externals || [];
+      config.externals.push({
+        '@prisma/client': 'commonjs @prisma/client',
+      });
+    }
+    return config;
+  },
 };
 
 module.exports = nextConfig;

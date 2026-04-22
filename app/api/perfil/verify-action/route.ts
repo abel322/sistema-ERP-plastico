@@ -4,6 +4,7 @@ import { authOptions } from '@/lib/auth-options';
 import { verifyActionPassword } from '@/lib/verify-action-password';
 
 export const dynamic = 'force-dynamic';
+export const runtime = 'nodejs';
 
 export async function POST(request: Request) {
     try {

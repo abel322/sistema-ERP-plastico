@@ -6,6 +6,7 @@ import { prisma } from '@/lib/db';
 import bcrypt from 'bcryptjs';
 
 export const dynamic = 'force-dynamic';
+export const runtime = 'nodejs';
 
 export async function GET(
   request: Request,

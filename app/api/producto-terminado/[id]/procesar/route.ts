@@ -6,6 +6,7 @@ import { determinarDestinoProducto } from '@/lib/producto-terminado-logic';
 import { AreaProduccion } from '@prisma/client';
 
 export const dynamic = 'force-dynamic';
+export const runtime = 'nodejs';
 
 /**
  * POST: Marca un producto como procesado en su siguiente área.

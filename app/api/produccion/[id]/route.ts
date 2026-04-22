@@ -6,6 +6,7 @@ import { authOptions } from '@/lib/auth-options';
 import { determinarDestinoProducto } from '@/lib/producto-terminado-logic';
 
 export const dynamic = 'force-dynamic';
+export const runtime = 'nodejs';
 
 
 export async function GET(
