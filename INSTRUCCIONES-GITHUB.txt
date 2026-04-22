@@ -1,0 +1,98 @@
+═══════════════════════════════════════════════════════════════
+  INSTRUCCIONES PARA SUBIR EL CÓDIGO A GITHUB
+═══════════════════════════════════════════════════════════════
+
+PASO 1: CREAR EL REPOSITORIO EN GITHUB
+───────────────────────────────────────────────────────────────
+1. Abre tu navegador
+2. Ve a: https://github.com/new
+3. Completa:
+   - Repository name: erp-plasticos
+   - Description: Sistema ERP para gestión de producción de plásticos
+   - Visibilidad: Private (recomendado)
+   - ⚠️ NO marques: README, .gitignore, ni license
+4. Clic en "Create repository"
+5. COPIA TU USUARIO de la URL (ejemplo: si la URL es 
+   https://github.com/abelutrera/erp-plasticos entonces tu usuario es "abelutrera")
+
+
+PASO 2: ABRIR GIT BASH
+───────────────────────────────────────────────────────────────
+1. Presiona la tecla Windows
+2. Busca "Git Bash"
+3. Abre Git Bash
+4. Navega a tu proyecto:
+   cd ~/Documents/PROGRAMAS/app/sistema\ ERP
+
+
+PASO 3: EJECUTAR ESTOS COMANDOS EN GIT BASH
+───────────────────────────────────────────────────────────────
+Copia y pega estos comandos UNO POR UNO (reemplaza TU_USUARIO con tu usuario real):
+
+# Configurar Git (solo la primera vez)
+git config --global user.name "Abel Utrera"
+git config --global user.email "utrerabel619@gmail.com"
+
+# Conectar con GitHub (REEMPLAZA TU_USUARIO)
+git remote add origin https://github.com/TU_USUARIO/erp-plasticos.git
+
+# Renombrar rama a main
+git branch -M main
+
+# Subir código
+git push -u origin main
+
+
+EJEMPLO CON USUARIO "abelutrera":
+───────────────────────────────────────────────────────────────
+git config --global user.name "Abel Utrera"
+git config --global user.email "utrerabel619@gmail.com"
+git remote add origin https://github.com/abelutrera/erp-plasticos.git
+git branch -M main
+git push -u origin main
+
+
+SI TE PIDE CREDENCIALES:
+───────────────────────────────────────────────────────────────
+Username: Tu usuario de GitHub
+Password: NO uses tu contraseña, usa un Personal Access Token:
+
+Para crear el token:
+1. Ve a: https://github.com/settings/tokens
+2. Clic en "Generate new token" → "Generate new token (classic)"
+3. Configura:
+   - Note: ERP Plasticos Git Access
+   - Expiration: 90 days
+   - Scopes: Marca "repo" (todos los checkboxes de repo)
+4. Clic en "Generate token"
+5. COPIA EL TOKEN (solo se muestra una vez)
+6. Pégalo como password cuando Git te lo pida
+
+
+VERIFICAR QUE FUNCIONÓ:
+───────────────────────────────────────────────────────────────
+Abre tu navegador y ve a:
+https://github.com/TU_USUARIO/erp-plasticos
+
+Deberías ver todos tus archivos.
+
+
+COMANDOS ÚTILES PARA EL FUTURO:
+───────────────────────────────────────────────────────────────
+# Ver estado
+git status
+
+# Hacer cambios
+git add .
+git commit -m "Descripción de los cambios"
+git push
+
+# Ver configuración
+git remote -v
+git config --list
+
+
+═══════════════════════════════════════════════════════════════
+  ¿NECESITAS AYUDA?
+═══════════════════════════════════════════════════════════════
+Si algo no funciona, dime en qué paso estás y qué error te sale.
