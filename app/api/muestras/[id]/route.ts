@@ -4,8 +4,9 @@ import { prisma } from '@/lib/db';
 import { EstadoMuestra } from '@prisma/client';
 import { authOptions } from '@/lib/auth-options';
 
-
 export const dynamic = 'force-dynamic';
+
+
 
 export async function GET(
   request: Request,

@@ -2,9 +2,10 @@ import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth-options';
 import { prisma } from '@/lib/db';
-// Tipos de prisma omitidos para el SSR build limpio
 
 export const dynamic = 'force-dynamic';
+// Tipos de prisma omitidos para el SSR build limpio
+
 
 
 export async function GET() {

@@ -3,8 +3,9 @@ import { getServerSession } from 'next-auth';
 import { prisma } from '@/lib/db';
 import { authOptions } from '@/lib/auth-options';
 
-
 export const dynamic = 'force-dynamic';
+
+
 
 // GET: Obtener configuración de notificaciones del usuario
 export async function GET() {

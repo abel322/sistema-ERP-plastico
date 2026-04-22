@@ -3,6 +3,8 @@ import { getServerSession } from 'next-auth';
 import { prisma } from '@/lib/db';
 import { authOptions } from '@/lib/auth-options';
 
+export const dynamic = 'force-dynamic';
+
 export async function GET(request: Request) {
   try {
     const session = await getServerSession(authOptions);
@@ -10,7 +12,6 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
     }
 
-export const dynamic = 'force-dynamic';
 
     const { searchParams } = new URL(request.url);
     const year = parseInt(searchParams.get('year') || new Date().getFullYear().toString());

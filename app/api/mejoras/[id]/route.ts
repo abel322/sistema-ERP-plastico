@@ -4,8 +4,9 @@ import { prisma } from '@/lib/db';
 import { EstadoMejora } from '@prisma/client';
 import { authOptions } from '@/lib/auth-options';
 
-
 export const dynamic = 'force-dynamic';
+
+
 
 // GET: Obtener una mejora
 export async function GET(

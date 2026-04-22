@@ -3,6 +3,8 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth-options';
 import { prisma } from '@/lib/db';
 
+export const dynamic = 'force-dynamic';
+
 export async function GET(
   request: Request,
   { params }: { params: { id: string } }
@@ -13,7 +15,6 @@ export async function GET(
       return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
     }
 
-export const dynamic = 'force-dynamic';
 
     const producto = await prisma.productoTerminado.findUnique({
       where: { id: params.id },

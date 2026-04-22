@@ -4,8 +4,9 @@ import { prisma } from '@/lib/db';
 import { EstadoFactura } from '@prisma/client';
 import { authOptions } from '@/lib/auth-options';
 
-
 export const dynamic = 'force-dynamic';
+
+
 
 // Generar número de factura automático
 async function generarNumeroFactura(): Promise<string> {
