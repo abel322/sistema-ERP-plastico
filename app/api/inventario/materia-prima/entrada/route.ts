@@ -11,6 +11,8 @@ export async function POST(request: Request) {
             return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
         }
 
+export const dynamic = 'force-dynamic';
+
         const { inventarioId, cantidad, tipo, fluidez, densidad, fecha, lote } = await request.json();
 
         if (!inventarioId || !cantidad) {

@@ -20,6 +20,8 @@ export async function POST(
       return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
     }
 
+export const dynamic = 'force-dynamic';
+
     const producto = await prisma.productoTerminado.findUnique({
       where: { id: params.id },
       include: { cliente: true }

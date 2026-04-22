@@ -5,6 +5,8 @@ import { EstadoMejora } from '@prisma/client';
 import { authOptions } from '@/lib/auth-options';
 
 
+export const dynamic = 'force-dynamic';
+
 // GET: Listar mejoras continuas
 export async function GET(request: Request) {
   try {

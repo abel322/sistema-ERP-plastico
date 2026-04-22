@@ -11,6 +11,8 @@ export async function POST(
             return NextResponse.json({ error: 'Falta el id del producto' }, { status: 400 });
         }
 
+export const dynamic = 'force-dynamic';
+
         const body = await request.json().catch(() => ({}));
         const motivo = body.motivo;
 

@@ -5,6 +5,8 @@ import { TipoNotificacion } from '@prisma/client';
 import { authOptions } from '@/lib/auth-options';
 
 
+export const dynamic = 'force-dynamic';
+
 // GET: Listar notificaciones del usuario
 export async function GET(request: Request) {
   try {

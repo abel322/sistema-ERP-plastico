@@ -6,6 +6,8 @@ import { authOptions } from '@/lib/auth-options';
 import { verifyActionPassword } from '@/lib/verify-action-password';
 
 
+export const dynamic = 'force-dynamic';
+
 export async function GET(
   request: Request,
   { params }: { params: { id: string } }

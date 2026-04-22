@@ -10,6 +10,8 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
     }
 
+export const dynamic = 'force-dynamic';
+
     const body = await request.json();
     const { newPassword } = body;
 

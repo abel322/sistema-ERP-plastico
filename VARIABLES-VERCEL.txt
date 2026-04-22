@@ -1,0 +1,39 @@
+═══════════════════════════════════════════════════════════════
+  VARIABLES DE ENTORNO PARA VERCEL
+═══════════════════════════════════════════════════════════════
+
+Copia y pega estas variables una por una en Vercel:
+
+───────────────────────────────────────────────────────────────
+Variable 1: DATABASE_URL
+───────────────────────────────────────────────────────────────
+Name: DATABASE_URL
+Value: postgresql://neondb_owner:npg_2GJXFQmbKhM9@ep-withered-band-an1ie58f-pooler.c-6.us-east-1.aws.neon.tech/neondb?sslmode=require
+
+───────────────────────────────────────────────────────────────
+Variable 2: NEXTAUTH_SECRET
+───────────────────────────────────────────────────────────────
+Name: NEXTAUTH_SECRET
+Value: vRGEpoOH2tubpToZXi12YWYmiUwk35C5
+
+───────────────────────────────────────────────────────────────
+Variable 3: ABACUSAI_API_KEY
+───────────────────────────────────────────────────────────────
+Name: ABACUSAI_API_KEY
+Value: 49a1c579791a47748bc6fe316442c094
+
+───────────────────────────────────────────────────────────────
+Variable 4: NEXTAUTH_URL
+───────────────────────────────────────────────────────────────
+Name: NEXTAUTH_URL
+Value: (Déjalo vacío por ahora, lo actualizaremos después del deploy)
+
+═══════════════════════════════════════════════════════════════
+
+IMPORTANTE: Después del primer deploy, debes:
+1. Copiar la URL que te dé Vercel
+2. Ir a Settings → Environment Variables
+3. Editar NEXTAUTH_URL y poner la URL real
+4. Hacer Redeploy
+
+═══════════════════════════════════════════════════════════════

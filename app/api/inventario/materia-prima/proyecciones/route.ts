@@ -10,6 +10,8 @@ export async function GET(request: Request) {
             return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
         }
 
+export const dynamic = 'force-dynamic';
+
         // Obtener los pedidos pendientes o en proceso
         const pedidos = await prisma.pedido.findMany({
             where: {

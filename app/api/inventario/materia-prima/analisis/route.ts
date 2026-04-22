@@ -11,6 +11,8 @@ export async function GET(request: Request) {
             return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
         }
 
+export const dynamic = 'force-dynamic';
+
         // Buscamos los movimientos de los últimos 30 días
         const hace30Dias = new Date();
         hace30Dias.setDate(hace30Dias.getDate() - 30);

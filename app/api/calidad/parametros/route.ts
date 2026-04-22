@@ -4,6 +4,8 @@ import { prisma } from '@/lib/db';
 import { authOptions } from '@/lib/auth-options';
 
 
+export const dynamic = 'force-dynamic';
+
 // GET: Listar parámetros de calidad
 export async function GET(request: Request) {
   try {
