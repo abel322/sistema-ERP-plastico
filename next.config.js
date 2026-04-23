@@ -9,6 +9,10 @@ const nextConfig = {
   images: { 
     unoptimized: true 
   },
+  // Configuración específica para Vercel
+  experimental: {
+    serverComponentsExternalPackages: ['@prisma/client'],
+  },
   // Configuración para Prisma en Vercel
   webpack: (config, { isServer }) => {
     if (isServer) {
@@ -18,14 +22,6 @@ const nextConfig = {
       });
     }
     return config;
-  },
-  // Configuración para variables de entorno
-  env: {
-    CUSTOM_KEY: process.env.CUSTOM_KEY,
-  },
-  // Build ID para forzar rebuild
-  generateBuildId: async () => {
-    return 'vercel-fix-' + Date.now();
   },
 };
 
