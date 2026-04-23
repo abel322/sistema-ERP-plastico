@@ -1,24 +1,15 @@
-const path = require('path');
-
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  distDir: process.env.NEXT_DIST_DIR || '.next',
-  output: process.env.NEXT_OUTPUT_MODE,
-  experimental: {
-    outputFileTracingRoot: path.join(__dirname, '../'),
-  },
   eslint: {
     ignoreDuringBuilds: true,
   },
   typescript: {
     ignoreBuildErrors: true,
   },
-  images: { unoptimized: true },
-  // Evitar que Next.js intente pre-renderizar rutas API durante el build
-  generateBuildId: async () => {
-    return 'build-' + Date.now();
+  images: { 
+    unoptimized: true 
   },
-  // Configuración para evitar errores de build con rutas API
+  // Configuración para Prisma en Vercel
   webpack: (config, { isServer }) => {
     if (isServer) {
       config.externals = config.externals || [];
@@ -27,6 +18,14 @@ const nextConfig = {
       });
     }
     return config;
+  },
+  // Configuración para variables de entorno
+  env: {
+    CUSTOM_KEY: process.env.CUSTOM_KEY,
+  },
+  // Build ID para forzar rebuild
+  generateBuildId: async () => {
+    return 'vercel-fix-' + Date.now();
   },
 };
 
