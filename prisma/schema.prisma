@@ -262,6 +262,43 @@ model Cliente {
   cilindro             String?
   tipoImpresion        String?
 
+  // Parámetros de Máquinas - Extrusión
+  extTemperaturaAmbiente      Float?
+  extMotorPrincipal           Float?
+  extTraccion                 Float?
+  extSopladorPrincipal        Float?
+  extAberturaBlower           Float?
+  extCuelloGlobo              Float?
+  extTemperaturaCuelloGlobo   Float?
+  extTraccionRebobinador      Float?
+  extRebobinadorWinding1      Float?
+  extRebobinadorWinding2      Float?
+  extIntensidadTratador       Float?
+  extTemperaturaZ1            Int?
+  extTemperaturaZ2            Int?
+  extTemperaturaZ3            Int?
+  extTemperaturaZ4            Int?
+  extTemperaturaZ5            Int?
+  extTemperaturaZ6            Int?
+  extTemperaturaZ7            Int?
+  extTemperaturaZ8            Int?
+  extTemperaturaZ9            Int?
+  extTemperaturaZ10           Int?
+  extTemperaturaZ11           Int?
+  extTemperaturaZ12           Int?
+  extTemperaturaZ13           Int?
+  extTemperaturaZ14           Int?
+  extTemperaturaZ15           Int?
+  extTemperaturaZ16           Int?
+  extTemperaturaZ17           Int?
+  extTemperaturaZ18           Int?
+  extTemperaturaZ19           Int?
+  extTemperaturaZ20           Int?
+  extOrientacionFlujoBlower   Float?
+
+  // Parámetros de Máquinas - Sellado (reservado para futuro)
+  // Campos de sellado se agregarán cuando se definan los parámetros
+
   pedidos            Pedido[]
   despachos          Despacho[]
   muestras           Muestra[]

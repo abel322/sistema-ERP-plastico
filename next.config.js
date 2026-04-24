@@ -1,5 +1,6 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  output: 'standalone',
   eslint: {
     ignoreDuringBuilds: true,
   },
@@ -9,19 +10,8 @@ const nextConfig = {
   images: { 
     unoptimized: true 
   },
-  // Configuración específica para Vercel
   experimental: {
     serverComponentsExternalPackages: ['@prisma/client'],
-  },
-  // Configuración para Prisma en Vercel
-  webpack: (config, { isServer }) => {
-    if (isServer) {
-      config.externals = config.externals || [];
-      config.externals.push({
-        '@prisma/client': 'commonjs @prisma/client',
-      });
-    }
-    return config;
   },
 };
 
