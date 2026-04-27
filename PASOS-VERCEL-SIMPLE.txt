@@ -1,0 +1,91 @@
+═══════════════════════════════════════════════════════════════
+  PASOS PARA DESPLEGAR EN VERCEL (SIMPLE Y RÁPIDO)
+═══════════════════════════════════════════════════════════════
+
+PASO 1: IMPORTAR PROYECTO
+───────────────────────────────────────────────────────────────
+✓ Ya se abrió Vercel en tu navegador
+1. Inicia sesión con GitHub
+2. Busca: "sistema-ERP-plastico"
+3. Clic en "Import"
+
+
+PASO 2: AGREGAR VARIABLES DE ENTORNO
+───────────────────────────────────────────────────────────────
+Antes de hacer clic en "Deploy", expande "Environment Variables"
+y agrega estas 4 variables:
+
+┌─────────────────────────────────────────────────────────────┐
+│ Variable 1: DATABASE_URL                                    │
+├─────────────────────────────────────────────────────────────┤
+│ postgresql://neondb_owner:npg_2GJXFQmbKhM9@ep-withered-    │
+│ band-an1ie58f-pooler.c-6.us-east-1.aws.neon.tech/neondb?   │
+│ sslmode=require                                             │
+└─────────────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────────────┐
+│ Variable 2: NEXTAUTH_SECRET                                 │
+├─────────────────────────────────────────────────────────────┤
+│ vRGEpoOH2tubpToZXi12YWYmiUwk35C5                            │
+└─────────────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────────────┐
+│ Variable 3: ABACUSAI_API_KEY                                │
+├─────────────────────────────────────────────────────────────┤
+│ 49a1c579791a47748bc6fe316442c094                            │
+└─────────────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────────────┐
+│ Variable 4: NEXTAUTH_URL                                    │
+├─────────────────────────────────────────────────────────────┤
+│ (Déjala vacía por ahora, la actualizaremos después)        │
+└─────────────────────────────────────────────────────────────┘
+
+
+PASO 3: DESPLEGAR
+───────────────────────────────────────────────────────────────
+1. Clic en "Deploy"
+2. Espera 2-5 minutos
+3. ¡Listo! Vercel te dará una URL
+
+
+PASO 4: ACTUALIZAR NEXTAUTH_URL (IMPORTANTE)
+───────────────────────────────────────────────────────────────
+1. Copia la URL que te dio Vercel
+   (ejemplo: https://sistema-erp-plastico.vercel.app)
+
+2. Ve a tu proyecto en Vercel → Settings → Environment Variables
+
+3. Busca NEXTAUTH_URL y haz clic en "Edit"
+
+4. Pega la URL que copiaste
+
+5. Clic en "Save"
+
+6. Ve a Deployments → Clic en los 3 puntos → "Redeploy"
+
+
+PASO 5: SINCRONIZAR BASE DE DATOS
+───────────────────────────────────────────────────────────────
+En tu computadora, ejecuta:
+
+npx prisma db push
+
+
+PASO 6: CREAR USUARIO ADMINISTRADOR
+───────────────────────────────────────────────────────────────
+1. Ve a: https://tu-proyecto.vercel.app/registro
+
+2. Regístrate con tu email
+
+3. En tu computadora, ejecuta:
+   npm run make-admin tu-email@ejemplo.com
+
+
+═══════════════════════════════════════════════════════════════
+  ¡LISTO! Tu aplicación está en la nube 🎉
+═══════════════════════════════════════════════════════════════
+
+Cada vez que hagas "git push", Vercel desplegará automáticamente.
+
+Para más detalles, lee: DESPLEGAR-VERCEL.md
