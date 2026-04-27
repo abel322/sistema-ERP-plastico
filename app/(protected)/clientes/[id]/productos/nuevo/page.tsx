@@ -1053,6 +1053,407 @@ export default function NuevoProductoPage() {
                       )}
                     </div>
                   </div>
+
+                  {/* Presellado y Tiempo (Solo Válvula) */}
+                  {formData.sldTipoSelladora === 'valvula' && (
+                    <div className="border-t pt-6">
+                      <h3 className="text-lg font-semibold text-gray-900 mb-4">Presellado y Tiempo</h3>
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">
+                            Presellado A
+                          </label>
+                          <input
+                            type="number"
+                            value={formData.sldPresellado_A || ''}
+                            onChange={(e) => handleChange('sldPresellado_A', e.target.value ? parseInt(e.target.value) : null)}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">
+                            Presellado B
+                          </label>
+                          <input
+                            type="number"
+                            value={formData.sldPresellado_B || ''}
+                            onChange={(e) => handleChange('sldPresellado_B', e.target.value ? parseInt(e.target.value) : null)}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">
+                            Tiempo Límite
+                          </label>
+                          <input
+                            type="number"
+                            value={formData.sldTiempoLimite || ''}
+                            onChange={(e) => handleChange('sldTiempoLimite', e.target.value ? parseInt(e.target.value) : null)}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">
+                            Microperforaciones
+                          </label>
+                          <input
+                            type="text"
+                            value={formData.sldMicroperforaciones || ''}
+                            onChange={(e) => handleChange('sldMicroperforaciones', e.target.value)}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">
+                            Muleteado
+                          </label>
+                          <input
+                            type="text"
+                            value={formData.sldMuleteado || ''}
+                            onChange={(e) => handleChange('sldMuleteado', e.target.value)}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Parámetros Generales de Máquina */}
+                  <div className="border-t pt-6">
+                    <h3 className="text-lg font-semibold text-gray-900 mb-4">Parámetros de Máquina</h3>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          Rodillo Ancho Válvula
+                        </label>
+                        <input
+                          type="number"
+                          value={formData.sldRodilloAnchoValvula || ''}
+                          onChange={(e) => handleChange('sldRodilloAnchoValvula', e.target.value ? parseInt(e.target.value) : null)}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          GPM
+                        </label>
+                        <input
+                          type="number"
+                          value={formData.sldGPM || ''}
+                          onChange={(e) => handleChange('sldGPM', e.target.value ? parseInt(e.target.value) : null)}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        />
+                      </div>
+                      {(formData.sldTipoSelladora === 'valvula' || formData.sldTipoSelladora === 'bolsaPollo') && (
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">
+                            Velocidad Transportador
+                          </label>
+                          <input
+                            type="number"
+                            step="0.01"
+                            value={formData.sldVelocidadTransportador || ''}
+                            onChange={(e) => handleChange('sldVelocidadTransportador', e.target.value ? parseFloat(e.target.value) : null)}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                          />
+                        </div>
+                      )}
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          Ciclo de Trabajo
+                        </label>
+                        <input
+                          type="number"
+                          step="0.01"
+                          value={formData.sldCicloTrabajo || ''}
+                          onChange={(e) => handleChange('sldCicloTrabajo', e.target.value ? parseFloat(e.target.value) : null)}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        />
+                      </div>
+                      {formData.sldTipoSelladora === 'bolsaPollo' && (
+                        <>
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">
+                              Presión Ventosa
+                            </label>
+                            <input
+                              type="number"
+                              step="0.01"
+                              value={formData.sldPresionVentosa || ''}
+                              onChange={(e) => handleChange('sldPresionVentosa', e.target.value ? parseFloat(e.target.value) : null)}
+                              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">
+                              Tensión Principal
+                            </label>
+                            <input
+                              type="number"
+                              step="0.01"
+                              value={formData.sldTensionPrincipal || ''}
+                              onChange={(e) => handleChange('sldTensionPrincipal', e.target.value ? parseFloat(e.target.value) : null)}
+                              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                            />
+                          </div>
+                        </>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Presiones de Balancines */}
+                  <div className="border-t pt-6">
+                    <h3 className="text-lg font-semibold text-gray-900 mb-4">Presiones de Balancines</h3>
+                    {formData.sldTipoSelladora !== 'bolsaASA' ? (
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">
+                            Presión Balancín 1
+                          </label>
+                          <input
+                            type="number"
+                            step="0.01"
+                            value={formData.sldPresionBalancin1 || ''}
+                            onChange={(e) => handleChange('sldPresionBalancin1', e.target.value ? parseFloat(e.target.value) : null)}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">
+                            Presión Balancín 2
+                          </label>
+                          <input
+                            type="number"
+                            step="0.01"
+                            value={formData.sldPresionBalancin2 || ''}
+                            onChange={(e) => handleChange('sldPresionBalancin2', e.target.value ? parseFloat(e.target.value) : null)}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">
+                            Presión Balancín 3
+                          </label>
+                          <input
+                            type="number"
+                            step="0.01"
+                            value={formData.sldPresionBalancin3 || ''}
+                            onChange={(e) => handleChange('sldPresionBalancin3', e.target.value ? parseFloat(e.target.value) : null)}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                          />
+                        </div>
+                      </div>
+                    ) : (
+                      <>
+                        <div className="mb-4">
+                          <h4 className="text-sm font-semibold text-gray-600 mb-2">Línea A</h4>
+                          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                            {[1, 2, 3, 4].map((num) => (
+                              <div key={num}>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">
+                                  Balancín A{num}
+                                </label>
+                                <input
+                                  type="number"
+                                  step="0.01"
+                                  value={formData[`sldPresionBalancinA${num}`] || ''}
+                                  onChange={(e) => handleChange(`sldPresionBalancinA${num}`, e.target.value ? parseFloat(e.target.value) : null)}
+                                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                />
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                        <div>
+                          <h4 className="text-sm font-semibold text-gray-600 mb-2">Línea B</h4>
+                          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                            {[1, 2, 3, 4].map((num) => (
+                              <div key={num}>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">
+                                  Balancín B{num}
+                                </label>
+                                <input
+                                  type="number"
+                                  step="0.01"
+                                  value={formData[`sldPresionBalancinB${num}`] || ''}
+                                  onChange={(e) => handleChange(`sldPresionBalancinB${num}`, e.target.value ? parseFloat(e.target.value) : null)}
+                                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                />
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      </>
+                    )}
+                  </div>
+
+                  {/* Parámetros de Altura y Medidas */}
+                  <div className="border-t pt-6">
+                    <h3 className="text-lg font-semibold text-gray-900 mb-4">Alturas y Medidas</h3>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          Altura Cabezal Ext. Derecho
+                        </label>
+                        <input
+                          type="number"
+                          step="0.01"
+                          value={formData.sldAlturaCabezalExtDerecho || ''}
+                          onChange={(e) => handleChange('sldAlturaCabezalExtDerecho', e.target.value ? parseFloat(e.target.value) : null)}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          Altura Cabezal Ext. Izquierdo
+                        </label>
+                        <input
+                          type="number"
+                          step="0.01"
+                          value={formData.sldAlturaCabezalExtIzquierdo || ''}
+                          onChange={(e) => handleChange('sldAlturaCabezalExtIzquierdo', e.target.value ? parseFloat(e.target.value) : null)}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          Banda Transportadora
+                        </label>
+                        <input
+                          type="number"
+                          step="0.01"
+                          value={formData.sldBandaTransportadora || ''}
+                          onChange={(e) => handleChange('sldBandaTransportadora', e.target.value ? parseFloat(e.target.value) : null)}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          Medida Portabobina
+                        </label>
+                        <input
+                          type="number"
+                          value={formData.sldMedidaPortabobina || ''}
+                          onChange={(e) => handleChange('sldMedidaPortabobina', e.target.value ? parseInt(e.target.value) : null)}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          Ajuste Sensor Fail
+                        </label>
+                        <input
+                          type="number"
+                          value={formData.sldAjusteSensorFail || ''}
+                          onChange={(e) => handleChange('sldAjusteSensorFail', e.target.value ? parseInt(e.target.value) : null)}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Parámetros de Presión y Soplado */}
+                  <div className="border-t pt-6">
+                    <h3 className="text-lg font-semibold text-gray-900 mb-4">Presiones y Soplado</h3>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          Presión Soplado Arriba
+                        </label>
+                        <input
+                          type="number"
+                          step="0.01"
+                          value={formData.sldPresionSopladoArriba || ''}
+                          onChange={(e) => handleChange('sldPresionSopladoArriba', e.target.value ? parseFloat(e.target.value) : null)}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          Presión Soplado Abajo
+                        </label>
+                        <input
+                          type="number"
+                          step="0.01"
+                          value={formData.sldPresionSopladoAbajo || ''}
+                          onChange={(e) => handleChange('sldPresionSopladoAbajo', e.target.value ? parseFloat(e.target.value) : null)}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          Presión Rodillo Servo L
+                        </label>
+                        <input
+                          type="number"
+                          step="0.01"
+                          value={formData.sldPresionRodilloServoL || ''}
+                          onChange={(e) => handleChange('sldPresionRodilloServoL', e.target.value ? parseFloat(e.target.value) : null)}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          Presión Rodillo Servo R
+                        </label>
+                        <input
+                          type="number"
+                          step="0.01"
+                          value={formData.sldPresionRodilloServoR || ''}
+                          onChange={(e) => handleChange('sldPresionRodilloServoR', e.target.value ? parseFloat(e.target.value) : null)}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          Soplar Inicio
+                        </label>
+                        <input
+                          type="number"
+                          value={formData.sldSoplarInicio || ''}
+                          onChange={(e) => handleChange('sldSoplarInicio', e.target.value ? parseInt(e.target.value) : null)}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          Soplar Terminar
+                        </label>
+                        <input
+                          type="number"
+                          value={formData.sldSoplarTerminar || ''}
+                          onChange={(e) => handleChange('sldSoplarTerminar', e.target.value ? parseInt(e.target.value) : null)}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        />
+                      </div>
+                      {formData.sldTipoSelladora === 'bolsaPollo' && (
+                        <>
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">
+                              Silicona Inicio Ventosa
+                            </label>
+                            <input
+                              type="number"
+                              value={formData.sldSiliconaInicioVentoza || ''}
+                              onChange={(e) => handleChange('sldSiliconaInicioVentoza', e.target.value ? parseInt(e.target.value) : null)}
+                              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">
+                              Silicona Terminar Ventosa
+                            </label>
+                            <input
+                              type="number"
+                              value={formData.sldSiliconaTerminarVentoza || ''}
+                              onChange={(e) => handleChange('sldSiliconaTerminarVentoza', e.target.value ? parseInt(e.target.value) : null)}
+                              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                            />
+                          </div>
+                        </>
+                      )}
+                    </div>
+                  </div>
                 </>
               )}
             </div>
