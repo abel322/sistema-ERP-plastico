@@ -304,7 +304,380 @@ export default function NuevoProductoPage() {
             </div>
           )}
 
-          {/* Otros tabs se pueden agregar aquí siguiendo el mismo patrón */}
+          {/* Tab: Formulación */}
+          {activeTab === 'formulacion' && (
+            <div className="space-y-6">
+              <h2 className="text-xl font-bold text-gray-900 mb-4">Formulación de Materia Prima (%)</h2>
+              
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                {[
+                  { key: 'formFB7000', label: 'FB7000' },
+                  { key: 'form3003', label: '3003' },
+                  { key: 'formLineal', label: 'Lineal' },
+                  { key: 'form0240', label: '0240' },
+                  { key: 'form0348', label: '0348' },
+                  { key: 'form7000F', label: '7000F' },
+                  { key: 'formDeslizante', label: 'Deslizante' },
+                  { key: 'formMasterbachBlanco', label: 'Masterbach Blanco' },
+                  { key: 'formMasterbachNegro', label: 'Masterbach Negro' },
+                  { key: 'formMasterbachAzul', label: 'Masterbach Azul' },
+                  { key: 'formMasterbachAmarillo', label: 'Masterbach Amarillo' },
+                ].map((field) => (
+                  <div key={field.key}>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      {field.label} (%)
+                    </label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      max="100"
+                      value={formData[field.key] || ''}
+                      onChange={(e) => handleChange(field.key, e.target.value ? parseFloat(e.target.value) : null)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    />
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Tab: Serigrafía */}
+          {activeTab === 'serigrafia' && (
+            <div className="space-y-6">
+              <h2 className="text-xl font-bold text-gray-900 mb-4">Serigrafía</h2>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {[1, 2, 3, 4, 5, 6].map((num) => (
+                  <div key={num}>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Color {num}
+                    </label>
+                    <input
+                      type="text"
+                      value={formData[`color${num}`] || ''}
+                      onChange={(e) => handleChange(`color${num}`, e.target.value)}
+                      placeholder={`Ej: Rojo, Azul, etc.`}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    />
+                  </div>
+                ))}
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Cilindro Base
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.cilindro || ''}
+                    onChange={(e) => handleChange('cilindro', e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Tipo de Impresión
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.tipoImpresion || ''}
+                    onChange={(e) => handleChange('tipoImpresion', e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Tratador - Intensidad
+                  </label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    value={formData.serigrafiaTratadorIntensidad || ''}
+                    onChange={(e) => handleChange('serigrafiaTratadorIntensidad', e.target.value ? parseFloat(e.target.value) : null)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  />
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Tab: Extrusión */}
+          {activeTab === 'extrusion' && (
+            <div className="space-y-6">
+              <h2 className="text-xl font-bold text-gray-900 mb-4">Parámetros de Extrusión</h2>
+              
+              <div className="space-y-6">
+                <div>
+                  <h3 className="text-lg font-semibold text-gray-900 mb-4">Parámetros Generales</h3>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    {[
+                      { key: 'extTemperaturaAmbiente', label: 'Temperatura Ambiente' },
+                      { key: 'extMotorPrincipal', label: 'Motor Principal' },
+                      { key: 'extTraccion', label: 'Tracción' },
+                      { key: 'extSopladorPrincipal', label: 'Soplador Principal' },
+                      { key: 'extAberturaBlower', label: 'Abertura Blower' },
+                      { key: 'extCuelloGlobo', label: 'Cuello Globo' },
+                      { key: 'extTemperaturaCuelloGlobo', label: 'Temperatura Cuello Globo' },
+                      { key: 'extTraccionRebobinador', label: 'Tracción Rebobinador' },
+                      { key: 'extRebobinadorWinding1', label: 'Rebobinador Winding 1' },
+                      { key: 'extRebobinadorWinding2', label: 'Rebobinador Winding 2' },
+                      { key: 'extIntensidadTratador', label: 'Intensidad Tratador' },
+                      { key: 'extOrientacionFlujoBlower', label: 'Orientación Flujo Blower' },
+                    ].map((field) => (
+                      <div key={field.key}>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          {field.label}
+                        </label>
+                        <input
+                          type="number"
+                          step="0.01"
+                          value={formData[field.key] || ''}
+                          onChange={(e) => handleChange(field.key, e.target.value ? parseFloat(e.target.value) : null)}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        />
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="border-t pt-6">
+                  <h3 className="text-lg font-semibold text-gray-900 mb-4">Temperaturas por Zona (°C)</h3>
+                  <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+                    {Array.from({ length: 20 }, (_, i) => i + 1).map((num) => (
+                      <div key={num}>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          Zona {num}
+                        </label>
+                        <input
+                          type="number"
+                          value={formData[`extTemperaturaZ${num}`] || ''}
+                          onChange={(e) => handleChange(`extTemperaturaZ${num}`, e.target.value ? parseInt(e.target.value) : null)}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        />
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Tab: Sellado */}
+          {activeTab === 'sellado' && (
+            <div className="space-y-6">
+              <h2 className="text-xl font-bold text-gray-900 mb-4">Parámetros de Sellado</h2>
+              
+              <div className="mb-6">
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Tipo de Selladora
+                </label>
+                <select
+                  value={formData.sldTipoSelladora || ''}
+                  onChange={(e) => handleChange('sldTipoSelladora', e.target.value)}
+                  className="w-full max-w-xs px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                >
+                  <option value="">Seleccionar...</option>
+                  <option value="valvula">Selladora de Válvula</option>
+                  <option value="bolsaASA">Selladora de Bolsa ASA</option>
+                  <option value="bolsaPollo">Selladora de Bolsa de Pollo</option>
+                </select>
+              </div>
+
+              {formData.sldTipoSelladora && (
+                <>
+                  <div className="border-t pt-6">
+                    <h3 className="text-lg font-semibold text-gray-900 mb-4">Parámetros Generales</h3>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      {(formData.sldTipoSelladora === 'valvula' || formData.sldTipoSelladora === 'bolsaASA') && (
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">
+                            Capacidad de Bolsa
+                          </label>
+                          <input
+                            type="number"
+                            value={formData.sldCapacidadBolsa || ''}
+                            onChange={(e) => handleChange('sldCapacidadBolsa', e.target.value ? parseInt(e.target.value) : null)}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                          />
+                        </div>
+                      )}
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          Temperatura Ambiente (°C)
+                        </label>
+                        <input
+                          type="number"
+                          step="0.01"
+                          value={formData.sldTemperaturaAmbiente || ''}
+                          onChange={(e) => handleChange('sldTemperaturaAmbiente', e.target.value ? parseFloat(e.target.value) : null)}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          Tornillo de Esparrago
+                        </label>
+                        <input
+                          type="number"
+                          step="0.01"
+                          value={formData.sldTornilloEsparrago || ''}
+                          onChange={(e) => handleChange('sldTornilloEsparrago', e.target.value ? parseFloat(e.target.value) : null)}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="border-t pt-6">
+                    <h3 className="text-lg font-semibold text-gray-900 mb-4">Temperaturas</h3>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      {formData.sldTipoSelladora === 'valvula' && (
+                        <>
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">
+                              Temperatura Superior (°C)
+                            </label>
+                            <input
+                              type="number"
+                              value={formData.sldTempSuperior || ''}
+                              onChange={(e) => handleChange('sldTempSuperior', e.target.value ? parseInt(e.target.value) : null)}
+                              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">
+                              Temperatura Inferior (°C)
+                            </label>
+                            <input
+                              type="number"
+                              value={formData.sldTempInferior || ''}
+                              onChange={(e) => handleChange('sldTempInferior', e.target.value ? parseInt(e.target.value) : null)}
+                              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">
+                              Temperatura Válvula (°C)
+                            </label>
+                            <input
+                              type="number"
+                              value={formData.sldTempValvula || ''}
+                              onChange={(e) => handleChange('sldTempValvula', e.target.value ? parseInt(e.target.value) : null)}
+                              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                            />
+                          </div>
+                        </>
+                      )}
+                      
+                      {formData.sldTipoSelladora === 'bolsaASA' && (
+                        <>
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">
+                              Temp. Superior Línea A (°C)
+                            </label>
+                            <input
+                              type="number"
+                              value={formData.sldTempSuperiorLineaA || ''}
+                              onChange={(e) => handleChange('sldTempSuperiorLineaA', e.target.value ? parseInt(e.target.value) : null)}
+                              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">
+                              Temp. Inferior Línea A (°C)
+                            </label>
+                            <input
+                              type="number"
+                              value={formData.sldTempInferiorLineaA || ''}
+                              onChange={(e) => handleChange('sldTempInferiorLineaA', e.target.value ? parseInt(e.target.value) : null)}
+                              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">
+                              Temp. Superior Línea B (°C)
+                            </label>
+                            <input
+                              type="number"
+                              value={formData.sldTempSuperiorLineaB || ''}
+                              onChange={(e) => handleChange('sldTempSuperiorLineaB', e.target.value ? parseInt(e.target.value) : null)}
+                              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">
+                              Temp. Inferior Línea B (°C)
+                            </label>
+                            <input
+                              type="number"
+                              value={formData.sldTempInferiorLineaB || ''}
+                              onChange={(e) => handleChange('sldTempInferiorLineaB', e.target.value ? parseInt(e.target.value) : null)}
+                              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                            />
+                          </div>
+                        </>
+                      )}
+
+                      {formData.sldTipoSelladora === 'bolsaPollo' && (
+                        <>
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">
+                              Temperatura de Troquel (°C)
+                            </label>
+                            <input
+                              type="number"
+                              value={formData.sldTempTroquel || ''}
+                              onChange={(e) => handleChange('sldTempTroquel', e.target.value ? parseInt(e.target.value) : null)}
+                              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">
+                              Temp. Superior Recta (°C)
+                            </label>
+                            <input
+                              type="number"
+                              value={formData.sldTempSuperiorRecta || ''}
+                              onChange={(e) => handleChange('sldTempSuperiorRecta', e.target.value ? parseInt(e.target.value) : null)}
+                              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">
+                              Temp. Superior Curva (°C)
+                            </label>
+                            <input
+                              type="number"
+                              value={formData.sldTempSuperiorCurva || ''}
+                              onChange={(e) => handleChange('sldTempSuperiorCurva', e.target.value ? parseInt(e.target.value) : null)}
+                              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                            />
+                          </div>
+                        </>
+                      )}
+
+                      {(formData.sldTipoSelladora === 'valvula' || formData.sldTipoSelladora === 'bolsaASA') && (
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">
+                            Temperatura de Cuchilla (°C)
+                          </label>
+                          <input
+                            type="number"
+                            step="0.01"
+                            value={formData.sldTempCuchilla || ''}
+                            onChange={(e) => handleChange('sldTempCuchilla', e.target.value ? parseFloat(e.target.value) : null)}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                          />
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </>
+              )}
+            </div>
+          )}
         </div>
 
         {/* Footer con botones */}
