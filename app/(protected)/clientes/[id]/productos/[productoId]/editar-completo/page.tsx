@@ -746,37 +746,6 @@ export default function EditarCompletoPage() {
                   </div>
                 )}
               </div>
-                  {/* Campos calculados para lámina rebobinador */}
-                  {formData.tipoBobinaCliente === 'Lamina' && (
-                    <>
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">
-                          Lámina Rebobinador Ancho (cm) - Calculado
-                        </label>
-                        <input
-                          type="number"
-                          step="0.01"
-                          value={formData.laminaRebobinadorAncho || ''}
-                          readOnly
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-50 text-gray-600"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">
-                          Lámina Rebobinador Calibre (µ) - Calculado
-                        </label>
-                        <input
-                          type="number"
-                          step="0.01"
-                          value={formData.laminaRebobinadorCalibre || ''}
-                          readOnly
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-50 text-gray-600"
-                        />
-                      </div>
-                    </>
-                  )}
-                </div>
-              </div>
 
               <div className="border-t pt-6">
                 <label className="flex items-center gap-2">
