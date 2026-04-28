@@ -290,6 +290,355 @@ export default function NuevoProductoPage() {
                 </div>
               </div>
 
+              {/* Tipos de Bolsa */}
+              <div className="border-t pt-6">
+                <h3 className="text-lg font-semibold text-gray-900 mb-4">Tipo de Bolsa</h3>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div>
+                    <label className="flex items-center gap-2">
+                      <input
+                        type="checkbox"
+                        checked={formData.esBolsaPego || false}
+                        onChange={(e) => handleChange('esBolsaPego', e.target.checked)}
+                        className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                      />
+                      <span className="text-sm font-medium text-gray-700">Bolsa de Pego/Válvula</span>
+                    </label>
+                  </div>
+                  <div>
+                    <label className="flex items-center gap-2">
+                      <input
+                        type="checkbox"
+                        checked={formData.esBolsaFuelle || false}
+                        onChange={(e) => handleChange('esBolsaFuelle', e.target.checked)}
+                        className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                      />
+                      <span className="text-sm font-medium text-gray-700">Con Fuelle</span>
+                    </label>
+                  </div>
+                  {formData.tipoProducto === 'Bobina' && (
+                    <div>
+                      <label className="flex items-center gap-2">
+                        <input
+                          type="checkbox"
+                          checked={formData.esTermoencogible || false}
+                          onChange={(e) => handleChange('esTermoencogible', e.target.checked)}
+                          className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                        />
+                        <span className="text-sm font-medium text-gray-700">Termoencogible</span>
+                      </label>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Dimensiones */}
+              <div className="border-t pt-6">
+                <h3 className="text-lg font-semibold text-gray-900 mb-4">Dimensiones</h3>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  {/* Dimensiones para Bobina */}
+                  {formData.tipoProducto === 'Bobina' ? (
+                    <>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          Ancho Bobina (cm)
+                        </label>
+                        <input
+                          type="number"
+                          step="0.01"
+                          value={formData.anchoBobina || ''}
+                          onChange={(e) => handleChange('anchoBobina', e.target.value ? parseFloat(e.target.value) : null)}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        />
+                      </div>
+                      {formData.conImpresion && (
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">
+                            Diámetro Ancho Bolsa (cm)
+                          </label>
+                          <input
+                            type="number"
+                            step="0.01"
+                            value={formData.diametroAnchoBolsa || ''}
+                            onChange={(e) => handleChange('diametroAnchoBolsa', e.target.value ? parseFloat(e.target.value) : null)}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                          />
+                        </div>
+                      )}
+                    </>
+                  ) : (
+                    /* Dimensiones para Bolsa */
+                    <>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          Ancho (cm)
+                        </label>
+                        <input
+                          type="number"
+                          step="0.01"
+                          value={formData.ancho || ''}
+                          onChange={(e) => handleChange('ancho', e.target.value ? parseFloat(e.target.value) : null)}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          Largo (cm)
+                        </label>
+                        <input
+                          type="number"
+                          step="0.01"
+                          value={formData.largo || ''}
+                          onChange={(e) => handleChange('largo', e.target.value ? parseFloat(e.target.value) : null)}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        />
+                      </div>
+
+                      {/* Campos adicionales para bolsa de pego */}
+                      {formData.esBolsaPego && (
+                        <>
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">
+                              Ancho Válvula (cm)
+                            </label>
+                            <input
+                              type="number"
+                              step="0.01"
+                              value={formData.anchoValvula || ''}
+                              onChange={(e) => handleChange('anchoValvula', e.target.value ? parseFloat(e.target.value) : null)}
+                              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">
+                              Ancho Solapa (cm)
+                            </label>
+                            <input
+                              type="number"
+                              step="0.01"
+                              value={formData.anchoSolapa || ''}
+                              onChange={(e) => handleChange('anchoSolapa', e.target.value ? parseFloat(e.target.value) : null)}
+                              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                            />
+                          </div>
+                        </>
+                      )}
+
+                      {/* Campo adicional para bolsa con fuelle */}
+                      {(formData.esBolsaPego || formData.esBolsaFuelle) && (
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">
+                            Ancho Fuelle (cm)
+                          </label>
+                          <input
+                            type="number"
+                            step="0.01"
+                            value={formData.anchoFuelle || ''}
+                            onChange={(e) => handleChange('anchoFuelle', e.target.value ? parseFloat(e.target.value) : null)}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                          />
+                        </div>
+                      )}
+                    </>
+                  )}
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Calibre (µ)
+                    </label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      value={formData.calibre || ''}
+                      onChange={(e) => handleChange('calibre', e.target.value ? parseFloat(e.target.value) : null)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    />
+                  </div>
+
+                  {/* Peso por unidad (calculado automáticamente) */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Peso por Unidad (g) - Calculado
+                    </label>
+                    <input
+                      type="number"
+                      step="0.001"
+                      value={formData.pesoPorUnidad || ''}
+                      readOnly
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-50 text-gray-600"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Atributos de Sellado - Solo para Bolsas */}
+              {formData.tipoProducto === 'Bolsa' && (
+                <div className="border-t pt-6">
+                  <h3 className="text-lg font-semibold text-gray-900 mb-4">Atributos de Sellado</h3>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Tipo de Sellado
+                      </label>
+                      <select
+                        value={formData.tipoSellado || ''}
+                        onChange={(e) => handleChange('tipoSellado', e.target.value)}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      >
+                        <option value="">Seleccionar...</option>
+                        <option value="Inferior">Inferior</option>
+                        <option value="Lateral">Lateral</option>
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Tipo Sellado Estructura
+                      </label>
+                      <select
+                        value={formData.tipoSelladoEstructura || ''}
+                        onChange={(e) => handleChange('tipoSelladoEstructura', e.target.value)}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      >
+                        <option value="">Seleccionar...</option>
+                        <option value="Simple">Simple</option>
+                        <option value="Doble">Doble</option>
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Bolsas por Rollo
+                      </label>
+                      <input
+                        type="number"
+                        value={formData.bolsasPorRollo || ''}
+                        onChange={(e) => handleChange('bolsasPorRollo', e.target.value ? parseInt(e.target.value) : null)}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Rollos por Bulto
+                      </label>
+                      <input
+                        type="number"
+                        value={formData.rollosPorBulto || ''}
+                        onChange={(e) => handleChange('rollosPorBulto', e.target.value ? parseInt(e.target.value) : null)}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="flex items-center gap-2">
+                        <input
+                          type="checkbox"
+                          checked={formData.perforacion || false}
+                          onChange={(e) => handleChange('perforacion', e.target.checked)}
+                          className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                        />
+                        <span className="text-sm font-medium text-gray-700">Perforación</span>
+                      </label>
+                    </div>
+
+                    {formData.conImpresion && (
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          Repeticiones Imagen
+                        </label>
+                        <input
+                          type="number"
+                          value={formData.repeticionesImagen || ''}
+                          onChange={(e) => handleChange('repeticionesImagen', e.target.value ? parseInt(e.target.value) : null)}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        />
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* Atributos de Bobina */}
+              <div className="border-t pt-6">
+                <h3 className="text-lg font-semibold text-gray-900 mb-4">Atributos de Bobina</h3>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Tipo Bobina Cliente
+                    </label>
+                    <select
+                      value={formData.tipoBobinaCliente || ''}
+                      onChange={(e) => handleChange('tipoBobinaCliente', e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    >
+                      <option value="">Seleccionar...</option>
+                      <option value="Lamina">Lámina</option>
+                      <option value="Manga">Manga</option>
+                      <option value="MangaConFuelle">Manga con Fuelle</option>
+                    </select>
+                  </div>
+
+                  {formData.esTermoencogible && (
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Peso Máximo Bobina (kg)
+                      </label>
+                      <input
+                        type="number"
+                        step="0.01"
+                        value={formData.pesoMaximoBobina || ''}
+                        onChange={(e) => handleChange('pesoMaximoBobina', e.target.value ? parseFloat(e.target.value) : null)}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      />
+                    </div>
+                  )}
+
+                  {formData.conImpresion && (
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Intensidad Tratador
+                      </label>
+                      <input
+                        type="number"
+                        step="0.01"
+                        value={formData.intensidadTratador || ''}
+                        onChange={(e) => handleChange('intensidadTratador', e.target.value ? parseFloat(e.target.value) : null)}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      />
+                    </div>
+                  )}
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Tipo Refilado
+                    </label>
+                    <select
+                      value={formData.tipoRefilado || ''}
+                      onChange={(e) => handleChange('tipoRefilado', e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    >
+                      <option value="">Seleccionar...</option>
+                      <option value="Recto">Recto</option>
+                      <option value="Zigzag">Zigzag</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="flex items-center gap-2">
+                      <input
+                        type="checkbox"
+                        checked={formData.muleteado || false}
+                        onChange={(e) => handleChange('muleteado', e.target.checked)}
+                        className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                      />
+                      <span className="text-sm font-medium text-gray-700">Muleteado</span>
+                    </label>
+                  </div>
+                </div>
+              </div>
+
               <div className="border-t pt-6">
                 <label className="flex items-center gap-2">
                   <input
