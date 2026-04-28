@@ -46,7 +46,19 @@ export default function EditarCompletoPage() {
       if (response.ok) {
         const data = await response.json();
         setProducto(data);
-        setFormData(data);
+        
+        // Calcular campos virtuales a partir de los datos guardados
+        const formDataWithVirtuals = {
+          ...data,
+          // Calcular esBolsaPego si tiene anchoValvula
+          esBolsaPego: !!(data.anchoValvula),
+          // Calcular esBolsaFuelle si tiene anchoFuelle pero no anchoValvula
+          esBolsaFuelle: !!(data.anchoFuelle && !data.anchoValvula),
+          // Calcular esTermoencogible si tiene pesoMaximoBobina
+          esTermoencogible: !!(data.pesoMaximoBobina),
+        };
+        
+        setFormData(formDataWithVirtuals);
       }
     } catch (error) {
       console.error('Error al cargar producto:', error);
@@ -146,23 +158,45 @@ export default function EditarCompletoPage() {
 
   // Auto-calcular laminaRebobinadorAncho y laminaRebobinadorCalibre para bobinas tipo Lámina
   useEffect(() => {
-    if (formData.tipoProducto === 'Bobina' && formData.tipoBobinaCliente === 'Lamina') {
-      const anchoBobina = parseFloat(formData.anchoBobina) || 0;
-      const calibre = parseFloat(formData.calibre) || 0;
+    if (formData.tipoBobinaCliente === 'Lamina') {
+      // Calcular ancho de lámina rebobinador
+      let laminaAncho = null;
       
-      if (anchoBobina) {
-        // Lámina rebobinador ancho = ancho bobina / 2
-        const laminaAncho = anchoBobina / 2;
+      if (formData.tipoSellado === 'Inferior' && formData.esBolsaPego && formData.ancho && formData.anchoFuelle && formData.anchoSolapa) {
+        // Bolsa de pego con sellado inferior: (ancho * 2) + (fuelle * 2) + solapa
+        laminaAncho = (parseFloat(formData.ancho) * 2) + (parseFloat(formData.anchoFuelle) * 2) + parseFloat(formData.anchoSolapa);
+      } else if (formData.tipoSellado === 'Lateral' && formData.largo) {
+        // Sellado lateral: largo * 2
+        laminaAncho = parseFloat(formData.largo) * 2;
+      } else if (formData.tipoProducto === 'Bobina' && formData.anchoBobina) {
+        // Bobina: usar ancho bobina directamente
+        laminaAncho = parseFloat(formData.anchoBobina);
+      } else if (formData.ancho) {
+        // Por defecto: usar ancho
+        laminaAncho = parseFloat(formData.ancho);
+      }
+      
+      if (laminaAncho !== null) {
         setFormData((prev: any) => ({ ...prev, laminaRebobinadorAncho: parseFloat(laminaAncho.toFixed(2)) }));
       }
       
-      if (calibre) {
-        // Lámina rebobinador calibre = calibre * 2
-        const laminaCalibre = calibre * 2;
+      // Calcular calibre de lámina rebobinador
+      let laminaCalibre = null;
+      const calibre = parseFloat(formData.calibre) || 0;
+      
+      if (formData.tipoSellado === 'Lateral' && calibre) {
+        // Sellado lateral: calibre / 2
+        laminaCalibre = calibre / 2;
+      } else if (calibre) {
+        // Por defecto: usar calibre directamente
+        laminaCalibre = calibre;
+      }
+      
+      if (laminaCalibre !== null) {
         setFormData((prev: any) => ({ ...prev, laminaRebobinadorCalibre: parseFloat(laminaCalibre.toFixed(2)) }));
       }
     }
-  }, [formData.tipoProducto, formData.tipoBobinaCliente, formData.anchoBobina, formData.calibre]);
+  }, [formData.tipoBobinaCliente, formData.tipoSellado, formData.esBolsaPego, formData.ancho, formData.largo, formData.anchoBobina, formData.anchoFuelle, formData.anchoSolapa, formData.calibre, formData.tipoProducto]);
 
   if (status === 'loading' || loading) {
     return <LoadingSpinner />;
@@ -641,14 +675,13 @@ export default function EditarCompletoPage() {
                       Tipo Refilado
                     </label>
                     <select
-                      value={formData.tipoRefilado || ''}
+                      value={formData.tipoRefilado || 'Ninguno'}
                       onChange={(e) => handleChange('tipoRefilado', e.target.value)}
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
                     >
-                      <option value="">Seleccionar...</option>
+                      <option value="Ninguno">Ninguno</option>
                       <option value="Simple">Simple</option>
                       <option value="Doble">Doble</option>
-                      <option value="Ninguno">Ninguno</option>
                     </select>
                   </div>
 
@@ -663,7 +696,56 @@ export default function EditarCompletoPage() {
                       <span className="text-sm font-medium text-gray-700">Muleteado</span>
                     </label>
                   </div>
+                </div>
 
+                {/* Campos de Lámina Rebobinador - Solo cuando tipo bobina es Lámina */}
+                {formData.tipoBobinaCliente === 'Lamina' && (
+                  <div className="mt-6 p-4 bg-purple-50 rounded-lg border border-purple-200">
+                    <h4 className="text-md font-semibold text-gray-900 mb-4">Medidas de Lámina por Rebobinador</h4>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          Ancho Lámina Rebobinador (cm) - Calculado
+                        </label>
+                        <input
+                          type="number"
+                          step="0.01"
+                          value={formData.laminaRebobinadorAncho || ''}
+                          readOnly
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-50 text-gray-600"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          Calibre Lámina Rebobinador (µ) - Calculado
+                        </label>
+                        <input
+                          type="number"
+                          step="0.01"
+                          value={formData.laminaRebobinadorCalibre || ''}
+                          readOnly
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-50 text-gray-600"
+                        />
+                      </div>
+                    </div>
+                    <div className="text-xs text-gray-600 mt-3 space-y-1">
+                      <p className="font-semibold">Fórmulas de cálculo:</p>
+                      <p><strong>Ancho:</strong></p>
+                      <ul className="list-disc list-inside ml-2">
+                        <li>Bolsa Pego + Sellado Inferior: (Ancho × 2) + (Fuelle × 2) + Solapa</li>
+                        <li>Sellado Lateral: Largo × 2</li>
+                        <li>Bobina: Ancho Bobina</li>
+                        <li>Por defecto: Ancho</li>
+                      </ul>
+                      <p className="mt-2"><strong>Calibre:</strong></p>
+                      <ul className="list-disc list-inside ml-2">
+                        <li>Sellado Lateral: Calibre ÷ 2</li>
+                        <li>Por defecto: Calibre</li>
+                      </ul>
+                    </div>
+                  </div>
+                )}
+              </div>
                   {/* Campos calculados para lámina rebobinador */}
                   {formData.tipoBobinaCliente === 'Lamina' && (
                     <>
