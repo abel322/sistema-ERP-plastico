@@ -123,21 +123,45 @@ export default function NuevoProductoPage() {
 
   // Auto-calcular laminaRebobinadorAncho y laminaRebobinadorCalibre para bobinas tipo Lámina
   useEffect(() => {
-    if (formData.tipoProducto === 'Bobina' && formData.tipoBobinaCliente === 'Lamina') {
-      const anchoBobina = parseFloat(formData.anchoBobina) || 0;
-      const calibre = parseFloat(formData.calibre) || 0;
+    if (formData.tipoBobinaCliente === 'Lamina') {
+      // Calcular ancho de lámina rebobinador
+      let laminaAncho = null;
       
-      if (anchoBobina) {
-        const laminaAncho = anchoBobina / 2;
+      if (formData.tipoSellado === 'Inferior' && formData.esBolsaPego && formData.ancho && formData.anchoFuelle && formData.anchoSolapa) {
+        // Bolsa de pego con sellado inferior: (ancho * 2) + (fuelle * 2) + solapa
+        laminaAncho = (parseFloat(formData.ancho) * 2) + (parseFloat(formData.anchoFuelle) * 2) + parseFloat(formData.anchoSolapa);
+      } else if (formData.tipoSellado === 'Lateral' && formData.largo) {
+        // Sellado lateral: largo * 2
+        laminaAncho = parseFloat(formData.largo) * 2;
+      } else if (formData.tipoProducto === 'Bobina' && formData.anchoBobina) {
+        // Bobina: usar ancho bobina directamente
+        laminaAncho = parseFloat(formData.anchoBobina);
+      } else if (formData.ancho) {
+        // Por defecto: usar ancho
+        laminaAncho = parseFloat(formData.ancho);
+      }
+      
+      if (laminaAncho !== null) {
         setFormData((prev: any) => ({ ...prev, laminaRebobinadorAncho: parseFloat(laminaAncho.toFixed(2)) }));
       }
       
-      if (calibre) {
-        const laminaCalibre = calibre * 2;
+      // Calcular calibre de lámina rebobinador
+      let laminaCalibre = null;
+      const calibre = parseFloat(formData.calibre) || 0;
+      
+      if (formData.tipoSellado === 'Lateral' && calibre) {
+        // Sellado lateral: calibre / 2
+        laminaCalibre = calibre / 2;
+      } else if (calibre) {
+        // Por defecto: usar calibre directamente
+        laminaCalibre = calibre;
+      }
+      
+      if (laminaCalibre !== null) {
         setFormData((prev: any) => ({ ...prev, laminaRebobinadorCalibre: parseFloat(laminaCalibre.toFixed(2)) }));
       }
     }
-  }, [formData.tipoProducto, formData.tipoBobinaCliente, formData.anchoBobina, formData.calibre]);
+  }, [formData.tipoBobinaCliente, formData.tipoSellado, formData.esBolsaPego, formData.ancho, formData.largo, formData.anchoBobina, formData.anchoFuelle, formData.anchoSolapa, formData.calibre, formData.tipoProducto]);
 
   if (status === 'loading' || loading) {
     return <LoadingSpinner />;
@@ -669,9 +693,21 @@ export default function NuevoProductoPage() {
                         />
                       </div>
                     </div>
-                    <p className="text-xs text-gray-600 mt-2">
-                      * Estos valores se calculan automáticamente: Ancho = Ancho Bobina / 2, Calibre = Calibre × 2
-                    </p>
+                    <div className="text-xs text-gray-600 mt-3 space-y-1">
+                      <p className="font-semibold">Fórmulas de cálculo:</p>
+                      <p><strong>Ancho:</strong></p>
+                      <ul className="list-disc list-inside ml-2">
+                        <li>Bolsa Pego + Sellado Inferior: (Ancho × 2) + (Fuelle × 2) + Solapa</li>
+                        <li>Sellado Lateral: Largo × 2</li>
+                        <li>Bobina: Ancho Bobina</li>
+                        <li>Por defecto: Ancho</li>
+                      </ul>
+                      <p className="mt-2"><strong>Calibre:</strong></p>
+                      <ul className="list-disc list-inside ml-2">
+                        <li>Sellado Lateral: Calibre ÷ 2</li>
+                        <li>Por defecto: Calibre</li>
+                      </ul>
+                    </div>
                   </div>
                 )}
               </div>
