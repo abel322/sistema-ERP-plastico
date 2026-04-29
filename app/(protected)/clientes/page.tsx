@@ -399,6 +399,3 @@ function FormField({ label, required, value, onChange, type = "text", placeholde
     </div>
   );
 }
-    </div>
-  );
-}
