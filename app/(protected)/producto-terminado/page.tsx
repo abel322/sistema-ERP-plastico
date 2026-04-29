@@ -22,7 +22,8 @@ import {
   Send,
   Pencil,
   Trash2,
-  ShoppingCart
+  ShoppingCart,
+  Plus
 } from 'lucide-react';
 import { ManualProductModal } from '@/components/modals/ManualProductModal';
 import { NuevoDespachoModal } from '@/components/modals/nuevo-despacho-modal';
