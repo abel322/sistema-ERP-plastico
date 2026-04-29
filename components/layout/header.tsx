@@ -4,6 +4,7 @@ import { useSession } from 'next-auth/react';
 import { Menu } from 'lucide-react';
 import { NotificationBell } from '@/components/notificaciones/notification-bell';
 import { GlobalSearch } from '@/components/search/global-search';
+import { ThemeToggle } from '@/components/ui/theme-toggle';
 
 interface HeaderProps {
   onMenuClick?: () => void;
@@ -36,6 +37,9 @@ export function Header({ onMenuClick }: HeaderProps) {
       </div>
       
       <div className="flex items-center gap-2 sm:gap-4">
+        {/* Toggle de Tema (Día/Noche) */}
+        <ThemeToggle />
+        
         {/* Campana de notificaciones */}
         <NotificationBell />
         
