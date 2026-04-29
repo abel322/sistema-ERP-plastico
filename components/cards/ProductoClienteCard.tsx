@@ -195,10 +195,175 @@ export function ProductoClienteCard({
 
       {/* Información expandida */}
       {isExpanded && (
-        <div className="p-4 bg-gray-50 border-b border-gray-100">
-          <p className="text-sm text-gray-600">
-            Aquí se mostrará toda la información adicional del producto organizada en secciones.
-          </p>
+        <div className="bg-gray-50 border-b border-gray-100 divide-y divide-gray-200">
+
+          {/* Especificaciones adicionales */}
+          {(producto.anchoBobina || producto.anchoValvula || producto.anchoSolapa || producto.anchoFuelle ||
+            producto.pesoPorUnidad || producto.pesoMaximoBobina || producto.bolsasPorRollo ||
+            producto.rollosPorBulto || producto.tipoSellado || producto.tipoRefilado ||
+            producto.repeticionesImagen || producto.tipoBobinaCliente ||
+            producto.laminaRebobinadorAncho || producto.laminaRebobinadorCalibre ||
+            producto.perforacion || producto.muleteado) && (
+            <div className="p-4">
+              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2 flex items-center gap-1">
+                <Ruler className="w-3 h-3" /> Especificaciones Técnicas
+              </p>
+              <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs text-gray-700">
+                {producto.anchoBobina && <InfoRow label="Ancho Bobina" value={`${producto.anchoBobina} cm`} />}
+                {producto.anchoValvula && <InfoRow label="Ancho Válvula" value={`${producto.anchoValvula} cm`} />}
+                {producto.anchoSolapa && <InfoRow label="Ancho Solapa" value={`${producto.anchoSolapa} cm`} />}
+                {producto.anchoFuelle && <InfoRow label="Ancho Fuelle" value={`${producto.anchoFuelle} cm`} />}
+                {producto.pesoPorUnidad && <InfoRow label="Peso/Unidad" value={`${producto.pesoPorUnidad} kg`} />}
+                {producto.pesoMaximoBobina && <InfoRow label="Peso Máx. Bobina" value={`${producto.pesoMaximoBobina} kg`} />}
+                {producto.bolsasPorRollo && <InfoRow label="Bolsas/Rollo" value={producto.bolsasPorRollo} />}
+                {producto.rollosPorBulto && <InfoRow label="Rollos/Bulto" value={producto.rollosPorBulto} />}
+                {producto.tipoSellado && <InfoRow label="Tipo Sellado" value={producto.tipoSellado} />}
+                {producto.tipoSelladoEstructura && <InfoRow label="Estructura Sellado" value={producto.tipoSelladoEstructura} />}
+                {producto.tipoRefilado && <InfoRow label="Tipo Refilado" value={producto.tipoRefilado} />}
+                {producto.repeticionesImagen && <InfoRow label="Repeticiones Imagen" value={producto.repeticionesImagen} />}
+                {producto.tipoBobinaCliente && <InfoRow label="Tipo Bobina" value={producto.tipoBobinaCliente} />}
+                {producto.laminaRebobinadorAncho && <InfoRow label="Lámina Ancho" value={`${producto.laminaRebobinadorAncho} cm`} />}
+                {producto.laminaRebobinadorCalibre && <InfoRow label="Lámina Calibre" value={`${producto.laminaRebobinadorCalibre} µ`} />}
+                {producto.perforacion !== undefined && <InfoRow label="Perforación" value={producto.perforacion ? 'Sí' : 'No'} />}
+                {producto.muleteado !== undefined && <InfoRow label="Muleteado" value={producto.muleteado ? 'Sí' : 'No'} />}
+                {producto.intensidadTratador && <InfoRow label="Intensidad Tratador" value={producto.intensidadTratador} />}
+              </div>
+            </div>
+          )}
+
+          {/* Formulación */}
+          {(producto.formFB7000 || producto.form3003 || producto.formLineal || producto.form0240 ||
+            producto.form0348 || producto.form7000F || producto.formDeslizante ||
+            producto.formMasterbachBlanco || producto.formMasterbachNegro ||
+            producto.formMasterbachAzul || producto.formMasterbachAmarillo) && (
+            <div className="p-4">
+              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2 flex items-center gap-1">
+                <Layers className="w-3 h-3" /> Formulación de Materia Prima
+              </p>
+              <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs text-gray-700">
+                {producto.formFB7000 && <InfoRow label="FB7000" value={`${producto.formFB7000}%`} />}
+                {producto.form3003 && <InfoRow label="3003" value={`${producto.form3003}%`} />}
+                {producto.formLineal && <InfoRow label="Lineal" value={`${producto.formLineal}%`} />}
+                {producto.form0240 && <InfoRow label="0240" value={`${producto.form0240}%`} />}
+                {producto.form0348 && <InfoRow label="0348" value={`${producto.form0348}%`} />}
+                {producto.form7000F && <InfoRow label="7000F" value={`${producto.form7000F}%`} />}
+                {producto.formDeslizante && <InfoRow label="Deslizante" value={`${producto.formDeslizante}%`} />}
+                {producto.formMasterbachBlanco && <InfoRow label="MB Blanco" value={`${producto.formMasterbachBlanco}%`} />}
+                {producto.formMasterbachNegro && <InfoRow label="MB Negro" value={`${producto.formMasterbachNegro}%`} />}
+                {producto.formMasterbachAzul && <InfoRow label="MB Azul" value={`${producto.formMasterbachAzul}%`} />}
+                {producto.formMasterbachAmarillo && <InfoRow label="MB Amarillo" value={`${producto.formMasterbachAmarillo}%`} />}
+              </div>
+            </div>
+          )}
+
+          {/* Serigrafía */}
+          {producto.conImpresion && (producto.color1 || producto.color2 || producto.cilindro || producto.tipoImpresion) && (
+            <div className="p-4">
+              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2 flex items-center gap-1">
+                <Palette className="w-3 h-3" /> Serigrafía e Impresión
+              </p>
+              <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs text-gray-700">
+                {producto.tipoImpresion && <InfoRow label="Tipo Impresión" value={producto.tipoImpresion} />}
+                {producto.cilindro && <InfoRow label="Cilindro" value={producto.cilindro} />}
+                {producto.serigrafiaTratadorIntensidad && <InfoRow label="Intensidad Tratador" value={producto.serigrafiaTratadorIntensidad} />}
+                {producto.color1 && <InfoRow label="Color 1" value={producto.color1} />}
+                {producto.color2 && <InfoRow label="Color 2" value={producto.color2} />}
+                {producto.color3 && <InfoRow label="Color 3" value={producto.color3} />}
+                {producto.color4 && <InfoRow label="Color 4" value={producto.color4} />}
+                {producto.color5 && <InfoRow label="Color 5" value={producto.color5} />}
+                {producto.color6 && <InfoRow label="Color 6" value={producto.color6} />}
+              </div>
+            </div>
+          )}
+
+          {/* Parámetros de Extrusión */}
+          {(producto.extTemperaturaAmbiente || producto.extMotorPrincipal || producto.extTraccion ||
+            producto.extTemperaturaZ1 || producto.extTemperaturaZ2) && (
+            <div className="p-4">
+              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2 flex items-center gap-1">
+                <Thermometer className="w-3 h-3" /> Parámetros de Extrusión
+              </p>
+              <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs text-gray-700">
+                {producto.extTemperaturaAmbiente && <InfoRow label="Temp. Ambiente" value={`${producto.extTemperaturaAmbiente}°C`} />}
+                {producto.extMotorPrincipal && <InfoRow label="Motor Principal" value={producto.extMotorPrincipal} />}
+                {producto.extTraccion && <InfoRow label="Tracción" value={producto.extTraccion} />}
+                {producto.extSopladorPrincipal && <InfoRow label="Soplador Principal" value={producto.extSopladorPrincipal} />}
+                {producto.extAberturaBlower && <InfoRow label="Abertura Blower" value={producto.extAberturaBlower} />}
+                {producto.extCuelloGlobo && <InfoRow label="Cuello Globo" value={producto.extCuelloGlobo} />}
+                {producto.extTemperaturaCuelloGlobo && <InfoRow label="Temp. Cuello Globo" value={`${producto.extTemperaturaCuelloGlobo}°C`} />}
+                {producto.extTraccionRebobinador && <InfoRow label="Tracción Rebobinador" value={producto.extTraccionRebobinador} />}
+                {producto.extRebobinadorWinding1 && <InfoRow label="Winding 1" value={producto.extRebobinadorWinding1} />}
+                {producto.extRebobinadorWinding2 && <InfoRow label="Winding 2" value={producto.extRebobinadorWinding2} />}
+                {producto.extIntensidadTratador && <InfoRow label="Intensidad Tratador" value={producto.extIntensidadTratador} />}
+                {producto.extOrientacionFlujoBlower && <InfoRow label="Orientación Flujo" value={producto.extOrientacionFlujoBlower} />}
+              </div>
+              {/* Zonas de temperatura */}
+              {producto.extTemperaturaZ1 && (
+                <div className="mt-2">
+                  <p className="text-xs text-gray-500 mb-1">Temperaturas por Zona:</p>
+                  <div className="grid grid-cols-5 gap-1">
+                    {[1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20].map(i => {
+                      const val = (producto as any)[`extTemperaturaZ${i}`];
+                      return val ? (
+                        <div key={i} className="bg-white border border-gray-200 rounded px-1 py-0.5 text-center text-xs">
+                          <span className="text-gray-400">Z{i}</span><br/>{val}°
+                        </div>
+                      ) : null;
+                    })}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Parámetros de Sellado */}
+          {(producto.sldTipoSelladora || producto.sldTempSuperior || producto.sldTempInferior ||
+            producto.sldCapacidadBolsa || producto.sldGPM) && (
+            <div className="p-4">
+              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2 flex items-center gap-1">
+                <Gauge className="w-3 h-3" /> Parámetros de Sellado
+              </p>
+              {producto.sldTipoSelladora && (
+                <p className="text-xs bg-blue-50 text-blue-700 px-2 py-1 rounded mb-2 inline-block font-medium">
+                  {producto.sldTipoSelladora}
+                </p>
+              )}
+              <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs text-gray-700">
+                {producto.sldCapacidadBolsa && <InfoRow label="Capacidad Bolsa" value={producto.sldCapacidadBolsa} />}
+                {producto.sldTemperaturaAmbiente && <InfoRow label="Temp. Ambiente" value={`${producto.sldTemperaturaAmbiente}°C`} />}
+                {producto.sldTornilloEsparrago && <InfoRow label="Tornillo Espárrago" value={producto.sldTornilloEsparrago} />}
+                {producto.sldTempSuperior && <InfoRow label="Temp. Superior" value={`${producto.sldTempSuperior}°C`} />}
+                {producto.sldTempInferior && <InfoRow label="Temp. Inferior" value={`${producto.sldTempInferior}°C`} />}
+                {producto.sldTempValvula && <InfoRow label="Temp. Válvula" value={`${producto.sldTempValvula}°C`} />}
+                {producto.sldPresellado_A && <InfoRow label="Presellado A" value={producto.sldPresellado_A} />}
+                {producto.sldPresellado_B && <InfoRow label="Presellado B" value={producto.sldPresellado_B} />}
+                {producto.sldTiempoLimite && <InfoRow label="Tiempo Límite" value={producto.sldTiempoLimite} />}
+                {producto.sldTempCuchilla && <InfoRow label="Temp. Cuchilla" value={`${producto.sldTempCuchilla}°C`} />}
+                {producto.sldRodilloAnchoValvula && <InfoRow label="Rodillo Ancho Válvula" value={producto.sldRodilloAnchoValvula} />}
+                {producto.sldGPM && <InfoRow label="GPM" value={producto.sldGPM} />}
+                {producto.sldVelocidadTransportador && <InfoRow label="Vel. Transportador" value={producto.sldVelocidadTransportador} />}
+                {producto.sldCicloTrabajo && <InfoRow label="Ciclo Trabajo" value={producto.sldCicloTrabajo} />}
+                {producto.sldPresionBalancin1 && <InfoRow label="Balancín 1" value={producto.sldPresionBalancin1} />}
+                {producto.sldPresionBalancin2 && <InfoRow label="Balancín 2" value={producto.sldPresionBalancin2} />}
+                {producto.sldPresionBalancin3 && <InfoRow label="Balancín 3" value={producto.sldPresionBalancin3} />}
+                {producto.sldPresionBalancinA1 && <InfoRow label="Balancín A1" value={producto.sldPresionBalancinA1} />}
+                {producto.sldPresionBalancinA2 && <InfoRow label="Balancín A2" value={producto.sldPresionBalancinA2} />}
+                {producto.sldPresionBalancinA3 && <InfoRow label="Balancín A3" value={producto.sldPresionBalancinA3} />}
+                {producto.sldPresionBalancinA4 && <InfoRow label="Balancín A4" value={producto.sldPresionBalancinA4} />}
+                {producto.sldPresionBalancinB1 && <InfoRow label="Balancín B1" value={producto.sldPresionBalancinB1} />}
+                {producto.sldPresionBalancinB2 && <InfoRow label="Balancín B2" value={producto.sldPresionBalancinB2} />}
+                {producto.sldPresionBalancinB3 && <InfoRow label="Balancín B3" value={producto.sldPresionBalancinB3} />}
+                {producto.sldPresionBalancinB4 && <InfoRow label="Balancín B4" value={producto.sldPresionBalancinB4} />}
+              </div>
+            </div>
+          )}
+
+          {/* Si no hay datos adicionales */}
+          {!producto.anchoBobina && !producto.formFB7000 && !producto.extTemperaturaAmbiente && !producto.sldTipoSelladora && (
+            <div className="p-4 text-center text-xs text-gray-400">
+              No hay información adicional registrada para este producto.
+            </div>
+          )}
         </div>
       )}
 
@@ -228,6 +393,15 @@ export function ProductoClienteCard({
           Ver Pedidos
         </button>
       </div>
+    </div>
+  );
+}
+
+function InfoRow({ label, value }: { label: string; value: any }) {
+  return (
+    <div className="flex justify-between gap-2 py-0.5 border-b border-gray-100 last:border-0">
+      <span className="text-gray-500 shrink-0">{label}:</span>
+      <span className="font-medium text-right">{value}</span>
     </div>
   );
 }
