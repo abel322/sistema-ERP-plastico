@@ -326,7 +326,8 @@ export default function InventarioPage() {
                   </tbody>
                 </table>
               </div>
-                       {/* Paginación */}
+            </div>
+            {/* Paginación */}
             {totalPages > 1 && (
               <div className="mt-8 flex items-center justify-between border-t border-slate-100 dark:border-slate-800 pt-6">
                 <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
@@ -352,8 +353,6 @@ export default function InventarioPage() {
             )}
           </>
         )}
-      </div>
-
       <NuevoInventarioModal
         isOpen={nuevoItemModalOpen}
         onClose={() => setNuevoItemModalOpen(false)}

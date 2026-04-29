@@ -515,9 +515,7 @@ export default function ProductoTerminadoPage() {
             </AnimatePresence>
           </div>
         ))}
-      </div>
     </div>
-
       <ManualProductModal
         isOpen={showManualModal}
         onClose={() => setShowManualModal(false)}
