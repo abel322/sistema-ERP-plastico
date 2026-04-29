@@ -3,6 +3,7 @@
 import { usePathname } from 'next/navigation';
 import Link from 'next/link';
 import { signOut } from 'next-auth/react';
+import { motion } from 'framer-motion';
 import {
   LayoutDashboard,
   Users,
@@ -28,6 +29,7 @@ import {
   PackageCheck,
   Workflow,
   AlertTriangle,
+  ChevronRight,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -41,117 +43,25 @@ export function Sidebar({ userRol, isOpen = false, onClose }: SidebarProps) {
   const pathname = usePathname();
 
   const menuItems = [
-    {
-      name: 'Dashboard',
-      href: '/dashboard',
-      icon: LayoutDashboard,
-    },
-    {
-      name: 'Clientes',
-      href: '/clientes',
-      icon: Users,
-    },
-    {
-      name: 'Pedidos',
-      href: '/pedidos',
-      icon: FileText,
-    },
-    {
-      name: 'Producción',
-      href: '/produccion',
-      icon: Factory,
-    },
-    {
-      name: 'Flujos de Proceso',
-      href: '/diagramas',
-      icon: Workflow,
-    },
-    {
-      name: 'Producto Terminado',
-      href: '/producto-terminado',
-      icon: PackageCheck,
-    },
-    {
-      name: 'Devoluciones',
-      href: '/devoluciones',
-      icon: AlertTriangle,
-    },
-    {
-      name: 'Despachos',
-      href: '/despachos',
-      icon: Truck,
-    },
-    {
-      name: 'Muestras',
-      href: '/muestras',
-      icon: TestTube2,
-    },
-    {
-      name: 'Peletizado',
-      href: '/peletizado',
-      icon: Recycle,
-    },
-    {
-      name: 'Inventario',
-      href: '/inventario',
-      icon: Package,
-    },
-    {
-      name: 'Facturación',
-      href: '/facturas',
-      icon: Receipt,
-    },
-    {
-      name: 'Mantenimiento',
-      href: '/mantenimientos',
-      icon: Wrench,
-    },
-    {
-      name: 'Mejoras',
-      href: '/mejoras',
-      icon: Lightbulb,
-    },
-    {
-      name: 'Proveedores',
-      href: '/proveedores',
-      icon: Building2,
-    },
-    {
-      name: 'Compras',
-      href: '/compras',
-      icon: ShoppingCart,
-    },
-    {
-      name: 'Calidad',
-      href: '/calidad',
-      icon: ClipboardCheck,
-    },
-    {
-      name: 'Reportes',
-      href: '/reportes',
-      icon: BarChart3,
-    },
-    {
-      name: 'Auditoría',
-      href: '/auditoria',
-      icon: ScrollText,
-    },
-    {
-      name: 'Máquinas',
-      href: '/maquinas',
-      icon: Settings,
-    },
-    {
-      name: 'Usuarios',
-      href: '/usuarios',
-      icon: Users,
-      adminOnly: true,
-    },
-    {
-      name: 'Perfil',
-      href: '/perfil',
-      icon: UserCircle,
-    },
+    { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
+    { name: 'Clientes', href: '/clientes', icon: Users },
+    { name: 'Pedidos', href: '/pedidos', icon: FileText },
+    { name: 'Producción', href: '/produccion', icon: Factory },
+    { name: 'Flujos', href: '/diagramas', icon: Workflow },
+    { name: 'Producto Terminado', href: '/producto-terminado', icon: PackageCheck },
+    { name: 'Despachos', href: '/despachos', icon: Truck },
+    { name: 'Muestras', href: '/muestras', icon: TestTube2 },
+    { name: 'Peletizado', href: '/peletizado', icon: Recycle },
+    { name: 'Inventario', href: '/inventario', icon: Package },
+    { name: 'Facturación', href: '/facturas', icon: Receipt },
+    { name: 'Mantenimiento', href: '/mantenimientos', icon: Wrench },
+    { name: 'Mejoras', href: '/mejoras', icon: Lightbulb },
+    { name: 'Proveedores', href: '/proveedores', icon: Building2 },
+    { name: 'Compras', href: '/compras', icon: ShoppingCart },
+    { name: 'Calidad', href: '/calidad', icon: ClipboardCheck },
+    { name: 'Reportes', href: '/reportes', icon: BarChart3 },
+    { name: 'Usuarios', href: '/usuarios', icon: Users, adminOnly: true },
+    { name: 'Perfil', href: '/perfil', icon: UserCircle },
   ];
 
   const filteredMenuItems = menuItems.filter(item => {
@@ -163,118 +73,114 @@ export function Sidebar({ userRol, isOpen = false, onClose }: SidebarProps) {
     await signOut({ callbackUrl: '/login' });
   };
 
-  const handleLinkClick = () => {
-    if (onClose) {
-      onClose();
-    }
+  const NavItem = ({ item, isActive }: { item: any, isActive: boolean }) => {
+    const Icon = item.icon;
+    return (
+      <Link
+        href={item.href}
+        onClick={onClose}
+        className={cn(
+          'group relative flex items-center gap-3 rounded-2xl px-4 py-3 text-sm font-bold transition-all duration-300',
+          isActive
+            ? 'bg-blue-600 text-white shadow-lg shadow-blue-900/20'
+            : 'text-slate-400 hover:text-white hover:bg-slate-800/50'
+        )}
+      >
+        <Icon className={cn('h-5 w-5 transition-transform duration-300 group-hover:scale-110', isActive ? 'text-white' : 'text-slate-500 group-hover:text-blue-400')} />
+        <span className="flex-1 truncate uppercase tracking-widest text-[10px]">{item.name}</span>
+        {isActive && (
+          <motion.div
+            layoutId="active-pill"
+            className="absolute right-2 h-1.5 w-1.5 rounded-full bg-white shadow-[0_0_8px_rgba(255,255,255,0.8)]"
+          />
+        )}
+      </Link>
+    );
   };
+
+  const SidebarContent = () => (
+    <div className="flex h-full flex-col bg-slate-950 text-white border-r border-slate-900 shadow-2xl">
+      {/* Brand */}
+      <div className="flex h-24 items-center px-8 border-b border-slate-900/50">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center shadow-lg shadow-blue-900/20">
+            <Factory className="h-6 w-6 text-white" />
+          </div>
+          <div>
+            <h1 className="text-sm font-black tracking-[0.2em] uppercase leading-none">ERP</h1>
+            <p className="text-[9px] font-bold text-slate-500 uppercase tracking-widest mt-1">Industrial</p>
+          </div>
+        </div>
+      </div>
+
+      {/* Navigation */}
+      <nav className="flex-1 space-y-1.5 overflow-y-auto px-4 py-8 custom-scrollbar">
+        <p className="px-4 mb-4 text-[9px] font-black text-slate-600 uppercase tracking-[0.3em]">Menú Principal</p>
+        {filteredMenuItems.map((item) => (
+          <NavItem key={item.href} item={item} isActive={pathname === item.href} />
+        ))}
+      </nav>
+
+      {/* Footer / Logout */}
+      <div className="p-4 border-t border-slate-900/50 bg-slate-950/50 backdrop-blur-xl">
+        <button
+          onClick={handleLogout}
+          className="flex w-full items-center gap-3 rounded-2xl px-4 py-3 text-[10px] font-black uppercase tracking-widest text-slate-500 transition-all duration-300 hover:bg-rose-950/30 hover:text-rose-500 group"
+        >
+          <LogOut className="h-5 w-5 transition-transform group-hover:-translate-x-1" />
+          Cerrar Sesión
+        </button>
+      </div>
+    </div>
+  );
 
   return (
     <>
-      {/* Overlay para móvil - solo visible cuando isOpen es true */}
+      {/* Mobile Overlay */}
       <div
         className={cn(
-          'fixed inset-0 z-40 bg-black/50 transition-opacity duration-300 lg:hidden',
+          'fixed inset-0 z-40 bg-slate-950/80 backdrop-blur-sm transition-opacity duration-300 lg:hidden',
           isOpen ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'
         )}
         onClick={onClose}
       />
 
-      {/* Sidebar para móvil - se desliza */}
+      {/* Mobile Sidebar */}
       <div
         className={cn(
-          'fixed inset-y-0 left-0 z-50 flex h-screen w-64 flex-col bg-gradient-to-b from-blue-900 to-blue-800 text-white shadow-xl transition-transform duration-300 ease-in-out lg:hidden',
+          'fixed inset-y-0 left-0 z-50 w-72 transition-transform duration-500 cubic-bezier(0.4, 0, 0.2, 1) lg:hidden',
           isOpen ? 'translate-x-0' : '-translate-x-full'
         )}
       >
-        {/* Logo y botón cerrar */}
-        <div className="flex h-16 items-center justify-between border-b border-blue-700 px-4">
-          <h1 className="text-xl font-bold tracking-wide">ERP Plásticos</h1>
-          <button
-            onClick={onClose}
-            className="rounded-lg p-2 text-blue-100 hover:bg-blue-700/50"
-          >
-            <X className="h-5 w-5" />
-          </button>
-        </div>
-
-        {/* Menu Items */}
-        <nav className="flex-1 space-y-1 overflow-y-auto px-3 py-4">
-          {filteredMenuItems.map((item) => {
-            const isActive = pathname === item.href;
-            const Icon = item.icon;
-            return (
-              <Link
-                key={item.href}
-                href={item.href}
-                onClick={handleLinkClick}
-                className={cn(
-                  'flex items-center gap-3 rounded-lg px-4 py-3 text-sm font-medium transition-all duration-200',
-                  isActive
-                    ? 'bg-blue-600 text-white shadow-md'
-                    : 'text-blue-100 hover:bg-blue-700/50 hover:text-white'
-                )}
-              >
-                <Icon className="h-5 w-5" />
-                {item.name}
-              </Link>
-            );
-          })}
-        </nav>
-
-        {/* Logout Button */}
-        <div className="border-t border-blue-700 p-3">
-          <button
-            onClick={handleLogout}
-            className="flex w-full items-center gap-3 rounded-lg px-4 py-3 text-sm font-medium text-blue-100 transition-all duration-200 hover:bg-red-600 hover:text-white"
-          >
-            <LogOut className="h-5 w-5" />
-            Cerrar Sesión
-          </button>
-        </div>
+        <SidebarContent />
+        <button
+          onClick={onClose}
+          className="absolute right-4 top-4 p-2 text-slate-400 hover:text-white lg:hidden"
+        >
+          <X className="h-6 w-6" />
+        </button>
       </div>
 
-      {/* Sidebar para desktop - siempre visible */}
-      <div className="hidden h-screen w-64 flex-shrink-0 flex-col bg-gradient-to-b from-blue-900 to-blue-800 text-white shadow-xl lg:flex">
-        {/* Logo */}
-        <div className="flex h-16 items-center justify-center border-b border-blue-700 px-4">
-          <h1 className="text-xl font-bold tracking-wide">ERP Plásticos</h1>
-        </div>
-
-        {/* Menu Items */}
-        <nav className="flex-1 space-y-1 overflow-y-auto px-3 py-4">
-          {filteredMenuItems.map((item) => {
-            const isActive = pathname === item.href;
-            const Icon = item.icon;
-            return (
-              <Link
-                key={item.href}
-                href={item.href}
-                className={cn(
-                  'flex items-center gap-3 rounded-lg px-4 py-3 text-sm font-medium transition-all duration-200',
-                  isActive
-                    ? 'bg-blue-600 text-white shadow-md'
-                    : 'text-blue-100 hover:bg-blue-700/50 hover:text-white'
-                )}
-              >
-                <Icon className="h-5 w-5" />
-                {item.name}
-              </Link>
-            );
-          })}
-        </nav>
-
-        {/* Logout Button */}
-        <div className="border-t border-blue-700 p-3">
-          <button
-            onClick={handleLogout}
-            className="flex w-full items-center gap-3 rounded-lg px-4 py-3 text-sm font-medium text-blue-100 transition-all duration-200 hover:bg-red-600 hover:text-white"
-          >
-            <LogOut className="h-5 w-5" />
-            Cerrar Sesión
-          </button>
-        </div>
+      {/* Desktop Sidebar */}
+      <div className="hidden lg:flex lg:w-72 lg:flex-shrink-0 lg:flex-col">
+        <SidebarContent />
       </div>
+
+      <style jsx global>{`
+        .custom-scrollbar::-webkit-scrollbar {
+          width: 4px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+          background: transparent;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+          background: #1e293b;
+          border-radius: 10px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+          background: #334155;
+        }
+      `}</style>
     </>
   );
 }

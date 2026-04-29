@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import {
   Bell,
   Check,
@@ -10,6 +10,10 @@ import {
   Filter,
   ChevronLeft,
   ChevronRight,
+  MoreVertical,
+  Inbox,
+  Clock,
+  ExternalLink,
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
@@ -132,165 +136,172 @@ export default function NotificacionesPage() {
 
   if (loading && notificaciones.length === 0) {
     return (
-      <div className="flex h-[50vh] w-full items-center justify-center"><LoadingSpinner /></div>
+      <div className="flex flex-col items-center justify-center min-h-[60vh] bg-slate-50 dark:bg-slate-950">
+        <div className="w-12 h-12 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mb-4" />
+        <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Sincronizando notificaciones...</p>
+      </div>
     );
   }
 
   return (
-    <>
-      <div className="space-y-6">
-        {/* Header */}
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-          <div>
-            <h1 className="text-2xl sm:text-3xl font-bold text-gray-800 flex items-center gap-3">
-              <Bell className="h-7 w-7 sm:h-8 sm:w-8 text-blue-600" />
-              Notificaciones
-            </h1>
-            <p className="text-sm sm:text-base text-gray-600 mt-1">
-              {noLeidas > 0
-                ? `Tienes ${noLeidas} notificación${noLeidas > 1 ? 'es' : ''} sin leer`
-                : 'Todas las notificaciones leídas'}
-            </p>
+    <div className="p-8 bg-slate-50 dark:bg-slate-950 min-h-screen transition-colors duration-300">
+      {/* Header Area */}
+      <div className="mb-8">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 bg-white dark:bg-slate-900 p-6 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-800 transition-colors">
+          <div className="flex items-center gap-4">
+            <div className="w-14 h-14 bg-blue-600 rounded-2xl flex items-center justify-center text-white shadow-lg shadow-blue-200 dark:shadow-none relative">
+              <Bell className="w-8 h-8" />
+              {noLeidas > 0 && (
+                <span className="absolute -top-1 -right-1 w-6 h-6 bg-rose-600 border-4 border-white dark:border-slate-900 rounded-full flex items-center justify-center text-[10px] font-black text-white">
+                  {noLeidas}
+                </span>
+              )}
+            </div>
+            <div>
+              <h1 className="text-2xl md:text-3xl font-black text-slate-900 dark:text-white leading-tight">Centro de Notificaciones</h1>
+              <div className="flex items-center gap-2 mt-1">
+                <span className="px-2 py-0.5 bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 text-[10px] font-bold uppercase tracking-widest rounded">Alertas y Sistema</span>
+                <span className="w-1 h-1 bg-slate-300 dark:bg-slate-700 rounded-full" />
+                <span className="text-slate-400 dark:text-slate-500 text-xs font-medium">
+                  {noLeidas > 0 ? `${noLeidas} pendientes` : 'Todo al día'}
+                </span>
+              </div>
+            </div>
           </div>
+          
           {noLeidas > 0 && (
-            <button
+            <motion.button
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
               onClick={marcarTodasComoLeidas}
-              className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm sm:text-base"
+              className="flex items-center justify-center gap-2 rounded-xl bg-blue-600 px-6 py-3 font-bold text-white shadow-lg shadow-blue-100 dark:shadow-none transition-all hover:bg-blue-700 active:scale-95 text-xs uppercase tracking-widest"
             >
               <CheckCheck className="h-4 w-4" />
-              Marcar todas como leídas
-            </button>
+              Marcar todo como leído
+            </motion.button>
           )}
         </div>
+      </div>
 
-        {/* Filtros */}
-        <div className="bg-white rounded-xl shadow-sm p-4 border border-gray-100">
-          <div className="flex flex-col sm:flex-row gap-4">
-            <div className="flex-1">
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                <Filter className="h-4 w-4 inline mr-1" />
-                Tipo
-              </label>
-              <select
-                value={filtroTipo}
-                onChange={(e) => {
-                  setFiltroTipo(e.target.value);
-                  setPage(1);
-                }}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
-              >
-                <option value="">Todos los tipos</option>
-                {Object.entries(tipoLabels).map(([key, label]) => (
-                  <option key={key} value={key}>
-                    {tipoIconos[key]} {label}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div className="flex-1">
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Estado
-              </label>
-              <select
-                value={filtroLeida}
-                onChange={(e) => {
-                  setFiltroLeida(e.target.value);
-                  setPage(1);
-                }}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
-              >
-                <option value="">Todas</option>
-                <option value="false">No leídas</option>
-                <option value="true">Leídas</option>
-              </select>
-            </div>
+      {/* Filtros */}
+      <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-800 p-6 mb-8 transition-colors">
+        <div className="flex flex-col lg:flex-row items-center gap-6">
+          <div className="flex items-center gap-2 px-3 py-1 bg-slate-100 dark:bg-slate-800 rounded-lg">
+            <Filter className="h-3 w-3 text-slate-500" />
+            <span className="text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest">Filtros</span>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 flex-1 w-full">
+            <select
+              value={filtroTipo}
+              onChange={(e) => {
+                setFiltroTipo(e.target.value);
+                setPage(1);
+              }}
+              className="bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-sm font-semibold text-slate-700 dark:text-slate-300 focus:ring-2 focus:ring-blue-500 outline-none transition-all"
+            >
+              <option value="">Todos los tipos</option>
+              {Object.entries(tipoLabels).map(([key, label]) => (
+                <option key={key} value={key}>
+                  {tipoIconos[key]} {label}
+                </option>
+              ))}
+            </select>
+            <select
+              value={filtroLeida}
+              onChange={(e) => {
+                setFiltroLeida(e.target.value);
+                setPage(1);
+              }}
+              className="bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-sm font-semibold text-slate-700 dark:text-slate-300 focus:ring-2 focus:ring-blue-500 outline-none transition-all"
+            >
+              <option value="">Todas las notificaciones</option>
+              <option value="false">No leídas</option>
+              <option value="true">Leídas</option>
+            </select>
           </div>
         </div>
+      </div>
 
-        {/* Lista de notificaciones */}
-        <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-          {notificaciones.length === 0 ? (
-            <div className="p-12 text-center text-gray-500">
-              <Bell className="h-16 w-16 mx-auto mb-4 text-gray-300" />
-              <p className="text-lg">No hay notificaciones</p>
-              <p className="text-sm mt-1">
-                Las nuevas notificaciones aparecerán aquí
-              </p>
+      {/* Lista de Notificaciones */}
+      <div className="bg-white dark:bg-slate-900 rounded-[2.5rem] shadow-sm border border-slate-200 dark:border-slate-800 overflow-hidden transition-colors">
+        {notificaciones.length === 0 ? (
+          <div className="p-32 text-center">
+            <div className="w-24 h-24 bg-slate-50 dark:bg-slate-800 rounded-full flex items-center justify-center mx-auto mb-6 text-slate-200">
+              <Inbox className="w-12 h-12" />
             </div>
-          ) : (
-            <div className="divide-y divide-gray-100">
+            <h3 className="text-sm font-black text-slate-400 uppercase tracking-[0.2em]">Bandeja vacía</h3>
+            <p className="text-xs text-slate-400 mt-2 max-w-xs mx-auto">No tienes notificaciones en este momento. Las nuevas alertas aparecerán aquí.</p>
+          </div>
+        ) : (
+          <div className="divide-y divide-slate-100 dark:divide-slate-800">
+            <AnimatePresence mode="popLayout">
               {notificaciones.map((notif, index) => (
                 <motion.div
                   key={notif.id}
                   initial={{ opacity: 0, x: -20 }}
                   animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: 20 }}
                   transition={{ delay: index * 0.05 }}
-                  className={`p-4 sm:p-5 hover:bg-gray-50 transition-colors ${
-                    !notif.leida ? 'bg-blue-50/50' : ''
+                  className={`p-6 hover:bg-slate-50/50 dark:hover:bg-slate-800/30 transition-all group relative ${
+                    !notif.leida ? 'bg-blue-50/20 dark:bg-blue-900/10' : ''
                   }`}
                 >
-                  <div className="flex items-start gap-4">
-                    <span className="text-2xl sm:text-3xl flex-shrink-0">
+                  <div className="flex items-start gap-5">
+                    <div className="w-12 h-12 rounded-2xl bg-white dark:bg-slate-800 border border-slate-100 dark:border-slate-700 flex items-center justify-center text-2xl shadow-sm">
                       {tipoIconos[notif.tipo] || 'ℹ️'}
-                    </span>
+                    </div>
+                    
                     <div className="flex-1 min-w-0">
-                      <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-2">
-                        <div className="flex-1">
-                          <div className="flex items-center gap-2">
-                            <h3
-                              className={`text-base sm:text-lg ${
-                                !notif.leida ? 'font-semibold' : 'font-medium'
-                              } text-gray-800`}
-                            >
-                              {notif.titulo}
-                            </h3>
-                            {!notif.leida && (
-                              <span className="px-2 py-0.5 bg-blue-100 text-blue-700 text-xs rounded-full">
-                                Nueva
-                              </span>
-                            )}
-                          </div>
-                          <p className="text-sm text-gray-600 mt-1">
-                            {notif.mensaje}
-                          </p>
-                          <div className="flex flex-wrap items-center gap-3 mt-2">
-                            <span className="text-xs text-gray-400">
-                              {format(
-                                new Date(notif.fecha),
-                                "d 'de' MMMM 'a las' HH:mm",
-                                { locale: es }
-                              )}
-                            </span>
-                            <span className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded">
-                              {tipoLabels[notif.tipo] || notif.tipo}
-                            </span>
-                          </div>
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-1">
+                        <div className="flex items-center gap-3">
+                          <h3 className={`text-sm ${!notif.leida ? 'font-black' : 'font-bold'} text-slate-900 dark:text-white uppercase tracking-tight`}>
+                            {notif.titulo}
+                          </h3>
+                          {!notif.leida && (
+                            <span className="w-2 h-2 bg-blue-600 rounded-full animate-pulse" />
+                          )}
                         </div>
-                        <div className="flex items-center gap-2 sm:flex-shrink-0">
+                        <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-1.5">
+                          <Clock className="h-3 w-3" />
+                          {format(new Date(notif.fecha), "dd MMM, HH:mm", { locale: es })}
+                        </span>
+                      </div>
+                      
+                      <p className="text-sm text-slate-600 dark:text-slate-400 leading-relaxed max-w-2xl">
+                        {notif.mensaje}
+                      </p>
+                      
+                      <div className="flex items-center gap-4 mt-4">
+                        <span className="px-2 py-0.5 bg-slate-100 dark:bg-slate-800 text-slate-500 text-[9px] font-black uppercase tracking-widest rounded-lg">
+                          {tipoLabels[notif.tipo] || notif.tipo}
+                        </span>
+                        
+                        <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity ml-auto">
                           {notif.enlace && (
                             <Link
                               href={notif.enlace}
                               onClick={() => marcarComoLeida(notif.id)}
-                              className="px-3 py-1.5 bg-blue-100 text-blue-700 text-sm rounded-lg hover:bg-blue-200 transition-colors"
+                              className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-50 dark:bg-blue-950/30 text-blue-600 dark:text-blue-400 text-[10px] font-black uppercase tracking-widest rounded-lg hover:bg-blue-100 dark:hover:bg-blue-900/50 transition-all border border-blue-100 dark:border-blue-900/50"
                             >
-                              Ver
+                              <ExternalLink className="h-3 w-3" />
+                              Ir al detalle
                             </Link>
                           )}
                           {!notif.leida && (
                             <button
                               onClick={() => marcarComoLeida(notif.id)}
-                              className="p-2 text-gray-400 hover:text-green-600 hover:bg-green-50 rounded-lg transition-colors"
+                              className="p-2 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-950/20 rounded-xl transition-all border border-transparent hover:border-emerald-100"
                               title="Marcar como leída"
                             >
-                              <Check className="h-5 w-5" />
+                              <Check className="h-4 w-4" />
                             </button>
                           )}
                           <button
                             onClick={() => eliminarNotificacion(notif.id)}
-                            className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                            className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/20 rounded-xl transition-all border border-transparent hover:border-rose-100"
                             title="Eliminar"
                           >
-                            <Trash2 className="h-5 w-5" />
+                            <Trash2 className="h-4 w-4" />
                           </button>
                         </div>
                       </div>
@@ -298,35 +309,35 @@ export default function NotificacionesPage() {
                   </div>
                 </motion.div>
               ))}
-            </div>
-          )}
-        </div>
-
-        {/* Paginación */}
-        {totalPages > 1 && (
-          <div className="flex items-center justify-between bg-white rounded-xl shadow-sm p-4 border border-gray-100">
-            <button
-              onClick={() => setPage((p) => Math.max(1, p - 1))}
-              disabled={page === 1}
-              className="flex items-center gap-2 px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-            >
-              <ChevronLeft className="h-4 w-4" />
-              Anterior
-            </button>
-            <span className="text-sm text-gray-600">
-              Página {page} de {totalPages}
-            </span>
-            <button
-              onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-              disabled={page === totalPages}
-              className="flex items-center gap-2 px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-            >
-              Siguiente
-              <ChevronRight className="h-4 w-4" />
-            </button>
+            </AnimatePresence>
           </div>
         )}
       </div>
-    </>
+
+      {/* Paginación */}
+      {totalPages > 1 && (
+        <div className="mt-8 flex flex-col items-center gap-6 sm:flex-row sm:justify-between bg-white dark:bg-slate-900 p-6 rounded-[2rem] border border-slate-200 dark:border-slate-800 transition-colors">
+          <p className="text-xs font-black text-slate-400 uppercase tracking-widest">
+            Página <span className="text-slate-900 dark:text-white">{page}</span> de <span className="text-slate-900 dark:text-white">{totalPages}</span>
+          </p>
+          <div className="flex gap-2">
+            <button
+              onClick={() => setPage((p) => Math.max(1, p - 1))}
+              disabled={page === 1}
+              className="px-6 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 text-[10px] font-black uppercase tracking-widest text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 disabled:opacity-30 transition-all"
+            >
+              Anterior
+            </button>
+            <button
+              onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+              disabled={page === totalPages}
+              className="px-6 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 text-[10px] font-black uppercase tracking-widest text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 disabled:opacity-30 transition-all"
+            >
+              Siguiente
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
   );
 }

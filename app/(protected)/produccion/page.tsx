@@ -19,8 +19,8 @@ import {
   Package,
   AlertTriangle,
   ClipboardList,
+  ChevronRight,
 } from 'lucide-react';
-import { LoadingSpinner } from '@/components/ui/loading-spinner';
 
 const AREAS = [
   { value: 'Extrusion', label: 'Extrusión' },
@@ -35,12 +35,6 @@ const TURNOS = [
   { value: 'Noche', label: 'Noche (22-6h)' },
   { value: 'Dia12H', label: 'Día 12H (6-18h)' },
   { value: 'Noche12H', label: 'Noche 12H (18-6h)' },
-];
-
-const UNIDADES = [
-  { value: 'Unidades', label: 'Unidades' },
-  { value: 'Kilogramos', label: 'Kilogramos' },
-  { value: 'Metros', label: 'Metros' },
 ];
 
 interface RegistroProduccion {
@@ -126,7 +120,6 @@ export default function ProduccionPage() {
     fechaFin: '',
   });
 
-  // Modal states
   const [showCrearModal, setShowCrearModal] = useState(false);
   const [showRegistroModal, setShowRegistroModal] = useState(false);
   const [selectedProduccion, setSelectedProduccion] = useState<Produccion | null>(null);
@@ -136,7 +129,6 @@ export default function ProduccionPage() {
   const [editRegistroId, setEditRegistroId] = useState<string | null>(null);
   const [showRegistrosListModal, setShowRegistrosListModal] = useState(false);
 
-  // Form data for creating production
   const [maquinas, setMaquinas] = useState<Maquina[]>([]);
   const [pedidosFiltrados, setPedidosFiltrados] = useState<Pedido[]>([]);
   const [showPedidoWarning, setShowPedidoWarning] = useState(false);
@@ -160,7 +152,6 @@ export default function ProduccionPage() {
     observaciones: '',
   });
 
-  // Form data for adding registro
   const [registroForm, setRegistroForm] = useState({
     turno: 'Manana',
     fecha: today,
@@ -180,19 +171,6 @@ export default function ProduccionPage() {
 
   useEffect(() => {
     fetchMaquinas();
-  }, []);
-
-  useEffect(() => {
-    if (formData.area) {
-      setFormData(prev => ({
-        ...prev,
-        maquinaId: '',
-        ...(isAvance ? {} : { pedidoId: '' })
-      }));
-    }
-  }, [formData.area, isAvance]);
-
-  useEffect(() => {
     fetchTodosLosPedidos();
   }, []);
 
@@ -201,7 +179,7 @@ export default function ProduccionPage() {
       const params = new URLSearchParams({
         page: page.toString(),
         limit: '20',
-        estado: 'EnProceso', // Solo mostrar producciones en proceso
+        estado: 'EnProceso',
       });
       if (filters.area) params.append('area', filters.area);
       if (filters.fechaInicio) params.append('fechaInicio', filters.fechaInicio);
@@ -241,13 +219,10 @@ export default function ProduccionPage() {
 
   const handleCrearProduccion = async (e: FormEvent) => {
     e.preventDefault();
-
-    // Validar pedido obligatorio
     if (!formData.pedidoId) {
       setShowPedidoWarning(true);
       return;
     }
-
     setSaving(true);
     try {
       const url = isEditProduccion ? `/api/produccion/${editProduccionId}` : '/api/produccion';
@@ -257,7 +232,6 @@ export default function ProduccionPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(formData),
       });
-
       if (res.ok) {
         setShowCrearModal(false);
         resetFormData();
@@ -268,7 +242,6 @@ export default function ProduccionPage() {
       }
     } catch (error) {
       console.error('Error:', error);
-      alert('Error al registrar producción');
     } finally {
       setSaving(false);
     }
@@ -277,7 +250,6 @@ export default function ProduccionPage() {
   const handleAgregarRegistro = async (e: FormEvent) => {
     e.preventDefault();
     if (!selectedProduccion) return;
-
     setSaving(true);
     try {
       let res;
@@ -294,43 +266,21 @@ export default function ProduccionPage() {
           body: JSON.stringify(registroForm),
         });
       }
-
       if (res.ok) {
         setShowRegistroModal(false);
         resetRegistroForm();
         fetchProducciones();
-
-        // If we were editing from the list, we might want to close the list or refresh it
-        // Simpler: just keep it open but it will become stale, so let's close it too
         setShowRegistrosListModal(false);
-      } else {
-        const data = await res.json();
-        alert(data.error || 'Error al guardar registro');
       }
     } catch (error) {
       console.error('Error:', error);
-      alert('Error al guardar registro');
     } finally {
       setSaving(false);
     }
   };
 
-  const handleDeleteRegistro = async (prodId: string, regId: string) => {
-    if (!confirm('¿Eliminar este registro individual?')) return;
-    try {
-      const res = await fetch(`/api/produccion/${prodId}/registros/${regId}`, { method: 'DELETE' });
-      if (res.ok) {
-        fetchProducciones();
-        setShowRegistrosListModal(false);
-      }
-    } catch (error) {
-      console.error('Error:', error);
-    }
-  };
-
   const handleFinalizar = async (id: string) => {
-    if (!confirm('¿Finalizar el pedido completamente? El pedido desaparecerá de producción activa y pasará al historial.')) return;
-
+    if (!confirm('¿Finalizar el pedido completamente?')) return;
     try {
       await fetch(`/api/produccion/${id}`, {
         method: 'PUT',
@@ -345,7 +295,6 @@ export default function ProduccionPage() {
 
   const handleDelete = async (id: string) => {
     if (!confirm('¿Eliminar este registro de producción?')) return;
-
     try {
       await fetch(`/api/produccion/${id}`, { method: 'DELETE' });
       fetchProducciones();
@@ -375,56 +324,17 @@ export default function ProduccionPage() {
     setShowPedidoWarning(false);
   };
 
-  const openEditarProduccionModal = (prod: Produccion) => {
-    setIsEditProduccion(true);
-    setEditProduccionId(prod.id);
-    setFormData({
-      fecha: prod.fecha ? prod.fecha.split('T')[0] : today,
-      turno: prod.turno,
-      area: prod.area,
-      maquinaId: prod.maquinaId || prod.maquina?.id || '',
-      operario: prod.operario || '',
-      pedidoId: prod.pedidoId || prod.pedido?.id || '',
-      cantidadProducida: prod.cantidadProducida?.toString() || '0',
-      unidad: prod.unidad || 'Kilogramos',
-      merma: prod.merma?.toString() || '0',
-      horaInicio: prod.horaInicio || '',
-      horaFin: prod.horaFin || '',
-      observaciones: prod.observaciones || '',
-    });
-    setShowCrearModal(true);
-  };
-
-  const openRegistrosListModal = (prod: Produccion) => {
-    setSelectedProduccion(prod);
-    setShowRegistrosListModal(true);
-  };
-
-  const openEditRegistroModal = (prod: Produccion, reg: RegistroProduccion) => {
-    setSelectedProduccion(prod);
-    setIsEditRegistro(true);
-    setEditRegistroId(reg.id);
-    setRegistroForm({
-      turno: reg.turno,
-      fecha: reg.fecha ? reg.fecha.split('T')[0] : today,
-      operario: reg.operario || '',
-      cantidad: reg.cantidad.toString(),
-      reporte: reg.reporte || '',
-      merma: reg.merma.toString(),
-      mermaSinImpresion: reg.mermaSinImpresion ? reg.mermaSinImpresion.toString() : '0',
-      mermaImpreso: reg.mermaImpreso ? reg.mermaImpreso.toString() : '0',
-    });
-    // Close list modal if it was open, just to keep UI clean
-    setShowRegistrosListModal(false);
-    setShowRegistroModal(true);
-  };
-
   const openRegistroModal = (prod: Produccion) => {
     setSelectedProduccion(prod);
     setIsEditRegistro(false);
     setEditRegistroId(null);
     resetRegistroForm();
     setShowRegistroModal(true);
+  };
+
+  const openRegistrosListModal = (prod: Produccion) => {
+    setSelectedProduccion(prod);
+    setShowRegistrosListModal(true);
   };
 
   const resetRegistroForm = () => {
@@ -440,162 +350,16 @@ export default function ProduccionPage() {
     });
   };
 
-  const getAreaLabel = (area: string) =>
-    AREAS.find((a) => a.value === area)?.label || area;
-
-  const getTurnoLabel = (turno: string) =>
-    TURNOS.find((t) => t.value === turno)?.label || turno;
-
-  const formatDate = (dateStr: string) => {
-    const date = new Date(dateStr);
-    return date.toLocaleDateString('es-VE', {
-      day: '2-digit',
-      month: '2-digit',
-      year: 'numeric',
-    });
-  };
-
-  const formatDateShort = (dateStr: string) => {
-    const date = new Date(dateStr);
-    return date.toLocaleDateString('es-VE', {
-      day: '2-digit',
-      month: '2-digit',
-    });
-  };
-
-  const formatDayOfWeek = (dateStr: string) => {
-    const date = new Date(dateStr);
-    const day = date.toLocaleDateString('es-ES', { weekday: 'long' });
-    return day.charAt(0).toUpperCase() + day.slice(1);
-  };
-
-  const maquinasFiltradas = maquinas.filter((m) => m.area === formData.area);
-
-  // Determinar si el área requiere merma subdividida (Serigrafía o Refilado)
-  const requiereMermaSubdividida = (area: string) => {
-    return area === 'Serigrafia' || area === 'Refilado';
-  };
-
-  const calcularTotalMerma = (registros: RegistroProduccion[]) => {
-    return registros.reduce((sum, r) => sum + r.merma + (r.mermaSinImpresion || 0) + (r.mermaImpreso || 0), 0);
-  };
-
-  const calcularTotalCantidad = (registros: RegistroProduccion[]) => {
-    return registros.reduce((sum, r) => sum + r.cantidad, 0);
-  };
-
-  // Helper: calcula los valores de display para una tarjeta Kanban
-  const getDisplayValues = (prod: Produccion, totalProducido: number) => {
-    const tipoProducto = prod.pedido?.cliente?.tipoProducto;
-    const unidadPedido = prod.pedido?.unidad;
-    const peso = prod.pedido?.cliente?.pesoPorUnidad || 0;
-    const cliente = prod.pedido?.cliente;
-
-    let targetAmount = prod.pedido?.cantidadSolicitada || 0;
-    let displayTotal = totalProducido;
-    let displayUnit = unidadPedido || prod.unidad || '';
-
-    if (prod.area === 'Extrusion' || prod.area === 'Serigrafia' || prod.area === 'Refilado') {
-
-      if (tipoProducto === 'Bolsa') {
-
-        // Verificar si el cliente tiene valvulada (pego) o con fuelle activo
-        const tieneValvulada = cliente?.anchoValvula && cliente?.anchoValvula > 0;
-        const tieneConFuelle = cliente?.anchoFuelle && cliente?.anchoFuelle > 0 && !tieneValvulada;
-        
-        if (tieneValvulada && unidadPedido === 'Unidades') {
-          // Fórmula para bolsas valvuladas (pego)
-          const ancho = cliente?.ancho || 0;
-          const largo = cliente?.largo || 0;
-          const fuelle = cliente?.anchoFuelle || 0;
-          const solapa = cliente?.anchoSolapa || 0;
-          const calibre = cliente?.calibre || 0;
-          const materialStr = cliente?.material?.toLowerCase() || '';
-          const densidad = materialStr.includes('alta') || materialStr.includes('hdpe') || materialStr.includes('ad') ? 0.96 : 0.922;
-          
-          // Fórmula: (((ancho * 2)+(fuelle * 2) + solapa) * largo * densidad * calibre)/1000000
-          const pesoUnitario = (((ancho * 2) + (fuelle * 2) + solapa) * largo * densidad * calibre) / 1000000;
-          targetAmount = (pesoUnitario * targetAmount);
-        } else if (tieneConFuelle && unidadPedido === 'Unidades') {
-          // Fórmula para bolsas con fuelle
-          const ancho = cliente?.ancho || 0;
-          const largo = cliente?.largo || 0;
-          const fuelle = cliente?.anchoFuelle || 0;
-          const calibre = cliente?.calibre || 0;
-          const materialStr = cliente?.material?.toLowerCase() || '';
-          const densidad = materialStr.includes('alta') || materialStr.includes('hdpe') || materialStr.includes('ad') ? 0.96 : 0.922;
-          
-          // Fórmula: ((ancho + (fuelle * 2)) * largo * calibre * densidad) / 1000000
-          const pesoUnitario = ((ancho + (fuelle * 2)) * largo * calibre * densidad) / 1000000;
-          targetAmount = (pesoUnitario * targetAmount);
-        } else if (unidadPedido === 'Unidades' && peso > 0) {
-          // Fórmula original para bolsas sin valvulada ni fuelle
-          const materialStr = cliente?.material?.toLowerCase() || '';
-          const densidad = materialStr.includes('alta') || materialStr.includes('hdpe') || materialStr.includes('ad') ? 0.96 : 0.922;
-          targetAmount = (peso * targetAmount * densidad) / 1000;
-        }
-        displayUnit = 'kg';
-      } else if (tipoProducto === 'Bobina') {
-        // Bobinas ya están en kg
-
-        displayUnit = 'kg';
-      }
-    } else if (prod.area === 'Sellado') {
-      if (tipoProducto === 'Bolsa') {
-        // Sellado de bolsas → mantener unidades
-
-        displayUnit = 'und';
-      }
-    }
-    // targetAmount = peso ;
-    const isCompleted = targetAmount > 0 && displayTotal >= targetAmount;
-
-    return { targetAmount, displayTotal, displayUnit, isCompleted };
-  };
-
-  const getNextArea = (prod: Produccion): string | null => {
-    if (!prod.pedido || !prod.pedido.cliente) return null;
-    const { tipoProducto, conImpresion } = prod.pedido.cliente as any;
-
-    const isBobinaSerigrafia = tipoProducto === 'Bobina' && conImpresion;
-
-    if (prod.area === 'Extrusion') {
-      if (conImpresion) return 'Serigrafia';
-      if (tipoProducto === 'Bolsa') return 'Sellado';
-      // Si es bobina sin nada más, termina aquí
-      return null;
-    }
-
-    if (prod.area === 'Serigrafia') {
-      // Regla nueva: Bobina con serigrafía SIEMPRE va a refilado después de serigrafía
-      if (isBobinaSerigrafia) return 'Refilado';
-
-      if (tipoProducto === 'Bolsa') return 'Sellado';
-      return null;
-    }
-
-    if (prod.area === 'Refilado') {
-      if (tipoProducto === 'Bolsa') return 'Sellado';
-      // Si es bobina (ej: Bobina con serigrafía), al terminar Refilado ya finaliza (va a producto terminado)
-      return null;
-    }
-
-    return null;
-  };
-
   const handleAvanzarFase = async (prod: Produccion) => {
     const nextArea = getNextArea(prod);
     if (!nextArea) return;
-
-    if (!confirm(`¿Finalizar en ${getAreaLabel(prod.area)} y avanzar a ${getAreaLabel(nextArea)}?`)) return;
-
+    if (!confirm(`¿Avanzar a ${getAreaLabel(nextArea)}?`)) return;
     try {
       await fetch(`/api/produccion/${prod.id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ estado: 'Finalizado', completarPedido: false }),
       });
-
       setIsAvance(true);
       setFormData({
         ...formData,
@@ -610,46 +374,118 @@ export default function ProduccionPage() {
     }
   };
 
+  const getAreaLabel = (area: string) => AREAS.find((a) => a.value === area)?.label || area;
+  const getTurnoLabel = (turno: string) => TURNOS.find((t) => t.value === turno)?.label || turno;
+  const formatDateShort = (dateStr: string) => new Date(dateStr).toLocaleDateString('es-VE', { day: '2-digit', month: '2-digit' });
+  const calcularTotalCantidad = (registros: RegistroProduccion[]) => registros.reduce((sum, r) => sum + r.cantidad, 0);
+  const calcularTotalMerma = (registros: RegistroProduccion[]) => registros.reduce((sum, r) => sum + r.merma + (r.mermaSinImpresion || 0) + (r.mermaImpreso || 0), 0);
+
+  const getNextArea = (prod: Produccion): string | null => {
+    if (!prod.pedido || !prod.pedido.cliente) return null;
+    const { tipoProducto, conImpresion } = prod.pedido.cliente as any;
+    if (prod.area === 'Extrusion') {
+      if (conImpresion) return 'Serigrafia';
+      if (tipoProducto === 'Bolsa') return 'Sellado';
+      return null;
+    }
+    if (prod.area === 'Serigrafia') {
+      if (tipoProducto === 'Bobina' && conImpresion) return 'Refilado';
+      if (tipoProducto === 'Bolsa') return 'Sellado';
+      return null;
+    }
+    if (prod.area === 'Refilado') {
+      if (tipoProducto === 'Bolsa') return 'Sellado';
+      return null;
+    }
+    return null;
+  };
+
+  const getDisplayValues = (prod: Produccion, totalProducido: number) => {
+    const cliente = prod.pedido?.cliente;
+    const unidadPedido = prod.pedido?.unidad;
+    const peso = cliente?.pesoPorUnidad || 0;
+    let targetAmount = prod.pedido?.cantidadSolicitada || 0;
+    let displayUnit = unidadPedido || prod.unidad || '';
+
+    if (prod.area !== 'Sellado') {
+      if (cliente?.tipoProducto === 'Bolsa' && unidadPedido === 'Unidades') {
+        const materialStr = cliente?.material?.toLowerCase() || '';
+        const densidad = materialStr.includes('alta') ? 0.96 : 0.922;
+        targetAmount = (peso * targetAmount * densidad) / 1000;
+      }
+      displayUnit = 'kg';
+    } else {
+      displayUnit = 'und';
+    }
+    return { targetAmount, displayTotal: totalProducido, displayUnit, isCompleted: targetAmount > 0 && totalProducido >= targetAmount };
+  };
+
+  if (loading) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[60vh] bg-slate-50 dark:bg-slate-950 transition-colors">
+        <div className="w-12 h-12 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin mb-4" />
+        <p className="text-xs font-black text-slate-400 uppercase tracking-widest">Cargando producción...</p>
+      </div>
+    );
+  }
+
+  const maquinasFiltradas = maquinas.filter((m) => m.area === formData.area);
+
   return (
-    <>
-      <div className="space-y-4 sm:space-y-6">
-        {/* Header */}
-        <div className="flex flex-col gap-4">
-          <div>
-            <h1 className="text-2xl font-bold text-gray-900 sm:text-3xl">Producción</h1>
-            <p className="mt-1 text-sm text-gray-600 sm:text-base">Producción en proceso - Las finalizadas pasan al historial</p>
+    <div className="p-8 bg-slate-50 dark:bg-slate-950 min-h-screen transition-colors duration-300">
+      {/* Header Area */}
+      <div className="mb-8">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 bg-white dark:bg-slate-900 p-6 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-800 transition-colors">
+          <div className="flex items-center gap-4">
+            <div className="w-14 h-14 bg-indigo-600 rounded-2xl flex items-center justify-center text-white shadow-lg shadow-indigo-200 dark:shadow-none">
+              <Factory className="w-8 h-8" />
+            </div>
+            <div>
+              <h1 className="text-2xl md:text-3xl font-black text-slate-900 dark:text-white leading-tight">Producción</h1>
+              <div className="flex items-center gap-2 mt-1">
+                <span className="px-2 py-0.5 bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 text-[10px] font-bold uppercase tracking-widest rounded">Operaciones en Tiempo Real</span>
+                <span className="w-1 h-1 bg-slate-300 dark:bg-slate-700 rounded-full" />
+                <span className="text-slate-400 dark:text-slate-500 text-xs font-medium">{producciones.length} órdenes en proceso</span>
+              </div>
+            </div>
           </div>
-          <div className="flex flex-col gap-2 sm:flex-row sm:gap-3">
-            <Link
-              href="/produccion/historial"
-              className="flex items-center justify-center gap-2 rounded-lg border border-gray-300 px-4 py-2 text-gray-700 hover:bg-gray-50"
-            >
-              <Clock className="h-5 w-5" />
-              Historial
+          
+          <div className="flex flex-col sm:flex-row gap-3">
+            <Link href="/produccion/historial">
+              <motion.button
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
+                className="flex items-center justify-center gap-2 rounded-xl bg-slate-100 dark:bg-slate-800 px-5 py-2.5 font-bold text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 transition-all shadow-sm"
+              >
+                <Clock className="h-4 w-4" />
+                HISTORIAL
+              </motion.button>
             </Link>
             <motion.button
-              whileHover={{ scale: 1.02 }}
+              whileHover={{ scale: 1.02, boxShadow: '0 10px 15px -3px rgba(79, 70, 229, 0.3)' }}
               whileTap={{ scale: 0.98 }}
               onClick={() => setShowCrearModal(true)}
-              className="flex items-center justify-center gap-2 rounded-lg bg-gradient-to-r from-purple-600 to-indigo-600 px-4 py-2 text-white shadow-lg hover:from-purple-700 hover:to-indigo-700"
+              className="flex items-center justify-center gap-2 rounded-xl bg-indigo-600 px-5 py-2.5 font-bold text-white shadow-lg transition-all hover:bg-indigo-700 active:scale-95"
             >
-              <Plus className="h-5 w-5" />
-              Registrar Producción
+              <Plus className="h-4 w-4" />
+              NUEVA PRODUCCIÓN
             </motion.button>
           </div>
         </div>
+      </div>
 
-        {/* Filtros */}
-        <div className="rounded-xl bg-white p-4 shadow-sm">
-          <div className="mb-3 flex items-center gap-2 sm:mb-4">
-            <Filter className="h-5 w-5 text-gray-500" />
-            <span className="font-medium text-gray-700">Filtros</span>
+      {/* Filtros */}
+      <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-800 p-6 mb-8 transition-colors">
+        <div className="flex flex-col lg:flex-row items-start lg:items-center gap-6">
+          <div className="flex items-center gap-2 px-3 py-1 bg-slate-100 dark:bg-slate-800 rounded-lg">
+            <Filter className="h-3 w-3 text-slate-500" />
+            <span className="text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest">Filtros</span>
           </div>
-          <div className="grid gap-3 sm:grid-cols-2 sm:gap-4 lg:grid-cols-3">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 flex-1 w-full">
             <select
               value={filters.area}
               onChange={(e) => setFilters({ ...filters, area: e.target.value })}
-              className="rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none sm:text-base"
+              className="bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-sm font-semibold text-slate-700 dark:text-slate-300 focus:ring-2 focus:ring-indigo-500 outline-none transition-all"
             >
               <option value="">Todas las áreas</option>
               {AREAS.map((a) => (
@@ -658,491 +494,367 @@ export default function ProduccionPage() {
                 </option>
               ))}
             </select>
-            <div className="flex items-center gap-2">
-              <Calendar className="h-4 w-4 flex-shrink-0 text-gray-400" />
+            <div className="relative">
+              <Calendar className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
               <input
                 type="date"
                 value={filters.fechaInicio}
                 onChange={(e) => setFilters({ ...filters, fechaInicio: e.target.value })}
-                className="min-w-0 flex-1 rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none"
+                className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl py-2.5 pl-10 pr-4 text-sm font-semibold text-slate-700 dark:text-slate-300 focus:ring-2 focus:ring-indigo-500 outline-none transition-all"
               />
             </div>
-            <div className="flex items-center gap-2">
-              <span className="text-sm text-gray-400">a</span>
+            <div className="relative">
+              <Calendar className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
               <input
                 type="date"
                 value={filters.fechaFin}
                 onChange={(e) => setFilters({ ...filters, fechaFin: e.target.value })}
-                className="min-w-0 flex-1 rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none"
+                className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl py-2.5 pl-10 pr-4 text-sm font-semibold text-slate-700 dark:text-slate-300 focus:ring-2 focus:ring-indigo-500 outline-none transition-all"
               />
             </div>
           </div>
         </div>
-
-        {/* Tablero Kanban de Producción en Proceso */}
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-4 md:gap-4 overflow-x-auto pb-4">
-          {AREAS.map((areaCol) => {
-            const prodEnArea = producciones.filter(p => p.area === areaCol.value);
-            return (
-              <div key={areaCol.value} className="flex min-w-[280px] flex-col gap-3 rounded-xl bg-gray-50 p-3 shadow-inner">
-                <div className="flex items-center justify-between rounded-lg bg-white px-3 py-2 shadow-sm border border-gray-200">
-                  <h2 className="font-bold text-gray-700">{areaCol.label}</h2>
-                  <span className="flex h-6 w-6 items-center justify-center rounded-full bg-gray-200 text-xs font-semibold text-gray-700">
-                    {prodEnArea.length}
-                  </span>
-                </div>
-
-                <div className="flex flex-col gap-3">
-                  {prodEnArea.length === 0 ? (
-                    <div className="flex flex-col items-center justify-center py-6 text-gray-400">
-                      <Factory className="mb-2 h-8 w-8 opacity-20" />
-                      <p className="text-xs font-medium">Vacío</p>
-                    </div>
-                  ) : (
-                    prodEnArea.map((prod, index) => {
-                      const nextArea = getNextArea(prod);
-                      const totalProducido = calcularTotalCantidad(prod.registros);
-                      // Sin stock previo = área no es extrusion y el stock disponible es 0 o no hay registro
-                      const sinStock = prod.area !== 'Extrusion' && (!prod.stockPrevio || prod.stockPrevio.cantidad <= 0);
-                      return (
-                        <motion.div
-                          key={prod.id}
-                          initial={{ opacity: 0, scale: 0.95 }}
-                          animate={{ opacity: 1, scale: 1 }}
-                          transition={{ delay: index * 0.05 }}
-                          className="flex flex-col gap-2 rounded-lg border border-gray-200 bg-white p-3 shadow-sm hover:shadow-md"
-                        >
-                          {(() => {
-                            const dv = getDisplayValues(prod, totalProducido);
-                            return (
-                              <>
-                                {/* Header con badge de estado */}
-                                <div className="flex items-start justify-between">
-                                  <span className="rounded bg-blue-100 px-2 py-0.5 text-xs font-bold text-blue-800">
-                                    Pedido {prod.pedido?.id?.slice(-5).toUpperCase() || 'N/A'}
-                                  </span>
-                                  <span className={`rounded px-2 py-0.5 text-xs font-bold ${dv.isCompleted ? 'bg-green-100 text-green-800' : 'bg-amber-100 text-amber-800'}`}>
-                                    {dv.isCompleted ? 'Completado' : 'En progreso'}
-                                  </span>
-                                </div>
-
-                                {/* Info del cliente */}
-                                <div className="flex items-center justify-between mt-1">
-                                  <div>
-                                    <p className="font-semibold text-gray-900 line-clamp-1" title={prod.pedido?.cliente?.nombre}>
-                                      {prod.pedido?.cliente?.nombre || 'Sin Cliente'}
-                                    </p>
-                                    <p className="text-xs text-gray-500">
-                                      Máq: <span className="font-medium text-gray-700">{prod.maquina.nombre}</span>
-                                    </p>
-                                    {prod.pedido?.cantidadSolicitada && (
-                                      <p className="text-xs text-gray-500">
-                                        Cantidad: <span className="font-medium text-gray-700">{prod.pedido.cantidadSolicitada.toLocaleString()} {prod.pedido.unidad}</span>
-                                      </p>
-                                    )}
-                                  </div>
-                                  <span className="text-xs font-medium text-gray-500">{formatDateShort(prod.fecha)}</span>
-                                </div>
-
-                                {/* Datos de producción */}
-                                <div className="rounded-md bg-gray-50 p-2 text-xs">
-                                  <div className="flex justify-between mb-1">
-                                    <span className="text-gray-500">Total Producción:</span>
-                                    <span className="font-bold text-gray-900">
-                                      {`${dv.displayTotal.toFixed(2)} ${dv.displayUnit}`}
-                                    </span>
-                                  </div>
-                                  <div className="flex justify-between mb-1">
-                                    <span className="text-gray-500">Merma Total:</span>
-                                    <span className="font-medium text-red-600">{calcularTotalMerma(prod.registros).toFixed(2)} kg</span>
-                                  </div>
-                                  <div className="flex justify-between">
-                                    <span className="text-gray-500">Solicitado:</span>
-                                    <span className="font-medium text-gray-700">
-                                      {`${dv.targetAmount.toFixed(2)} ${dv.displayUnit}`}
-                                    </span>
-                                  </div>
-
-                                  {prod.area !== 'Extrusion' && (
-                                    <div className="flex flex-col mt-1 pt-1 border-t border-gray-200">
-                                      <div className="flex justify-between">
-                                        <span className="text-gray-500 text-[11px]">
-                                          {prod.area === 'Sellado' ? 'Stock de material previo:' :
-                                            prod.area === 'Serigrafia' ? 'Stock de Bobina S/I:' :
-                                              prod.area === 'Refilado' ? 'Stock de Bobina C/I:' :
-                                                'Stock de materia prima:'}
-                                        </span>
-                                        <span className={`font-bold text-[11px] ${(!prod.stockPrevio || prod.stockPrevio.cantidad <= 0) ? 'text-red-600' : 'text-emerald-700'}`}>
-                                          {!prod.stockPrevio || prod.stockPrevio.cantidad <= 0
-                                            ? '\u26a0\ufe0f Sin stock'
-                                            : `${prod.stockPrevio.cantidad.toFixed(2)} ${prod.stockPrevio.unidad === 'Kilogramos' ? 'kg' : prod.stockPrevio.unidad === 'Unidades' ? 'und' : prod.stockPrevio.unidad}`
-                                          }
-                                        </span>
-                                      </div>
-                                      {/* Equivalencia en Und para Sellado */}
-                                      {prod.area === 'Sellado' && prod.stockPrevio?.unidad === 'Kilogramos' && prod.pedido?.cliente?.pesoPorUnidad && prod.pedido.cliente.pesoPorUnidad > 0 && (
-                                        <div className="flex justify-between mt-0.5">
-                                          <span className="text-gray-400 text-[10px]">
-                                            Equivalencia aproximada:
-                                          </span>
-                                          <span className="font-medium text-blue-600 text-[10px]">
-                                            {Math.floor(((prod.stockPrevio?.cantidad || 0) * 1000) / prod.pedido.cliente.pesoPorUnidad).toLocaleString()} Und
-                                          </span>
-                                        </div>
-                                      )}
-
-                                      {/* Equivalencia en mts para Serigrafia y Refilado */}
-                                      {['Serigrafia', 'Refilado'].includes(prod.area) && prod.stockPrevio?.unidad === 'Kilogramos' && prod.pedido?.cliente?.ancho && prod.pedido.cliente.calibre && (
-                                        <div className="flex justify-between mt-0.5">
-                                          <span className="text-gray-400 text-[10px]">
-                                            Equivalencia aproximada:
-                                          </span>
-                                          <span className="font-medium text-blue-600 text-[10px]">
-                                            {(() => {
-                                              const ancho = prod.pedido.cliente.ancho || 1;
-                                              const calibre = prod.pedido.cliente.calibre || 1;
-                                              const esManga = prod.pedido.cliente.tipoBobinaCliente === 'Manga';
-                                              const materialStr = (prod.pedido.cliente as any).material?.toLowerCase() || '';
-                                              const densidad = materialStr.includes('alta') || materialStr.includes('hdpe') || materialStr.includes('ad') ? 0.96 : 0.922;
-
-                                              const divisor = ancho * calibre * densidad * (esManga ? 2 : 1);
-                                              const metros = divisor > 0 ? ((prod.stockPrevio?.cantidad || 0) * 100000) / divisor : 0;
-                                              return `${Math.floor(metros).toLocaleString()} mts`;
-                                            })()}
-                                          </span>
-                                        </div>
-                                      )}
-                                    </div>
-                                  )}
-                                  {prod.pedido && (
-                                    <div className="mt-1.5 h-1.5 w-full overflow-hidden rounded-full bg-gray-200">
-                                      <div
-                                        className={`h-full transition-all duration-500 ${dv.isCompleted ? 'bg-green-500' : 'bg-amber-500'}`}
-                                        style={{ width: `${Math.min(100, (dv.displayTotal / (dv.targetAmount || 1)) * 100)}%` }}
-                                      />
-                                    </div>
-                                  )}
-                                </div>
-                              </>
-                            );
-                          })()}
-
-                          <div className="mt-1 flex flex-col gap-2">
-                            <button
-                              onClick={() => openRegistroModal(prod)}
-                              disabled={sinStock}
-                              title={sinStock ? 'No hay stock disponible para producir' : 'Añadir un registro de producción'}
-                              className={`flex w-full items-center justify-center gap-1 rounded px-2 py-1.5 text-xs font-semibold transition-all
-                                ${sinStock
-                                  ? 'bg-gray-100 text-gray-400 opacity-50 cursor-not-allowed'
-                                  : 'bg-purple-50 text-purple-700 hover:bg-purple-100 cursor-pointer'
-                                }`}
-                            >
-                              <Plus className="h-3 w-3" /> Añadir Registro
-                            </button>
-
-                            <div className="flex justify-between gap-1">
-                              {nextArea ? (
-                                <button
-                                  onClick={() => handleAvanzarFase(prod)}
-                                  className="flex flex-1 items-center justify-center gap-1 rounded bg-indigo-600 px-2 py-1.5 text-xs font-semibold text-white shadow-sm transition-all hover:bg-indigo-700 hover:shadow-md active:scale-95"
-                                  title={`Terminar y avanzar a ${getAreaLabel(nextArea)}`}
-                                >
-                                  Avanzar a {getAreaLabel(nextArea)}
-                                </button>
-                              ) : (
-                                <button
-                                  onClick={() => handleFinalizar(prod.id)}
-                                  className="flex flex-1 items-center justify-center gap-1 rounded bg-green-600 px-2 py-1.5 text-xs font-semibold text-white shadow-sm transition-all hover:bg-green-700 hover:shadow-md active:scale-95"
-                                  title="Finalizar por completo"
-                                >
-                                  <CheckCircle className="h-3 w-3" /> Finalizar Pedido
-                                </button>
-                              )}
-                              {isAdmin && (
-                                <button
-                                  onClick={() => handleDelete(prod.id)}
-                                  className="flex items-center justify-center rounded bg-red-50 p-1.5 text-red-600 outline-none transition-all hover:bg-red-100 hover:text-red-700 active:scale-95"
-                                >
-                                  <Trash2 className="h-4 w-4" />
-                                </button>
-                              )}
-                              <button
-                                onClick={() => openRegistrosListModal(prod)}
-                                className="flex items-center justify-center rounded bg-blue-50 p-1.5 text-blue-600 outline-none transition-all hover:bg-blue-100 hover:text-blue-700 active:scale-95"
-                                title="Editar Registros (Operario, Fecha, Cantidad)"
-                              >
-                                <Pencil className="h-4 w-4" />
-                              </button>
-                            </div>
-                          </div>
-
-                        </motion.div>
-                      );
-                    })
-                  )}
-                </div>
-              </div>
-            );
-          })}
-        </div>
-
-        {/* Paginación */}
-        {totalPages > 1 && (
-          <div className="flex flex-col items-center gap-3 sm:flex-row sm:justify-between">
-            <p className="text-sm text-gray-600">
-              Página {page} de {totalPages}
-            </p>
-            <div className="flex w-full gap-2 sm:w-auto">
-              <button
-                onClick={() => setPage(Math.max(1, page - 1))}
-                disabled={page === 1}
-                className="flex-1 rounded-lg border border-gray-300 px-3 py-2 text-sm disabled:opacity-50 sm:flex-initial"
-              >
-                Anterior
-              </button>
-              <button
-                onClick={() => setPage(Math.min(totalPages, page + 1))}
-                disabled={page === totalPages}
-                className="flex-1 rounded-lg border border-gray-300 px-3 py-2 text-sm disabled:opacity-50 sm:flex-initial"
-              >
-                Siguiente
-              </button>
-            </div>
-          </div>
-        )}
       </div>
+
+      {/* Tablero Kanban */}
+      <div className="grid grid-cols-1 gap-8 md:grid-cols-4 overflow-x-auto pb-8 -mx-8 px-8">
+        {AREAS.map((areaCol) => {
+          const prodEnArea = producciones.filter(p => p.area === areaCol.value);
+          return (
+            <div key={areaCol.value} className="flex min-w-[320px] flex-col gap-6 rounded-[2.5rem] bg-slate-100 dark:bg-slate-800/40 p-5 border border-slate-200 dark:border-slate-800 transition-colors">
+              <div className="flex items-center justify-between px-3">
+                <h2 className="text-xs font-black text-slate-800 dark:text-slate-200 uppercase tracking-[0.2em]">{areaCol.label}</h2>
+                <span className="flex h-6 w-8 items-center justify-center rounded-lg bg-white dark:bg-slate-800 text-[10px] font-black text-slate-600 dark:text-slate-400 shadow-sm border border-slate-200 dark:border-slate-700 transition-colors">
+                  {prodEnArea.length}
+                </span>
+              </div>
+
+              <div className="flex flex-col gap-5">
+                {prodEnArea.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center py-16 text-slate-300 dark:text-slate-600 border-2 border-dashed border-slate-200 dark:border-slate-800/50 rounded-3xl transition-colors">
+                    <Factory className="mb-3 h-12 w-12 opacity-10" />
+                    <p className="text-[10px] font-black uppercase tracking-widest opacity-50">Sin actividad</p>
+                  </div>
+                ) : (
+                  prodEnArea.map((prod, index) => {
+                    const nextArea = getNextArea(prod);
+                    const totalProducido = calcularTotalCantidad(prod.registros);
+                    const sinStock = prod.area !== 'Extrusion' && (!prod.stockPrevio || prod.stockPrevio.cantidad <= 0);
+                    
+                    return (
+                      <motion.div
+                        key={prod.id}
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: index * 0.1 }}
+                        className="flex flex-col gap-4 rounded-[2rem] border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-5 shadow-sm hover:shadow-2xl hover:scale-[1.02] hover:border-indigo-200 dark:hover:border-indigo-800 transition-all group"
+                      >
+                        {(() => {
+                          const dv = getDisplayValues(prod, totalProducido);
+                          return (
+                            <>
+                              <div className="flex items-start justify-between">
+                                <span className="px-2.5 py-1 bg-indigo-50 dark:bg-indigo-950/30 text-indigo-600 dark:text-indigo-400 text-[9px] font-black uppercase tracking-widest rounded-lg border border-indigo-100 dark:border-indigo-900/50">
+                                  P-{prod.pedido?.id?.slice(-5).toUpperCase() || 'N/A'}
+                                </span>
+                                <span className={`px-2.5 py-1 text-[9px] font-black uppercase tracking-widest rounded-lg border ${
+                                  dv.isCompleted 
+                                    ? 'bg-emerald-50 dark:bg-emerald-950/30 text-emerald-600 dark:text-emerald-400 border-emerald-100 dark:border-emerald-900/50' 
+                                    : 'bg-amber-50 dark:bg-amber-950/30 text-amber-600 dark:text-amber-400 border-amber-100 dark:border-amber-900/50'
+                                }`}>
+                                  {dv.isCompleted ? 'Completado' : 'En proceso'}
+                                </span>
+                              </div>
+
+                              <div className="flex flex-col gap-1.5">
+                                <h3 className="font-black text-slate-900 dark:text-white text-sm line-clamp-1 uppercase tracking-tight">
+                                  {prod.pedido?.cliente?.nombre || 'Sin Cliente'}
+                                </h3>
+                                <div className="flex items-center gap-2">
+                                  <div className="w-2 h-2 rounded-full bg-indigo-500 animate-pulse" />
+                                  <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest">
+                                    {prod.maquina.nombre}
+                                  </span>
+                                </div>
+                              </div>
+
+                              <div className="bg-slate-50 dark:bg-slate-800/50 rounded-2xl p-4 border border-slate-100 dark:border-slate-800/50 transition-colors">
+                                <div className="flex justify-between items-end mb-3">
+                                  <div className="flex flex-col">
+                                    <span className="text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-1 leading-none text-left">PRODUCIDO</span>
+                                    <span className="text-lg font-black text-slate-900 dark:text-white leading-none">
+                                      {dv.displayTotal.toLocaleString(undefined, { minimumFractionDigits: 2 })} <span className="text-[10px] text-slate-400 uppercase">{dv.displayUnit}</span>
+                                    </span>
+                                  </div>
+                                  <div className="flex flex-col text-right">
+                                    <span className="text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-1 leading-none">META</span>
+                                    <span className="text-xs font-bold text-slate-600 dark:text-slate-400 leading-none">
+                                      {dv.targetAmount.toLocaleString(undefined, { minimumFractionDigits: 2 })} {dv.displayUnit}
+                                    </span>
+                                  </div>
+                                </div>
+                                
+                                <div className="h-2 w-full bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden transition-colors">
+                                  <motion.div 
+                                    initial={{ width: 0 }}
+                                    animate={{ width: `${Math.min(100, (dv.displayTotal / (dv.targetAmount || 1)) * 100)}%` }}
+                                    className={`h-full shadow-[0_0_10px_rgba(0,0,0,0.1)] ${dv.isCompleted ? 'bg-emerald-500' : 'bg-indigo-600'}`}
+                                  />
+                                </div>
+                              </div>
+
+                              {prod.area !== 'Extrusion' && (
+                                <div className={`rounded-xl p-3 border transition-all ${
+                                  sinStock 
+                                    ? 'bg-red-50 dark:bg-red-950/20 border-red-100 dark:border-red-900/50' 
+                                    : 'bg-slate-50 dark:bg-slate-800/30 border-slate-100 dark:border-slate-800/50'
+                                }`}>
+                                  <div className="flex justify-between items-center">
+                                    <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">STOCK PREVIO</span>
+                                    <span className={`text-[10px] font-black uppercase tracking-widest ${sinStock ? 'text-red-600 animate-pulse' : 'text-emerald-600'}`}>
+                                      {sinStock ? '! SIN STOCK' : `${prod.stockPrevio?.cantidad.toFixed(2)} ${prod.stockPrevio?.unidad === 'Kilogramos' ? 'kg' : 'und'}`}
+                                    </span>
+                                  </div>
+                                </div>
+                              )}
+
+                              <div className="grid grid-cols-2 gap-2 mt-2">
+                                <button
+                                  onClick={() => openRegistroModal(prod)}
+                                  disabled={sinStock}
+                                  className={`flex items-center justify-center gap-2 rounded-xl py-2.5 text-[10px] font-black uppercase tracking-widest transition-all
+                                    ${sinStock
+                                      ? 'bg-slate-100 dark:bg-slate-800 text-slate-400 cursor-not-allowed'
+                                      : 'bg-indigo-600 text-white hover:bg-indigo-700 shadow-lg shadow-indigo-100 dark:shadow-none'
+                                    }`}
+                                >
+                                  <Plus className="h-3.5 w-3.5" /> REGISTRO
+                                </button>
+                                <button
+                                  onClick={() => openRegistrosListModal(prod)}
+                                  className="flex items-center justify-center gap-2 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 py-2.5 text-[10px] font-black uppercase tracking-widest hover:bg-slate-200 dark:hover:bg-slate-700 transition-all"
+                                >
+                                  <Pencil className="h-3.5 w-3.5" /> EDITAR
+                                </button>
+                              </div>
+
+                              <div className="mt-1">
+                                {nextArea ? (
+                                  <button
+                                    onClick={() => handleAvanzarFase(prod)}
+                                    className="w-full flex items-center justify-center gap-2 rounded-xl bg-slate-900 dark:bg-white text-white dark:text-slate-900 py-2.5 text-[10px] font-black uppercase tracking-widest hover:opacity-90 transition-all shadow-xl"
+                                  >
+                                    AVANZAR A {getAreaLabel(nextArea).toUpperCase()} <ChevronRight className="h-3 w-3" />
+                                  </button>
+                                ) : (
+                                  <button
+                                    onClick={() => handleFinalizar(prod.id)}
+                                    className="w-full flex items-center justify-center gap-2 rounded-xl bg-emerald-600 text-white py-2.5 text-[10px] font-black uppercase tracking-widest hover:bg-emerald-700 transition-all shadow-xl shadow-emerald-100 dark:shadow-none"
+                                  >
+                                    <CheckCircle className="h-3.5 w-3.5" /> FINALIZAR PEDIDO
+                                  </button>
+                                )}
+                              </div>
+                            </>
+                          );
+                        })()}
+                      </motion.div>
+                    );
+                  })
+                )}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Paginación */}
+      {totalPages > 1 && (
+        <div className="mt-8 flex flex-col items-center gap-6 sm:flex-row sm:justify-between bg-white dark:bg-slate-900 p-6 rounded-[2rem] border border-slate-200 dark:border-slate-800 transition-colors">
+          <p className="text-xs font-black text-slate-400 uppercase tracking-widest">
+            Página <span className="text-slate-900 dark:text-white">{page}</span> de <span className="text-slate-900 dark:text-white">{totalPages}</span>
+          </p>
+          <div className="flex gap-2">
+            <button
+              onClick={() => setPage(Math.max(1, page - 1))}
+              disabled={page === 1}
+              className="px-6 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 text-[10px] font-black uppercase tracking-widest text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 disabled:opacity-30 transition-all"
+            >
+              Anterior
+            </button>
+            <button
+              onClick={() => setPage(Math.min(totalPages, page + 1))}
+              disabled={page === totalPages}
+              className="px-6 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 text-[10px] font-black uppercase tracking-widest text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 disabled:opacity-30 transition-all"
+            >
+              Siguiente
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Modal Crear Producción */}
       <AnimatePresence>
         {showCrearModal && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
-            onClick={() => setShowCrearModal(false)}
-          >
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-sm" onClick={() => { setShowCrearModal(false); resetFormData(); }}>
             <motion.div
-              initial={{ scale: 0.95, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.95, opacity: 0 }}
+              initial={{ opacity: 0, scale: 0.95, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 20 }}
               onClick={(e) => e.stopPropagation()}
-              className="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-2xl bg-white shadow-2xl"
+              className="w-full max-w-2xl max-h-[90vh] overflow-y-auto rounded-[2.5rem] bg-white dark:bg-slate-900 p-8 shadow-2xl border border-slate-200 dark:border-slate-800 transition-colors"
             >
-              {/* Header del Modal */}
-              <div className="relative bg-gradient-to-r from-purple-600 to-indigo-600 p-6">
-                <div className="absolute -right-8 -top-8 h-32 w-32 rounded-full bg-white/10" />
-                <div className="absolute -bottom-4 -left-4 h-24 w-24 rounded-full bg-white/10" />
-                <div className="relative flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <div className="rounded-xl bg-white/20 p-2">
-                      <Factory className="h-6 w-6 text-white" />
-                    </div>
-                    <div>
-                      <h2 className="text-xl font-bold text-white">{isEditProduccion ? 'Actualizar Producción' : 'Registrar Producción'}</h2>
-                      <p className="text-sm text-white/80">{isEditProduccion ? 'Actualice los datos de la producción' : 'Complete los datos del registro'}</p>
-                    </div>
-                  </div>
-                  <button
-                    onClick={() => { setShowCrearModal(false); resetFormData(); }}
-                    className="rounded-full bg-white/20 p-2 text-white hover:bg-white/30"
-                  >
-                    <X className="h-5 w-5" />
-                  </button>
+              <div className="flex items-center gap-4 mb-8">
+                <div className="w-12 h-12 bg-indigo-600 rounded-2xl flex items-center justify-center text-white shadow-lg">
+                  <Factory className="w-6 h-6" />
+                </div>
+                <div>
+                  <h2 className="text-xl font-black text-slate-900 dark:text-white leading-tight">
+                    {isEditProduccion ? 'Editar Producción' : 'Nueva Producción'}
+                  </h2>
+                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">Control Operativo</p>
                 </div>
               </div>
 
-              {/* Formulario */}
-              <form onSubmit={handleCrearProduccion} className="space-y-6 p-6">
-                {/* Información Básica */}
-                <div>
-                  <h3 className="mb-4 flex items-center gap-2 text-lg font-semibold text-gray-900">
-                    <Factory className="h-5 w-5 text-purple-600" />
-                    Información Básica
-                  </h3>
-                  <div className="grid gap-4 sm:grid-cols-2">
-                    <div>
-                      <label className="mb-1 block text-sm font-medium text-gray-700">Fecha</label>
-                      <input
-                        type="date"
-                        required
-                        value={formData.fecha}
-                        onChange={(e) => setFormData({ ...formData, fecha: e.target.value })}
-                        className="w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-purple-500 focus:outline-none focus:ring-1 focus:ring-purple-500"
-                      />
-                    </div>
-                    <div>
-                      <label className="mb-1 block text-sm font-medium text-gray-700">Área de Producción</label>
-                      <select
-                        required
-                        value={formData.area}
-                        onChange={(e) => setFormData({ ...formData, area: e.target.value })}
-                        className="w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-purple-500 focus:outline-none focus:ring-1 focus:ring-purple-500"
-                      >
-                        {AREAS.map((a) => (
-                          <option key={a.value} value={a.value}>{a.label}</option>
-                        ))}
-                      </select>
-                    </div>
-                    <div className="sm:col-span-2">
-                      <label className="mb-1 block text-sm font-medium text-gray-700">Máquina</label>
-                      <select
-                        required
-                        value={formData.maquinaId}
-                        onChange={(e) => setFormData({ ...formData, maquinaId: e.target.value })}
-                        className="w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-purple-500 focus:outline-none focus:ring-1 focus:ring-purple-500"
-                      >
-                        <option value="">Seleccione una máquina</option>
-                        {maquinasFiltradas.map((m) => (
-                          <option key={m.id} value={m.id}>{m.nombre}</option>
-                        ))}
-                      </select>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Vincular Pedido - Obligatorio */}
-                <div className="border-t pt-6">
-                  <h3 className="mb-4 flex items-center gap-2 text-lg font-semibold text-gray-900">
-                    <Package className="h-5 w-5 text-purple-600" />
-                    Vincular Pedido
-                    <span className="rounded bg-red-100 px-2 py-0.5 text-xs font-medium text-red-600">Obligatorio</span>
-                  </h3>
-
-                  {showPedidoWarning && !formData.pedidoId && (
-                    <div className="mb-4 flex items-center gap-2 rounded-lg bg-amber-50 border border-amber-200 p-3">
-                      <AlertTriangle className="h-5 w-5 text-amber-500" />
-                      <p className="text-sm text-amber-700">
-                        <strong>¡Atención!</strong> Debe seleccionar un pedido para registrar la producción.
-                      </p>
-                    </div>
-                  )}
-
+              <form onSubmit={handleCrearProduccion} className="space-y-8">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                   <div>
-                    <label className="mb-1 block text-sm font-medium text-gray-700">
-                      Seleccionar Pedido
-                    </label>
+                    <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">Fecha de Inicio</label>
+                    <input
+                      type="date"
+                      required
+                      value={formData.fecha}
+                      onChange={(e) => setFormData({ ...formData, fecha: e.target.value })}
+                      className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl px-5 py-3 text-sm font-bold text-slate-700 dark:text-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none transition-all"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">Área</label>
                     <select
                       required
-                      value={formData.pedidoId}
-                      onChange={(e) => {
-                        setFormData({ ...formData, pedidoId: e.target.value });
-                        setShowPedidoWarning(false);
-                        const pedido = pedidosFiltrados.find(p => p.id === e.target.value);
-                        if (pedido) {
-                          // Extrusión siempre trabaja en Kilogramos
-                          const unidadProduccion = formData.area === 'Extrusion' ? 'Kilogramos' : pedido.unidad;
-                          setFormData(prev => ({ ...prev, pedidoId: e.target.value, unidad: unidadProduccion }));
-                        }
-                      }}
-                      className={`w-full rounded-lg border px-3 py-2 focus:outline-none focus:ring-1 ${showPedidoWarning && !formData.pedidoId
-                        ? 'border-red-300 focus:border-red-500 focus:ring-red-500'
-                        : 'border-gray-300 focus:border-purple-500 focus:ring-purple-500'
-                        }`}
+                      value={formData.area}
+                      onChange={(e) => setFormData({ ...formData, area: e.target.value })}
+                      className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl px-5 py-3 text-sm font-bold text-slate-700 dark:text-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none cursor-pointer"
                     >
-                      <option value="">Seleccione un pedido</option>
-                      {isAvance && formData.pedidoId && !pedidosFiltrados.find(p => p.id === formData.pedidoId) && (
-                        <option value={formData.pedidoId}>Pedido Actual (Avanzando Fase)</option>
-                      )}
-                      {pedidosFiltrados.map((p) => (
-                        <option key={p.id} value={p.id}>
-                          {p.cliente.nombre} - {p.cantidadSolicitada - p.cantidadProducida} {p.unidad} pendientes
-                        </option>
+                      {AREAS.map((a) => (
+                        <option key={a.value} value={a.value}>{a.label}</option>
                       ))}
                     </select>
-                    {pedidosFiltrados.length === 0 && (
-                      <p className="mt-2 text-sm text-gray-500">
-                        No hay pedidos disponibles.
-                      </p>
-                    )}
                   </div>
                 </div>
 
-                {/* Botones */}
-                <div className="flex justify-end gap-3 border-t pt-6">
+                <div>
+                  <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">Máquina Asignada</label>
+                  <select
+                    required
+                    value={formData.maquinaId}
+                    onChange={(e) => setFormData({ ...formData, maquinaId: e.target.value })}
+                    className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl px-5 py-3 text-sm font-bold text-slate-700 dark:text-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none cursor-pointer"
+                  >
+                    <option value="">Seleccione una máquina</option>
+                    {maquinasFiltradas.map((m) => (
+                      <option key={m.id} value={m.id}>{m.nombre}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="pt-4 border-t border-slate-100 dark:border-slate-800">
+                  <div className="flex items-center justify-between mb-4">
+                    <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Seleccionar Pedido</label>
+                    <span className="px-2 py-0.5 bg-red-50 dark:bg-red-950/30 text-red-600 dark:text-red-400 text-[8px] font-black uppercase tracking-widest rounded-lg border border-red-100 dark:border-red-900/50">Obligatorio</span>
+                  </div>
+
+                  {showPedidoWarning && !formData.pedidoId && (
+                    <motion.div
+                      initial={{ opacity: 0, y: -10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      className="mb-4 p-4 bg-amber-50 dark:bg-amber-950/20 text-amber-600 dark:text-amber-400 rounded-2xl text-xs font-bold border border-amber-100 dark:border-amber-900/50 flex items-center gap-3"
+                    >
+                      <AlertTriangle className="h-4 w-4" />
+                      Debe seleccionar un pedido para continuar
+                    </motion.div>
+                  )}
+
+                  <select
+                    required
+                    value={formData.pedidoId}
+                    onChange={(e) => {
+                      setFormData({ ...formData, pedidoId: e.target.value });
+                      setShowPedidoWarning(false);
+                      const pedido = pedidosFiltrados.find(p => p.id === e.target.value);
+                      if (pedido) {
+                        const unidadProduccion = formData.area === 'Extrusion' ? 'Kilogramos' : pedido.unidad;
+                        setFormData(prev => ({ ...prev, pedidoId: e.target.value, unidad: unidadProduccion }));
+                      }
+                    }}
+                    className={`w-full bg-slate-50 dark:bg-slate-800 border rounded-2xl px-5 py-3 text-sm font-bold text-slate-700 dark:text-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none transition-all cursor-pointer ${
+                      showPedidoWarning && !formData.pedidoId ? 'border-red-300 dark:border-red-900' : 'border-slate-200 dark:border-slate-700'
+                    }`}
+                  >
+                    <option value="">Seleccione un pedido</option>
+                    {pedidosFiltrados.map((p) => (
+                      <option key={p.id} value={p.id}>
+                        {p.cliente.nombre} — {p.cantidadSolicitada - p.cantidadProducida} {p.unidad} pendientes
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="flex gap-4 pt-4">
                   <button
                     type="button"
                     onClick={() => { setShowCrearModal(false); resetFormData(); }}
-                    className="rounded-lg border border-gray-300 px-4 py-2 text-gray-700 hover:bg-gray-50"
+                    className="flex-1 px-6 py-4 rounded-2xl border border-slate-200 dark:border-slate-700 text-xs font-black uppercase tracking-widest text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 transition-all"
                   >
                     Cancelar
                   </button>
                   <button
                     type="submit"
                     disabled={saving}
-                    className="flex items-center gap-2 rounded-lg bg-gradient-to-r from-purple-600 to-indigo-600 px-4 py-2 text-white hover:from-purple-700 hover:to-indigo-700 disabled:opacity-50"
+                    className="flex-[2] flex items-center justify-center gap-3 px-6 py-4 rounded-2xl bg-indigo-600 text-xs font-black uppercase tracking-widest text-white hover:bg-indigo-700 disabled:opacity-50 transition-all shadow-xl shadow-indigo-100 dark:shadow-none"
                   >
-                    {saving ? (
-                      <>
-                        <Loader2 className="h-4 w-4 animate-spin" />
-                        Guardando...
-                      </>
-                    ) : (
-                      <>
-                        <Save className="h-4 w-4" />
-                        {isEditProduccion ? 'Actualizar Producción' : 'Registrar Producción'}
-                      </>
-                    )}
+                    {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+                    {isEditProduccion ? 'ACTUALIZAR' : 'REGISTRAR'}
                   </button>
                 </div>
               </form>
             </motion.div>
-          </motion.div>
+          </div>
         )}
       </AnimatePresence>
 
       {/* Modal Agregar Registro */}
       <AnimatePresence>
         {showRegistroModal && selectedProduccion && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
-            onClick={() => setShowRegistroModal(false)}
-          >
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-sm" onClick={() => setShowRegistroModal(false)}>
             <motion.div
-              initial={{ scale: 0.95, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.95, opacity: 0 }}
+              initial={{ opacity: 0, scale: 0.95, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 20 }}
               onClick={(e) => e.stopPropagation()}
-              className="max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-2xl bg-white shadow-2xl"
+              className="w-full max-w-lg max-h-[90vh] overflow-y-auto rounded-[2.5rem] bg-white dark:bg-slate-900 p-8 shadow-2xl border border-slate-200 dark:border-slate-800 transition-colors"
             >
-              {/* Header del Modal */}
-              <div className="relative bg-gradient-to-r from-violet-600 to-purple-600 p-6">
-                <div className="absolute -right-8 -top-8 h-32 w-32 rounded-full bg-white/10" />
-                <div className="relative flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <div className="rounded-xl bg-white/20 p-2">
-                      <ClipboardList className="h-6 w-6 text-white" />
-                    </div>
-                    <div>
-                      <h2 className="text-xl font-bold text-white">
-                        {isEditRegistro ? 'Editar Registro' : 'Añadir Registro'}
-                      </h2>
-                      <p className="text-sm text-white/80">Área: {getAreaLabel(selectedProduccion.area)}</p>
-                    </div>
-                  </div>
-                  <button
-                    onClick={() => setShowRegistroModal(false)}
-                    className="rounded-full bg-white/20 p-2 text-white hover:bg-white/30"
-                  >
-                    <X className="h-5 w-5" />
-                  </button>
+              <div className="flex items-center gap-4 mb-8">
+                <div className="w-12 h-12 bg-indigo-600 rounded-2xl flex items-center justify-center text-white shadow-lg">
+                  <ClipboardList className="w-6 h-6" />
+                </div>
+                <div>
+                  <h2 className="text-xl font-black text-slate-900 dark:text-white leading-tight">
+                    {isEditRegistro ? 'Editar Registro' : 'Añadir Registro'}
+                  </h2>
+                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">{getAreaLabel(selectedProduccion.area)}</p>
                 </div>
               </div>
 
-              {/* Formulario de Registro */}
-              <form onSubmit={handleAgregarRegistro} className="space-y-4 p-6">
-                <div className="grid gap-4 sm:grid-cols-2">
+              <form onSubmit={handleAgregarRegistro} className="space-y-6">
+                <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <label className="mb-1 block text-sm font-medium text-gray-700">Turno</label>
+                    <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">Turno</label>
                     <select
                       required
                       value={registroForm.turno}
                       onChange={(e) => setRegistroForm({ ...registroForm, turno: e.target.value })}
-                      className="w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-purple-500 focus:outline-none focus:ring-1 focus:ring-purple-500"
+                      className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl px-5 py-3 text-sm font-bold text-slate-700 dark:text-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none cursor-pointer"
                     >
                       {TURNOS.map((t) => (
                         <option key={t.value} value={t.value}>{t.label}</option>
@@ -1150,212 +862,136 @@ export default function ProduccionPage() {
                     </select>
                   </div>
                   <div>
-                    <label className="mb-1 block text-sm font-medium text-gray-700">Día</label>
+                    <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">Día</label>
                     <input
                       type="date"
                       required
                       value={registroForm.fecha}
                       onChange={(e) => setRegistroForm({ ...registroForm, fecha: e.target.value })}
-                      className="w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-purple-500 focus:outline-none focus:ring-1 focus:ring-purple-500"
+                      className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl px-5 py-3 text-sm font-bold text-slate-700 dark:text-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none transition-all"
                     />
                   </div>
                 </div>
 
                 <div>
-                  <label className="mb-1 block text-sm font-medium text-gray-700">Operario</label>
+                  <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">Operario Responsable</label>
                   <input
                     type="text"
                     required
                     value={registroForm.operario}
                     onChange={(e) => setRegistroForm({ ...registroForm, operario: e.target.value })}
-                    placeholder="Nombre del operario"
-                    className="w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-purple-500 focus:outline-none focus:ring-1 focus:ring-purple-500"
+                    className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl px-5 py-3 text-sm font-bold text-slate-700 dark:text-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none transition-all"
                   />
                 </div>
 
                 <div>
-                  <label className="mb-1 block text-sm font-medium text-gray-700">Cantidad</label>
-                  <input
-                    type="number"
-                    required
-                    min="0"
-                    step="0.01"
-                    value={registroForm.cantidad}
-                    onChange={(e) => setRegistroForm({ ...registroForm, cantidad: e.target.value })}
-                    placeholder="0.00"
-                    className="w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-purple-500 focus:outline-none focus:ring-1 focus:ring-purple-500"
-                  />
-                </div>
-
-                <div>
-                  <label className="mb-1 block text-sm font-medium text-gray-700">Reporte</label>
-                  <textarea
-                    value={registroForm.reporte}
-                    onChange={(e) => setRegistroForm({ ...registroForm, reporte: e.target.value })}
-                    placeholder="Observaciones del turno..."
-                    rows={2}
-                    className="w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-purple-500 focus:outline-none focus:ring-1 focus:ring-purple-500"
-                  />
-                </div>
-
-                {/* Merma según área */}
-                {requiereMermaSubdividida(selectedProduccion?.area || '') ? (
-                  <div className="grid gap-4 sm:grid-cols-2">
-                    <div>
-                      <label className="mb-1 block text-sm font-medium text-gray-700">Merma Sin Impresión (kg)</label>
-                      <input
-                        type="number"
-                        min="0"
-                        step="0.01"
-                        value={registroForm.mermaSinImpresion}
-                        onChange={(e) => setRegistroForm({ ...registroForm, mermaSinImpresion: e.target.value })}
-                        className="w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-purple-500 focus:outline-none focus:ring-1 focus:ring-purple-500"
-                      />
-                    </div>
-                    <div>
-                      <label className="mb-1 block text-sm font-medium text-gray-700">Merma Impreso (kg)</label>
-                      <input
-                        type="number"
-                        min="0"
-                        step="0.01"
-                        value={registroForm.mermaImpreso}
-                        onChange={(e) => setRegistroForm({ ...registroForm, mermaImpreso: e.target.value })}
-                        className="w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-purple-500 focus:outline-none focus:ring-1 focus:ring-purple-500"
-                      />
-                    </div>
-                  </div>
-                ) : (
-                  <div>
-                    <label className="mb-1 block text-sm font-medium text-gray-700">Merma/Desperdicio (kg)</label>
+                  <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">Cantidad Producida</label>
+                  <div className="relative">
                     <input
                       type="number"
+                      required
                       min="0"
                       step="0.01"
-                      value={registroForm.merma}
-                      onChange={(e) => setRegistroForm({ ...registroForm, merma: e.target.value })}
-                      className="w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-purple-500 focus:outline-none focus:ring-1 focus:ring-purple-500"
+                      value={registroForm.cantidad}
+                      onChange={(e) => setRegistroForm({ ...registroForm, cantidad: e.target.value })}
+                      className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl px-5 py-3 text-sm font-black text-slate-900 dark:text-white focus:ring-2 focus:ring-indigo-500 outline-none transition-all"
                     />
+                    <span className="absolute right-5 top-1/2 -translate-y-1/2 text-[10px] font-black text-slate-400 uppercase">{selectedProduccion.unidad === 'Kilogramos' ? 'KG' : 'UND'}</span>
                   </div>
-                )}
+                </div>
 
-                {/* Botones */}
-                <div className="flex justify-end gap-3 border-t pt-4">
+                <div className="flex gap-4 pt-4">
                   <button
                     type="button"
                     onClick={() => { setShowRegistroModal(false); resetRegistroForm(); }}
-                    className="rounded-lg border border-gray-300 px-4 py-2 text-gray-700 hover:bg-gray-50"
+                    className="flex-1 px-6 py-4 rounded-2xl border border-slate-200 dark:border-slate-700 text-xs font-black uppercase tracking-widest text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 transition-all"
                   >
                     Cancelar
                   </button>
                   <button
                     type="submit"
                     disabled={saving}
-                    className="flex items-center gap-2 rounded-lg bg-gradient-to-r from-violet-600 to-purple-600 px-4 py-2 text-white hover:from-violet-700 hover:to-purple-700 disabled:opacity-50"
+                    className="flex-[2] flex items-center justify-center gap-3 px-6 py-4 rounded-2xl bg-indigo-600 text-xs font-black uppercase tracking-widest text-white hover:bg-indigo-700 disabled:opacity-50 transition-all shadow-xl shadow-indigo-100 dark:shadow-none"
                   >
-                    {saving ? (
-                      <>
-                        <Loader2 className="h-4 w-4 animate-spin" />
-                        Guardando...
-                      </>
-                    ) : (
-                      <>
-                        <Save className="h-4 w-4" />
-                        {isEditRegistro ? 'Actualizar Registro' : 'Guardar Registro'}
-                      </>
-                    )}
+                    {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+                    {isEditRegistro ? 'ACTUALIZAR' : 'GUARDAR'}
                   </button>
                 </div>
               </form>
             </motion.div>
-          </motion.div>
+          </div>
         )}
       </AnimatePresence>
 
       {/* Modal de Lista de Registros */}
       <AnimatePresence>
         {showRegistrosListModal && selectedProduccion && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
-            onClick={() => setShowRegistrosListModal(false)}
-          >
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-sm" onClick={() => setShowRegistrosListModal(false)}>
             <motion.div
-              initial={{ scale: 0.95, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.95, opacity: 0 }}
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
               onClick={(e) => e.stopPropagation()}
-              className="max-h-[90vh] w-full max-w-3xl overflow-y-auto rounded-2xl bg-white shadow-2xl"
+              className="w-full max-w-3xl max-h-[90vh] overflow-y-auto rounded-[2.5rem] bg-white dark:bg-slate-900 p-8 shadow-2xl border border-slate-200 dark:border-slate-800 transition-colors"
             >
-              <div className="flex items-center justify-between border-b border-gray-100 bg-gray-50/50 p-6">
+              <div className="flex items-center justify-between mb-8">
                 <div>
-                  <h2 className="text-xl font-bold text-gray-900">Registros de Producción</h2>
-                  <p className="text-sm text-gray-500">Gestione los registros para esta producción</p>
+                  <h2 className="text-xl font-black text-slate-900 dark:text-white leading-tight uppercase tracking-tight">Registros de Producción</h2>
+                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">Gestión de datos operarios</p>
                 </div>
                 <button
                   onClick={() => setShowRegistrosListModal(false)}
-                  className="rounded-full p-2 text-gray-400 hover:bg-gray-100 hover:text-gray-600"
+                  className="p-2 rounded-xl bg-slate-50 dark:bg-slate-800 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-all"
                 >
                   <X className="h-5 w-5" />
                 </button>
               </div>
 
-              <div className="p-6">
-                {selectedProduccion.registros.length === 0 ? (
-                  <p className="text-center text-sm text-gray-500">No hay registros asociados a esta producción.</p>
-                ) : (
-                  <div className="overflow-hidden rounded-xl border border-gray-200 shadow-sm">
-                    <table className="w-full text-left text-sm">
-                      <thead className="bg-gray-50 text-xs uppercase text-gray-500">
-                        <tr>
-                          <th className="px-4 py-3 font-semibold">Fecha</th>
-                          <th className="px-4 py-3 font-semibold">Turno</th>
-                          <th className="px-4 py-3 font-semibold">Operario</th>
-                          <th className="px-4 py-3 font-semibold text-right">Cant.</th>
-                          <th className="px-4 py-3 font-semibold text-right">Merma</th>
-                          <th className="px-4 py-3 font-semibold text-center">Acciones</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-gray-200 bg-white">
-                        {selectedProduccion.registros.map((reg) => (
-                          <tr key={reg.id} className="transition-colors hover:bg-gray-50">
-                            <td className="px-4 py-3 font-medium text-gray-900">{formatDateShort(reg.fecha)}</td>
-                            <td className="px-4 py-3 text-gray-600">{getTurnoLabel(reg.turno)}</td>
-                            <td className="px-4 py-3 text-gray-600">{reg.operario}</td>
-                            <td className="px-4 py-3 text-right font-medium text-gray-900">{reg.cantidad}</td>
-                            <td className="px-4 py-3 text-right text-gray-600">{reg.merma}</td>
-                            <td className="px-4 py-3">
-                              <div className="flex justify-center gap-2">
-                                <button
-                                  onClick={() => openEditRegistroModal(selectedProduccion, reg)}
-                                  className="rounded p-1 text-blue-600 hover:bg-blue-50"
-                                  title="Editar Registro"
-                                >
-                                  <Pencil className="h-4 w-4" />
-                                </button>
-                                {isAdmin && (
-                                  <button
-                                    onClick={() => handleDeleteRegistro(selectedProduccion.id, reg.id)}
-                                    className="rounded p-1 text-red-600 hover:bg-red-50"
-                                    title="Eliminar Registro"
-                                  >
-                                    <Trash2 className="h-4 w-4" />
-                                  </button>
-                                )}
-                              </div>
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                )}
+              <div className="overflow-x-auto rounded-3xl border border-slate-100 dark:border-slate-800 transition-colors">
+                <table className="w-full text-left">
+                  <thead className="bg-slate-50 dark:bg-slate-800/50">
+                    <tr>
+                      <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-500">Fecha</th>
+                      <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-500">Turno</th>
+                      <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-500">Operario</th>
+                      <th className="px-6 py-4 text-right text-[10px] font-black uppercase tracking-widest text-slate-500">Cantidad</th>
+                      <th className="px-6 py-4 text-center text-[10px] font-black uppercase tracking-widest text-slate-500">Acción</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                    {selectedProduccion.registros.map((reg) => (
+                      <tr key={reg.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/20 transition-colors">
+                        <td className="px-6 py-4 text-xs font-bold text-slate-900 dark:text-slate-200">{formatDateShort(reg.fecha)}</td>
+                        <td className="px-6 py-4 text-xs font-bold text-slate-500 dark:text-slate-400">{getTurnoLabel(reg.turno)}</td>
+                        <td className="px-6 py-4 text-xs font-bold text-slate-900 dark:text-slate-200">{reg.operario}</td>
+                        <td className="px-6 py-4 text-right text-xs font-black text-slate-900 dark:text-white">{reg.cantidad}</td>
+                        <td className="px-6 py-4">
+                          <div className="flex justify-center gap-2">
+                            {isAdmin && (
+                              <button
+                                onClick={async () => {
+                                  if (confirm('¿Eliminar este registro?')) {
+                                    await fetch(`/api/produccion/${selectedProduccion.id}/registros/${reg.id}`, { method: 'DELETE' });
+                                    fetchProducciones();
+                                    setShowRegistrosListModal(false);
+                                  }
+                                }}
+                                className="p-2 text-red-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/30 rounded-xl transition-all"
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </button>
+                            )}
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
               </div>
             </motion.div>
-          </motion.div>
+          </div>
         )}
       </AnimatePresence>
-    </>
+    </div>
   );
 }

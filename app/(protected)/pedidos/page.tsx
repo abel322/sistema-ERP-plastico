@@ -93,22 +93,33 @@ export default function PedidosPage() {
   }
 
   return (
-    <>
-      <div className="space-y-6">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-3xl font-bold text-gray-900">Pedidos</h1>
-            <p className="mt-1 text-gray-600">Gestión de pedidos de producción</p>
+    <div className="p-8 bg-slate-50 dark:bg-slate-950 min-h-screen transition-colors duration-300">
+      {/* Header Area */}
+      <div className="mb-8">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 bg-white dark:bg-slate-900 p-6 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-800 transition-colors">
+          <div className="flex items-center gap-4">
+            <div className="w-14 h-14 bg-blue-600 rounded-2xl flex items-center justify-center text-white shadow-lg shadow-blue-200 dark:shadow-none">
+              <Package className="w-8 h-8" />
+            </div>
+            <div>
+              <h1 className="text-2xl md:text-3xl font-black text-slate-900 dark:text-white leading-tight">Pedidos</h1>
+              <div className="flex items-center gap-2 mt-1">
+                <span className="px-2 py-0.5 bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 text-[10px] font-bold uppercase tracking-widest rounded">Gestión de Producción</span>
+                <span className="w-1 h-1 bg-slate-300 dark:bg-slate-700 rounded-full" />
+                <span className="text-slate-400 dark:text-slate-500 text-xs font-medium">{pedidos.length} pedidos activos</span>
+              </div>
+            </div>
           </div>
+          
           <div className="flex items-center gap-3">
             <Link href="/pedidos/historial">
               <motion.button
                 whileHover={{ scale: 1.02 }}
                 whileTap={{ scale: 0.98 }}
-                className="flex items-center gap-2 rounded-xl bg-gray-100 px-5 py-2.5 font-bold text-gray-700 hover:bg-gray-200 transition-all focus:outline-none focus:ring-2 focus:ring-gray-300 shadow-sm"
+                className="flex items-center gap-2 rounded-xl bg-slate-100 dark:bg-slate-800 px-5 py-2.5 font-bold text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 transition-all shadow-sm"
               >
-                <History className="h-5 w-5" />
-                Historial
+                <History className="h-4 w-4" />
+                HISTORIAL
               </motion.button>
             </Link>
             {isAdmin && (
@@ -116,14 +127,15 @@ export default function PedidosPage() {
                 whileHover={{ scale: 1.02, boxShadow: '0 10px 15px -3px rgba(59, 130, 246, 0.3)' }}
                 whileTap={{ scale: 0.98 }}
                 onClick={() => setIsModalOpen(true)}
-                className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 px-5 py-2.5 font-bold text-white shadow-lg transition-all hover:from-blue-700 hover:to-indigo-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+                className="flex items-center gap-2 rounded-xl bg-blue-600 px-5 py-2.5 font-bold text-white shadow-lg transition-all hover:bg-blue-700 active:scale-95"
               >
-                <PackagePlus className="h-5 w-5" />
-                Nuevo Pedido
+                <Plus className="h-4 w-4" />
+                NUEVO PEDIDO
               </motion.button>
             )}
           </div>
         </div>
+      </div>
 
         <NuevoPedidoModal
           isOpen={isModalOpen}
@@ -141,152 +153,157 @@ export default function PedidosPage() {
           pedidoId={selectedPedidoId}
         />
 
-        <div className="rounded-xl bg-white p-6 shadow-md">
+        <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-800 p-6">
           {/* Busqueda y Filtros */}
-          <div className="mb-6 space-y-4">
-            <div className="flex flex-col gap-4 sm:flex-row">
-              <div className="flex-1">
-                <div className="relative">
-                  <Search className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-gray-400" />
-                  <input
-                    type="text"
-                    placeholder="Buscar por cliente..."
-                    value={busqueda}
-                    onChange={(e) => {
-                      setBusqueda(e.target.value);
-                      setPage(1);
-                    }}
-                    className="w-full rounded-lg border border-gray-300 py-2 pl-10 pr-4 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
-                  />
-                </div>
+          <div className="mb-6 flex flex-col xl:flex-row xl:items-center justify-between gap-4">
+            <div className="flex flex-col sm:flex-row gap-4 flex-1">
+              <div className="relative flex-1 min-w-[300px]">
+                <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+                <input
+                  type="text"
+                  placeholder="Buscar por cliente o producto..."
+                  value={busqueda}
+                  onChange={(e) => {
+                    setBusqueda(e.target.value);
+                    setPage(1);
+                  }}
+                  className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl py-2.5 pl-10 pr-4 text-sm focus:ring-2 focus:ring-blue-500 focus:bg-white dark:focus:bg-slate-700 transition-all outline-none text-slate-900 dark:text-slate-100 placeholder:text-slate-400"
+                />
               </div>
+              
+              <div className="flex items-center gap-2 bg-slate-50 dark:bg-slate-800 p-1 rounded-xl border border-slate-200 dark:border-slate-700">
+                <div className="px-3 text-[10px] font-bold text-slate-400 uppercase tracking-widest border-r border-slate-200 dark:border-slate-700">Filtros</div>
+                <select
+                  value={estado}
+                  onChange={(e) => {
+                    setEstado(e.target.value);
+                    setPage(1);
+                  }}
+                  className="bg-transparent px-3 py-1.5 text-xs font-bold text-slate-600 dark:text-slate-300 focus:outline-none cursor-pointer"
+                >
+                  <option value="Todos">Todos los estados</option>
+                  <option value="Pendiente">Pendiente</option>
+                  <option value="EnProceso">En Proceso</option>
+                  <option value="Completado">Completado</option>
+                </select>
+                <div className="w-px h-4 bg-slate-200 dark:border-slate-700" />
+                <select
+                  value={prioridad}
+                  onChange={(e) => {
+                    setPrioridad(e.target.value);
+                    setPage(1);
+                  }}
+                  className="bg-transparent px-3 py-1.5 text-xs font-bold text-slate-600 dark:text-slate-300 focus:outline-none cursor-pointer"
+                >
+                  <option value="Todas">Todas las prioridades</option>
+                  <option value="Baja">Baja</option>
+                  <option value="Media">Media</option>
+                  <option value="Alta">Alta</option>
+                </select>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2 self-end xl:self-auto">
+              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Mostrar</span>
               <select
                 value={limit}
                 onChange={(e) => {
                   setLimit(Number(e.target.value));
                   setPage(1);
                 }}
-                className="rounded-lg border border-gray-300 px-4 py-2 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+                className="bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-1.5 text-xs font-bold text-slate-600 dark:text-slate-300 focus:outline-none"
               >
-                <option value="10">10 por página</option>
-                <option value="25">25 por página</option>
-                <option value="50">50 por página</option>
-              </select>
-            </div>
-            <div className="flex flex-wrap gap-4">
-              <div className="flex items-center gap-2">
-                <Filter className="h-5 w-5 text-gray-500" />
-                <span className="text-sm font-medium text-gray-700">Filtros:</span>
-              </div>
-              <select
-                value={estado}
-                onChange={(e) => {
-                  setEstado(e.target.value);
-                  setPage(1);
-                }}
-                className="rounded-lg border border-gray-300 px-4 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
-              >
-                <option value="Todos">Todos los estados</option>
-                <option value="Pendiente">Pendiente</option>
-                <option value="EnProceso">En Proceso</option>
-                <option value="Completado">Completado</option>
-              </select>
-              <select
-                value={prioridad}
-                onChange={(e) => {
-                  setPrioridad(e.target.value);
-                  setPage(1);
-                }}
-                className="rounded-lg border border-gray-300 px-4 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
-              >
-                <option value="Todas">Todas las prioridades</option>
-                <option value="Baja">Baja</option>
-                <option value="Media">Media</option>
-                <option value="Alta">Alta</option>
+                <option value="10">10 registros</option>
+                <option value="25">25 registros</option>
+                <option value="50">50 registros</option>
               </select>
             </div>
           </div>
 
           {/* Tabla */}
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead className="border-b bg-gray-50">
-                <tr>
-                  <th className="px-4 py-3 text-left text-xs font-medium uppercase text-gray-600">
+          <div className="overflow-x-auto -mx-6">
+            <table className="w-full border-collapse">
+              <thead>
+                <tr className="bg-slate-50 dark:bg-slate-800/50 border-y border-slate-200 dark:border-slate-800">
+                  <th className="px-6 py-4 text-left text-[10px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-400">
                     Cliente
                   </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium uppercase text-gray-600">
+                  <th className="px-6 py-4 text-left text-[10px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-400">
                     Producto
                   </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium uppercase text-gray-600">
+                  <th className="px-6 py-4 text-left text-[10px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-400">
                     Cantidad
                   </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium uppercase text-gray-600">
-                    Fecha Pedido
+                  <th className="px-6 py-4 text-left text-[10px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-400">
+                    Fechas
                   </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium uppercase text-gray-600">
-                    Fecha Entrega
-                  </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium uppercase text-gray-600">
+                  <th className="px-6 py-4 text-left text-[10px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-400">
                     Estado
                   </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium uppercase text-gray-600">
+                  <th className="px-6 py-4 text-left text-[10px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-400">
                     Prioridad
                   </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium uppercase text-gray-600">
-                    Saldo
-                  </th>
-                  <th className="px-4 py-3 text-right text-xs font-medium uppercase text-gray-600">
+                  <th className="px-6 py-4 text-right text-[10px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-400">
                     Acciones
                   </th>
                 </tr>
               </thead>
-              <tbody className="divide-y">
+              <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
                 {pedidos?.map((pedido) => {
                   const saldo =
                     (pedido?.cantidadSolicitada || 0) - (pedido?.cantidadProducida || 0);
                   return (
-                    <tr key={pedido?.id} className="hover:bg-gray-50">
-                      <td className="px-4 py-3 text-sm font-medium text-gray-900">
+                    <tr key={pedido?.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors group">
+                      <td className="px-6 py-4">
                         <button
                           onClick={() => router.push(`/clientes/${pedido?.cliente?.id}`)}
-                          className="text-blue-600 hover:text-blue-800 hover:underline transition-colors"
+                          className="font-bold text-slate-900 dark:text-white hover:text-blue-600 dark:hover:text-blue-400 transition-colors text-sm"
                         >
                           {pedido?.cliente?.nombre || 'N/A'}
                         </button>
                       </td>
-                      <td className="px-4 py-3 text-sm text-gray-600">
-                        <button
-                          onClick={() => router.push(`/clientes/${pedido?.productoCliente?.clienteId}/productos`)}
-                          className="text-purple-600 hover:text-purple-800 hover:underline transition-colors"
-                        >
-                          {pedido?.productoCliente?.nombreProducto || '-'}
-                        </button>
+                      <td className="px-6 py-4">
+                        <div className="flex flex-col">
+                          <span className="text-sm font-semibold text-slate-700 dark:text-slate-300">
+                            {pedido?.productoCliente?.nombreProducto || '-'}
+                          </span>
+                          {pedido?.productoCliente?.codigoProducto && (
+                            <span className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">{pedido.productoCliente.codigoProducto}</span>
+                          )}
+                        </div>
                       </td>
-                      <td className="px-4 py-3 text-sm text-gray-600">
-                        {pedido?.cantidadSolicitada || 0} {pedido?.unidad || ''}
+                      <td className="px-6 py-4">
+                        <div className="flex flex-col">
+                          <span className="text-sm font-bold text-slate-900 dark:text-white">
+                            {pedido?.cantidadSolicitada?.toLocaleString() || 0} {pedido?.unidad || ''}
+                          </span>
+                          <span className="text-[10px] text-slate-400 font-medium">Saldo: {saldo.toLocaleString()}</span>
+                        </div>
                       </td>
-                      <td className="px-4 py-3 text-sm text-gray-600">
-                        {pedido?.fechaPedido
-                          ? format(new Date(pedido.fechaPedido), 'dd/MM/yyyy')
-                          : '-'}
+                      <td className="px-6 py-4">
+                        <div className="flex flex-col gap-1">
+                          <div className="flex items-center gap-1.5">
+                            <span className="text-[9px] font-black text-slate-400 uppercase w-10">Pedido:</span>
+                            <span className="text-xs font-semibold text-slate-600 dark:text-slate-400">
+                              {pedido?.fechaPedido ? format(new Date(pedido.fechaPedido), 'dd/MM/yyyy') : '-'}
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-1.5">
+                            <span className="text-[9px] font-black text-slate-400 uppercase w-10">Entrega:</span>
+                            <span className="text-xs font-bold text-blue-600 dark:text-blue-400">
+                              {pedido?.fechaEntrega ? format(new Date(pedido.fechaEntrega), 'dd/MM/yyyy') : '-'}
+                            </span>
+                          </div>
+                        </div>
                       </td>
-                      <td className="px-4 py-3 text-sm text-gray-600">
-                        {pedido?.fechaEntrega
-                          ? format(new Date(pedido.fechaEntrega), 'dd/MM/yyyy')
-                          : '-'}
-                      </td>
-                      <td className="px-4 py-3">
+                      <td className="px-6 py-4">
                         <BadgeEstado estado={pedido?.estado || 'Pendiente'} />
                       </td>
-                      <td className="px-4 py-3">
+                      <td className="px-6 py-4">
                         <BadgePrioridad prioridad={pedido?.prioridad || 'Media'} />
                       </td>
-                      <td className="px-4 py-3 text-sm text-gray-600">
-                        {saldo} {pedido?.unidad || ''}
-                      </td>
-                      <td className="px-4 py-3 text-right">
-                        <div className="flex justify-end gap-2">
+                      <td className="px-6 py-4 text-right">
+                        <div className="flex justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                           {isAdmin && (
                             <>
                               <button
@@ -294,14 +311,14 @@ export default function PedidosPage() {
                                   setSelectedPedidoId(pedido?.id);
                                   setIsEditModalOpen(true);
                                 }}
-                                className="rounded-lg bg-blue-100 p-2 text-blue-600 transition-colors hover:bg-blue-200"
+                                className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/30 rounded-lg transition-all"
                                 title="Editar"
                               >
                                 <Edit className="h-4 w-4" />
                               </button>
                               <button
                                 onClick={() => handleDelete(pedido?.id)}
-                                className="rounded-lg bg-red-100 p-2 text-red-600 transition-colors hover:bg-red-200"
+                                className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/30 rounded-lg transition-all"
                                 title="Eliminar"
                               >
                                 <Trash2 className="h-4 w-4" />
@@ -310,8 +327,8 @@ export default function PedidosPage() {
                           )}
                           <button
                             onClick={() => router.push(`/clientes/${pedido?.productoCliente?.clienteId}/productos`)}
-                            className="rounded-lg bg-purple-100 p-2 text-purple-600 transition-colors hover:bg-purple-200"
-                            title="Ver productos del cliente"
+                            className="p-2 text-slate-400 hover:text-purple-600 hover:bg-purple-50 dark:hover:bg-purple-900/30 rounded-lg transition-all"
+                            title="Ver productos"
                           >
                             <Package className="h-4 w-4" />
                           </button>
@@ -322,38 +339,45 @@ export default function PedidosPage() {
                 })}
               </tbody>
             </table>
+          </div>
 
             {pedidos?.length === 0 && (
-              <div className="py-12 text-center text-gray-500">
-                No se encontraron pedidos
+              <div className="py-20 text-center">
+                <div className="w-16 h-16 bg-slate-50 dark:bg-slate-800 rounded-full flex items-center justify-center mx-auto mb-4 text-slate-300">
+                  <Package className="w-8 h-8" />
+                </div>
+                <h3 className="text-sm font-bold text-slate-900 dark:text-white">No se encontraron pedidos</h3>
+                <p className="text-xs text-slate-500 mt-1">Intenta ajustar los filtros de búsqueda.</p>
               </div>
             )}
           </div>
 
           {/* Paginación */}
           {totalPages > 1 && (
-            <div className="mt-6 flex items-center justify-center gap-2">
-              <button
-                onClick={() => setPage(Math.max(1, page - 1))}
-                disabled={page === 1}
-                className="rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50 disabled:opacity-50"
-              >
-                Anterior
-              </button>
-              <span className="text-sm text-gray-600">
+            <div className="mt-8 flex items-center justify-between border-t border-slate-100 dark:border-slate-800 pt-6">
+              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
                 Página {page} de {totalPages}
               </span>
-              <button
-                onClick={() => setPage(Math.min(totalPages, page + 1))}
-                disabled={page === totalPages}
-                className="rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50 disabled:opacity-50"
-              >
-                Siguiente
-              </button>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => setPage(Math.max(1, page - 1))}
+                  disabled={page === 1}
+                  className="px-4 py-2 text-xs font-bold text-slate-600 dark:text-slate-400 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-700 disabled:opacity-50 transition-all"
+                >
+                  Anterior
+                </button>
+                <button
+                  onClick={() => setPage(Math.min(totalPages, page + 1))}
+                  disabled={page === totalPages}
+                  className="px-4 py-2 text-xs font-bold text-white bg-blue-600 rounded-xl hover:bg-blue-700 disabled:opacity-50 transition-all shadow-md shadow-blue-100 dark:shadow-none"
+                >
+                  Siguiente
+                </button>
+              </div>
             </div>
           )}
         </div>
       </div>
-    </>
+    </div>
   );
 }

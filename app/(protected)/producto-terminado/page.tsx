@@ -242,38 +242,46 @@ export default function ProductoTerminadoPage() {
   }
 
   return (
-    <>
-      <div className="space-y-6">
-        {/* Header */}
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 flex items-center gap-2">
-              <Package className="h-8 w-8 text-emerald-600" />
-              Producto Terminado
-            </h1>
-            <p className="text-gray-500 mt-1">Gestión de productos listos y pendientes de proceso</p>
+  return (
+    <div className="p-8 bg-slate-50 dark:bg-slate-950 min-h-screen transition-colors duration-300">
+      {/* Header Area */}
+      <div className="mb-8">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 bg-white dark:bg-slate-900 p-6 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-800 transition-colors">
+          <div className="flex items-center gap-4">
+            <div className="w-14 h-14 bg-emerald-600 rounded-2xl flex items-center justify-center text-white shadow-lg shadow-emerald-200 dark:shadow-none">
+              <Package className="w-8 h-8" />
+            </div>
+            <div>
+              <h1 className="text-2xl md:text-3xl font-black text-slate-900 dark:text-white leading-tight">Producto Terminado</h1>
+              <div className="flex items-center gap-2 mt-1">
+                <span className="px-2 py-0.5 bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 text-[10px] font-bold uppercase tracking-widest rounded">Inventario y Control</span>
+                <span className="w-1 h-1 bg-slate-300 dark:bg-slate-700 rounded-full" />
+                <span className="text-slate-400 dark:text-slate-500 text-xs font-medium">{productos.length} ítems en stock</span>
+              </div>
+            </div>
           </div>
-          <div className="flex items-center gap-3">
+          
+          <div className="flex flex-wrap items-center gap-3">
             <button
               onClick={() => router.push('/pedidos')}
-              className="flex items-center gap-2 px-4 py-2 bg-blue-100 text-blue-700 rounded-xl hover:bg-blue-200 transition-colors font-medium"
+              className="flex items-center gap-2 px-4 py-2 bg-blue-50 dark:bg-blue-950/30 text-blue-600 dark:text-blue-400 rounded-xl hover:bg-blue-100 dark:hover:bg-blue-900/50 transition-all font-bold text-xs uppercase tracking-widest border border-blue-100 dark:border-blue-900/50"
             >
               <ShoppingCart className="h-4 w-4" />
-              Ver Pedidos
+              PEDIDOS
             </button>
             <button
               onClick={() => router.push('/clientes')}
-              className="flex items-center gap-2 px-4 py-2 bg-purple-100 text-purple-700 rounded-xl hover:bg-purple-200 transition-colors font-medium"
+              className="flex items-center gap-2 px-4 py-2 bg-purple-50 dark:bg-purple-950/30 text-purple-600 dark:text-purple-400 rounded-xl hover:bg-purple-100 dark:hover:bg-purple-900/50 transition-all font-bold text-xs uppercase tracking-widest border border-purple-100 dark:border-purple-900/50"
             >
               <Package className="h-4 w-4" />
-              Ver Clientes
+              CLIENTES
             </button>
             <button
               onClick={() => setShowManualModal(true)}
-              className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-emerald-600 to-green-500 hover:from-emerald-700 hover:to-green-600 text-white rounded-xl shadow-sm hover:shadow-md transition-all font-medium"
+              className="flex items-center gap-2 px-5 py-2.5 bg-emerald-600 text-white rounded-xl shadow-lg shadow-emerald-100 dark:shadow-none hover:bg-emerald-700 transition-all font-bold text-xs uppercase tracking-widest"
             >
-              <Package className="h-4 w-4" />
-              Registrar un Producto
+              <Plus className="h-4 w-4" />
+              REGISTRAR MANUAL
             </button>
             <button
               onClick={async () => {
@@ -282,13 +290,13 @@ export default function ProductoTerminadoPage() {
                 setIsRefreshing(false);
               }}
               disabled={isRefreshing}
-              className="flex items-center gap-2 px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded-xl transition-colors font-medium text-gray-700 disabled:opacity-50"
+              className="p-2.5 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-xl transition-all text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-slate-700"
             >
-              <RefreshCw className={`h-4 w-4 ${isRefreshing ? 'animate-spin text-emerald-600' : ''}`} />
-              {isRefreshing ? 'Actualizando...' : 'Actualizar'}
+              <RefreshCw className={`h-5 w-5 ${isRefreshing ? 'animate-spin' : ''}`} />
             </button>
           </div>
         </div>
+      </div>
 
         {/* Resumen */}
         {resumen && (
@@ -344,36 +352,41 @@ export default function ProductoTerminadoPage() {
           </div>
         )}
 
-        {/* Filtros */}
-        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
-          <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
-            <div className="relative flex-1">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
-              <input
-                type="text"
-                placeholder="Buscar por cliente, descripción..."
-                value={busqueda}
-                onChange={(e) => setBusqueda(e.target.value)}
-                className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
-              />
-            </div>
-            <div className="flex gap-2">
+      {/* Filtros */}
+      <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-800 p-6 mb-8">
+        <div className="flex flex-col lg:flex-row items-center gap-6">
+          <div className="relative flex-1 w-full">
+            <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+            <input
+              type="text"
+              placeholder="Buscar por cliente, descripción, pedido..."
+              value={busqueda}
+              onChange={(e) => setBusqueda(e.target.value)}
+              className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl py-2.5 pl-10 pr-4 text-sm focus:ring-2 focus:ring-emerald-500 outline-none transition-all text-slate-900 dark:text-slate-100 placeholder:text-slate-400"
+            />
+          </div>
+          <div className="flex items-center gap-3 w-full lg:w-auto">
+            <div className="flex items-center gap-2 bg-slate-50 dark:bg-slate-800 p-1 rounded-xl border border-slate-200 dark:border-slate-700 flex-1 lg:flex-none">
+              <div className="px-3 text-[10px] font-black text-slate-400 uppercase tracking-widest border-r border-slate-200 dark:border-slate-700">Estado</div>
               <select
                 value={filtroEstado}
                 onChange={(e) => setFiltroEstado(e.target.value)}
-                className="px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-emerald-500"
+                className="bg-transparent px-3 py-1.5 text-xs font-bold text-slate-600 dark:text-slate-300 focus:outline-none cursor-pointer"
               >
-                <option value="todos">Todos los estados</option>
+                <option value="todos">Todos</option>
                 <option value="ListoDespacho">Listo Despacho</option>
                 <option value="PendienteArea">Pendiente Área</option>
                 <option value="Despachado">Despachado</option>
               </select>
+            </div>
+            <div className="flex items-center gap-2 bg-slate-50 dark:bg-slate-800 p-1 rounded-xl border border-slate-200 dark:border-slate-700 flex-1 lg:flex-none">
+              <div className="px-3 text-[10px] font-black text-slate-400 uppercase tracking-widest border-r border-slate-200 dark:border-slate-700">Origen</div>
               <select
                 value={filtroArea}
                 onChange={(e) => setFiltroArea(e.target.value)}
-                className="px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-emerald-500"
+                className="bg-transparent px-3 py-1.5 text-xs font-bold text-slate-600 dark:text-slate-300 focus:outline-none cursor-pointer"
               >
-                <option value="todos">Todas las áreas</option>
+                <option value="todos">Todas</option>
                 <option value="Extrusion">Extrusión</option>
                 <option value="Sellado">Sellado</option>
                 <option value="Serigrafia">Serigrafía</option>
@@ -382,6 +395,7 @@ export default function ProductoTerminadoPage() {
             </div>
           </div>
         </div>
+      </div>
 
         {/* Renderizador de Secciones Dinámicas */}
         {[
@@ -394,7 +408,7 @@ export default function ProductoTerminadoPage() {
             bgHeader: 'from-emerald-50 to-green-50 hover:from-emerald-100'
           },
           {
-            titulo: 'Bobinas con impresión (Serigrafía)',
+            titulo: 'Bobinas con impresión',
             lista: bobinasConImpresion,
             id: 'bobinasCon',
             icono: <Factory className="h-5 w-5 text-white" />,
@@ -434,28 +448,33 @@ export default function ProductoTerminadoPage() {
             bgHeader: 'from-blue-50 to-cyan-50 hover:from-blue-100'
           }
         ].map((seccion) => (
-          <div key={seccion.id} className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden mb-4">
+          <div key={seccion.id} className="bg-white dark:bg-slate-900 rounded-[2rem] shadow-sm border border-slate-200 dark:border-slate-800 overflow-hidden mb-6 transition-colors">
             <button
               onClick={() => toggleSeccion(seccion.id)}
-              className={`w-full px-6 py-4 flex items-center justify-between bg-gradient-to-r ${seccion.bgHeader} transition-colors`}
+              className={`w-full px-8 py-5 flex items-center justify-between bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-all border-b border-slate-100 dark:border-slate-800`}
             >
-              <div className="flex items-center gap-3">
-                <div className={`p-2 rounded-lg ${seccion.bgIcon}`}>
+              <div className="flex items-center gap-4">
+                <div className={`p-3 rounded-2xl ${seccion.bgIcon} shadow-lg shadow-${seccion.bgIcon.split('-')[1]}-200 dark:shadow-none`}>
                   {seccion.icono}
                 </div>
                 <div className="text-left">
-                  <h2 className="text-lg font-semibold text-gray-900">{seccion.titulo}</h2>
-                  <div className="flex items-center gap-2 mt-0.5">
-                    <p className="text-sm text-gray-500">{seccion.lista.length} {seccion.lista.length === 1 ? 'producto registrado' : 'productos registrados'}</p>
+                  <h2 className="text-lg font-black text-slate-900 dark:text-white leading-tight uppercase tracking-tight">{seccion.titulo}</h2>
+                  <div className="flex items-center gap-3 mt-1">
+                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{seccion.lista.length} {seccion.lista.length === 1 ? 'producto' : 'productos'}</p>
                     {seccion.lista.length > 0 && (
-                      <span className="text-sm uppercase font-bold text-gray-600 ml-1">
-                        - Total: {seccion.lista.reduce((acc, p) => acc + p.cantidadDisponible, 0).toFixed(2)} {['bolsasCon', 'bolsasSin'].includes(seccion.id) ? 'Und' : (seccion.id === 'listos' ? (seccion.lista[0]?.tipoProducto === 'Bolsa' ? 'Und' : 'Kg') : 'Kg')}
-                      </span>
+                      <>
+                        <span className="w-1 h-1 bg-slate-300 dark:bg-slate-700 rounded-full" />
+                        <span className="text-[10px] font-black text-emerald-600 dark:text-emerald-400 uppercase tracking-widest">
+                          Total: {seccion.lista.reduce((acc, p) => acc + p.cantidadDisponible, 0).toFixed(2)} {['bolsasCon', 'bolsasSin'].includes(seccion.id) ? 'Und' : (seccion.id === 'listos' ? (seccion.lista[0]?.tipoProducto === 'Bolsa' ? 'Und' : 'Kg') : 'Kg')}
+                        </span>
+                      </>
                     )}
                   </div>
                 </div>
               </div>
-              {seccionesAbiertas[seccion.id] ? <ChevronUp className="h-5 w-5" /> : <ChevronDown className="h-5 w-5" />}
+              <div className="p-2 bg-slate-100 dark:bg-slate-800 rounded-xl">
+                {seccionesAbiertas[seccion.id] ? <ChevronUp className="h-5 w-5 text-slate-600 dark:text-slate-400" /> : <ChevronDown className="h-5 w-5 text-slate-600 dark:text-slate-400" />}
+              </div>
             </button>
 
             <AnimatePresence>
@@ -467,11 +486,14 @@ export default function ProductoTerminadoPage() {
                   className="overflow-hidden"
                 >
                   {seccion.lista.length === 0 ? (
-                    <div className="p-8 text-center text-gray-500">
-                      <p>No hay productos en esta categoría</p>
+                    <div className="p-12 text-center">
+                      <div className="w-16 h-16 bg-slate-50 dark:bg-slate-800 rounded-full flex items-center justify-center mx-auto mb-4 text-slate-300">
+                        <Package className="w-8 h-8" />
+                      </div>
+                      <p className="text-sm font-bold text-slate-400 uppercase tracking-widest">No hay productos en esta categoría</p>
                     </div>
                   ) : (
-                    <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 p-4">
+                    <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3 p-8 bg-slate-50/50 dark:bg-slate-950/20">
                       {seccion.lista.map((producto) => (
                         <ProductoTerminadoCard
                           key={producto.id}
@@ -494,6 +516,7 @@ export default function ProductoTerminadoPage() {
           </div>
         ))}
       </div>
+    </div>
 
       <ManualProductModal
         isOpen={showManualModal}

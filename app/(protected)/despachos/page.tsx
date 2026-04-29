@@ -130,31 +130,48 @@ export default function DespachosPage() {
     });
 
   return (
-    <>
-      <div className="space-y-4 sm:space-y-6">
-        {/* Header */}
-        <div className="flex flex-col gap-4">
-          <div>
-            <h1 className="text-2xl font-bold text-gray-900 sm:text-3xl">Despachos</h1>
-            <p className="mt-1 text-sm text-gray-600 sm:text-base">Gestión de entregas y despachos</p>
+  return (
+    <div className="p-8 bg-slate-50 dark:bg-slate-950 min-h-screen transition-colors duration-300">
+      {/* Header Area */}
+      <div className="mb-8">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 bg-white dark:bg-slate-900 p-6 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-800 transition-colors">
+          <div className="flex items-center gap-4">
+            <div className="w-14 h-14 bg-blue-600 rounded-2xl flex items-center justify-center text-white shadow-lg shadow-blue-200 dark:shadow-none">
+              <Truck className="w-8 h-8" />
+            </div>
+            <div>
+              <h1 className="text-2xl md:text-3xl font-black text-slate-900 dark:text-white leading-tight">Despachos</h1>
+              <div className="flex items-center gap-2 mt-1">
+                <span className="px-2 py-0.5 bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 text-[10px] font-bold uppercase tracking-widest rounded">Logística y Entregas</span>
+                <span className="w-1 h-1 bg-slate-300 dark:bg-slate-700 rounded-full" />
+                <span className="text-slate-400 dark:text-slate-500 text-xs font-medium">{despachos.length} entregas activas</span>
+              </div>
+            </div>
           </div>
-          <div className="flex flex-col sm:flex-row gap-3 sm:w-auto w-full">
-            <Link
-              href="/despachos/historial"
-              className="flex w-full items-center justify-center gap-2 rounded-lg bg-white border border-gray-200 px-4 py-2 text-gray-700 shadow-sm transition-all hover:bg-gray-50 active:scale-95 sm:w-auto font-medium"
-            >
-              <Clock className="h-5 w-5" />
-              Historial de Despacho
+          
+          <div className="flex flex-col sm:flex-row gap-3">
+            <Link href="/despachos/historial">
+              <motion.button
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
+                className="flex items-center justify-center gap-2 rounded-xl bg-slate-100 dark:bg-slate-800 px-5 py-2.5 font-bold text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 transition-all shadow-sm"
+              >
+                <Clock className="h-4 w-4" />
+                HISTORIAL
+              </motion.button>
             </Link>
-            <button
+            <motion.button
+              whileHover={{ scale: 1.02, boxShadow: '0 10px 15px -3px rgba(59, 130, 246, 0.3)' }}
+              whileTap={{ scale: 0.98 }}
               onClick={() => setIsModalOpen(true)}
-              className="flex w-full items-center justify-center gap-2 rounded-lg bg-gradient-to-r from-blue-600 to-indigo-600 px-4 py-2 text-white shadow-md transition-all hover:scale-105 hover:shadow-lg active:scale-95 sm:w-auto font-medium"
+              className="flex items-center justify-center gap-2 rounded-xl bg-blue-600 px-5 py-2.5 font-bold text-white shadow-lg transition-all hover:bg-blue-700 active:scale-95"
             >
-              <Plus className="h-5 w-5" />
-              Nuevo Despacho
-            </button>
+              <Plus className="h-4 w-4" />
+              NUEVO DESPACHO
+            </motion.button>
           </div>
         </div>
+      </div>
 
         <NuevoDespachoModal
           isOpen={isModalOpen}
@@ -166,264 +183,284 @@ export default function DespachosPage() {
           preselectedId={preselectedId || undefined}
         />
 
-        {/* Categorías (Tabs) */}
-        <div className="flex bg-white shadow-sm p-1 rounded-xl w-full border border-gray-100 mb-4 sm:w-fit overflow-x-auto">
-          {['Todos', 'Bolsa', 'Bobina'].map((tipo) => (
-            <button
-              key={tipo}
-              onClick={() => {
-                setFilters({ ...filters, tipoProducto: tipo === 'Todos' ? '' : tipo });
-                setPage(1);
-              }}
-              className={`px-5 py-2 text-sm font-medium rounded-lg transition-all ${(tipo === 'Todos' && !filters.tipoProducto) || filters.tipoProducto === tipo
-                ? 'bg-blue-50 text-blue-700 shadow-sm'
-                : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50'
-                }`}
-            >
-              {tipo === 'Todos' ? 'Todos los Productos' : `${tipo}s`}
-            </button>
-          ))}
-        </div>
-
-        {/* Filtros */}
-        <div className="rounded-xl bg-white p-4 shadow-sm">
-          <div className="mb-3 flex items-center gap-2">
-            <Filter className="h-5 w-5 text-gray-500" />
-            <span className="font-medium text-gray-700">Filtros</span>
+      {/* Categorías y Filtros Wrapper */}
+      <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-800 p-6 mb-8 transition-colors">
+        <div className="flex flex-col lg:flex-row gap-6">
+          {/* Tabs */}
+          <div className="flex bg-slate-100 dark:bg-slate-800 p-1.5 rounded-2xl w-fit">
+            {['Todos', 'Bolsa', 'Bobina'].map((tipo) => (
+              <button
+                key={tipo}
+                onClick={() => {
+                  setFilters({ ...filters, tipoProducto: tipo === 'Todos' ? '' : tipo });
+                  setPage(1);
+                }}
+                className={`px-6 py-2 text-xs font-black uppercase tracking-widest rounded-xl transition-all ${(tipo === 'Todos' && !filters.tipoProducto) || filters.tipoProducto === tipo
+                  ? 'bg-white dark:bg-slate-700 text-blue-600 dark:text-blue-400 shadow-md'
+                  : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-white/50 dark:hover:bg-slate-700/50'
+                  }`}
+              >
+                {tipo === 'Todos' ? 'Todos' : `${tipo}s`}
+              </button>
+            ))}
           </div>
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-            <select
-              value={filters.estado}
-              onChange={(e) => setFilters({ ...filters, estado: e.target.value })}
-              className="rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none"
-            >
-              <option value="">Todos los estados</option>
-              {ESTADOS.filter(e => e.value !== 'Entregado').map((e) => (
-                <option key={e.value} value={e.value}>{e.label}</option>
-              ))}
-            </select>
-            <div className="flex items-center gap-2">
-              <Calendar className="h-4 w-4 text-gray-400" />
+
+          <div className="h-px lg:h-10 lg:w-px bg-slate-100 dark:bg-slate-800" />
+
+          {/* Filtros */}
+          <div className="flex-1 grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <div className="flex items-center gap-2 bg-slate-50 dark:bg-slate-800 p-1 rounded-xl border border-slate-200 dark:border-slate-700">
+              <div className="px-3 text-[10px] font-black text-slate-400 uppercase tracking-widest border-r border-slate-200 dark:border-slate-700">Estado</div>
+              <select
+                value={filters.estado}
+                onChange={(e) => setFilters({ ...filters, estado: e.target.value })}
+                className="bg-transparent px-3 py-1.5 text-xs font-bold text-slate-600 dark:text-slate-300 focus:outline-none cursor-pointer flex-1"
+              >
+                <option value="">Todos los estados</option>
+                {ESTADOS.filter(e => e.value !== 'Entregado').map((e) => (
+                  <option key={e.value} value={e.value}>{e.label}</option>
+                ))}
+              </select>
+            </div>
+            
+            <div className="relative">
+              <Calendar className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
               <input
                 type="date"
                 value={filters.fechaInicio}
                 onChange={(e) => setFilters({ ...filters, fechaInicio: e.target.value })}
-                className="flex-1 rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none"
+                className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl py-2.5 pl-10 pr-4 text-sm font-semibold text-slate-700 dark:text-slate-300 focus:ring-2 focus:ring-blue-500 outline-none transition-all"
               />
             </div>
-            <div className="flex items-center gap-2">
-              <span className="text-sm text-gray-400">a</span>
+            <div className="relative">
+              <Calendar className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
               <input
                 type="date"
                 value={filters.fechaFin}
                 onChange={(e) => setFilters({ ...filters, fechaFin: e.target.value })}
-                className="flex-1 rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none"
+                className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl py-2.5 pl-10 pr-4 text-sm font-semibold text-slate-700 dark:text-slate-300 focus:ring-2 focus:ring-blue-500 outline-none transition-all"
               />
             </div>
           </div>
         </div>
+      </div>
 
-        {/* Vista móvil - Tarjetas */}
-        <div className="space-y-3 lg:hidden">
-          {despachos.length === 0 ? (
-            <div className="rounded-xl bg-white p-8 text-center text-gray-500 shadow-sm">
-              No hay despachos registrados
+      {/* Vista móvil - Tarjetas */}
+      <div className="space-y-4 lg:hidden">
+        {despachos.length === 0 ? (
+          <div className="bg-white dark:bg-slate-900 rounded-[2rem] p-12 text-center border border-slate-200 dark:border-slate-800">
+            <div className="w-16 h-16 bg-slate-50 dark:bg-slate-800 rounded-full flex items-center justify-center mx-auto mb-4 text-slate-300">
+              <Truck className="w-8 h-8" />
             </div>
-          ) : (
-            despachos.map((despacho) => {
-              const estadoInfo = getEstadoInfo(despacho.estado);
-              return (
-                <motion.div
-                  key={despacho.id}
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm"
-                >
-                  <div className="mb-3 flex items-start justify-between gap-2">
-                    <div>
-                      <h3 className="font-medium text-gray-900">{despacho.cliente.nombre}</h3>
-                      <p className="text-sm text-gray-600">{formatDate(despacho.fecha)}</p>
-                    </div>
-                    <span className={`rounded-full px-2 py-1 text-xs font-medium ${estadoInfo.color}`}>
-                      {estadoInfo.label}
-                    </span>
+            <p className="text-sm font-bold text-slate-400 uppercase tracking-widest">No hay despachos registrados</p>
+          </div>
+        ) : (
+          despachos.map((despacho) => {
+            const estadoInfo = getEstadoInfo(despacho.estado);
+            return (
+              <motion.div
+                key={despacho.id}
+                initial={{ opacity: 0, scale: 0.98 }}
+                animate={{ opacity: 1, scale: 1 }}
+                className="bg-white dark:bg-slate-900 rounded-[2rem] p-6 border border-slate-200 dark:border-slate-800 shadow-sm"
+              >
+                <div className="mb-4 flex items-start justify-between">
+                  <div>
+                    <h3 className="font-black text-slate-900 dark:text-white leading-tight">{despacho.cliente.nombre}</h3>
+                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">{formatDate(despacho.fecha)}</p>
                   </div>
-                  <div className="mb-3 grid grid-cols-2 gap-2 text-sm">
-                    <div>
-                      <span className="text-gray-500">Cantidad:</span>
-                      <p className="font-medium">{despacho.cantidadDespachada} {despacho.unidad}</p>
-                    </div>
-                    <div>
-                      <span className="text-gray-500">Vehículo:</span>
-                      <p className="font-medium">{despacho.vehiculo || '-'}</p>
-                    </div>
-                    <div>
-                      <span className="text-gray-500">Conductor:</span>
-                      <p className="font-medium">{despacho.conductor || '-'}</p>
-                    </div>
-                    <div>
-                      <span className="text-gray-500">Destino:</span>
-                      <p className="font-medium">{despacho.destino || '-'}</p>
-                    </div>
+                  <span className={`px-2 py-0.5 text-[9px] font-black uppercase tracking-widest rounded-lg ${estadoInfo.color}`}>
+                    {estadoInfo.label}
+                  </span>
+                </div>
+                
+                <div className="mb-6 grid grid-cols-2 gap-4">
+                  <div className="bg-slate-50 dark:bg-slate-800/50 p-3 rounded-2xl">
+                    <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest block mb-1">Cantidad</span>
+                    <p className="text-sm font-black text-slate-900 dark:text-white">{despacho.cantidadDespachada} {despacho.unidad}</p>
                   </div>
-                  <div className="flex justify-end gap-2">
-                    {despacho.estado === 'Pendiente' && (
-                      <button
-                        onClick={() => handleUpdateEstado(despacho.id, 'EnTransito')}
-                        className="rounded bg-blue-100 p-2 text-blue-600 hover:bg-blue-200"
-                        title="Marcar En Tránsito"
-                      >
-                        <Truck className="h-4 w-4" />
-                      </button>
-                    )}
-                    {despacho.estado === 'EnTransito' && (
-                      <button
-                        onClick={() => handleUpdateEstado(despacho.id, 'Entregado')}
-                        className="rounded bg-green-100 p-2 text-green-600 hover:bg-green-200"
-                        title="Marcar Entregado"
-                      >
-                        <CheckCircle className="h-4 w-4" />
-                      </button>
-                    )}
+                  <div className="bg-slate-50 dark:bg-slate-800/50 p-3 rounded-2xl">
+                    <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest block mb-1">Vehículo</span>
+                    <p className="text-sm font-black text-slate-900 dark:text-white">{despacho.vehiculo || '-'}</p>
+                  </div>
+                  <div className="bg-slate-50 dark:bg-slate-800/50 p-3 rounded-2xl">
+                    <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest block mb-1">Conductor</span>
+                    <p className="text-sm font-black text-slate-900 dark:text-white line-clamp-1">{despacho.conductor || '-'}</p>
+                  </div>
+                  <div className="bg-slate-50 dark:bg-slate-800/50 p-3 rounded-2xl">
+                    <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest block mb-1">Destino</span>
+                    <p className="text-sm font-black text-slate-900 dark:text-white line-clamp-1">{despacho.destino || '-'}</p>
+                  </div>
+                </div>
+
+                <div className="flex justify-end gap-2 border-t border-slate-100 dark:border-slate-800 pt-4">
+                  {despacho.estado === 'Pendiente' && (
                     <button
-                      onClick={() => handleEdit(despacho.id)}
-                      className="rounded bg-gray-100 p-2 text-gray-600 hover:bg-gray-200 transition-colors"
-                      title="Editar"
+                      onClick={() => handleUpdateEstado(despacho.id, 'EnTransito')}
+                      className="p-2.5 bg-blue-50 dark:bg-blue-950/30 text-blue-600 dark:text-blue-400 rounded-xl border border-blue-100 dark:border-blue-900/50"
+                      title="Marcar En Tránsito"
                     >
-                      <Pencil className="h-4 w-4" />
+                      <Truck className="h-4 w-4" />
                     </button>
-                    {isAdmin && (
-                      <button
-                        onClick={() => handleDelete(despacho.id)}
-                        className="rounded bg-red-100 p-2 text-red-600 hover:bg-red-200 transition-colors"
-                        title="Eliminar"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </button>
-                    )}
-                  </div>
-                </motion.div>
-              );
-            })
-          )}
-        </div>
-
-        {/* Vista desktop - Tabla */}
-        <div className="hidden rounded-xl bg-white shadow-sm overflow-hidden lg:block">
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead className="bg-gray-50">
-                <tr>
-                  <th className="px-4 py-3 text-left text-sm font-semibold text-gray-900">Fecha</th>
-                  <th className="px-4 py-3 text-left text-sm font-semibold text-gray-900">Cliente</th>
-                  <th className="px-4 py-3 text-right text-sm font-semibold text-gray-900">Cantidad</th>
-                  <th className="px-4 py-3 text-left text-sm font-semibold text-gray-900">Vehículo</th>
-                  <th className="px-4 py-3 text-left text-sm font-semibold text-gray-900">Conductor</th>
-                  <th className="px-4 py-3 text-left text-sm font-semibold text-gray-900">Destino</th>
-                  <th className="px-4 py-3 text-center text-sm font-semibold text-gray-900">Estado</th>
-                  <th className="px-4 py-3 text-center text-sm font-semibold text-gray-900">Acciones</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-200">
-                {despachos.length === 0 ? (
-                  <tr>
-                    <td colSpan={8} className="px-4 py-8 text-center text-gray-500">
-                      No hay despachos registrados
-                    </td>
-                  </tr>
-                ) : (
-                  despachos.map((despacho) => {
-                    const estadoInfo = getEstadoInfo(despacho.estado);
-                    return (
-                      <motion.tr
-                        key={despacho.id}
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 1 }}
-                        className="hover:bg-gray-50"
-                      >
-                        <td className="px-4 py-3 text-sm text-gray-900">{formatDate(despacho.fecha)}</td>
-                        <td className="px-4 py-3 text-sm font-medium text-gray-900">{despacho.cliente.nombre}</td>
-                        <td className="px-4 py-3 text-right text-sm text-gray-900">
-                          {despacho.cantidadDespachada} {despacho.unidad}
-                        </td>
-                        <td className="px-4 py-3 text-sm text-gray-600">{despacho.vehiculo || '-'}</td>
-                        <td className="px-4 py-3 text-sm text-gray-600">{despacho.conductor || '-'}</td>
-                        <td className="px-4 py-3 text-sm text-gray-600">{despacho.destino || '-'}</td>
-                        <td className="px-4 py-3 text-center">
-                          <span className={`rounded-full px-2 py-1 text-xs font-medium ${estadoInfo.color}`}>
-                            {estadoInfo.label}
-                          </span>
-                        </td>
-                        <td className="px-4 py-3">
-                          <div className="flex justify-center gap-2">
-                            {despacho.estado === 'Pendiente' && (
-                              <button
-                                onClick={() => handleUpdateEstado(despacho.id, 'EnTransito')}
-                                className="rounded p-1 text-gray-500 hover:bg-blue-100 hover:text-blue-600 transition-colors"
-                                title="Marcar En Tránsito"
-                              >
-                                <Truck className="h-4 w-4" />
-                              </button>
-                            )}
-                            {despacho.estado === 'EnTransito' && (
-                              <button
-                                onClick={() => handleUpdateEstado(despacho.id, 'Entregado')}
-                                className="rounded p-1 text-gray-500 hover:bg-green-100 hover:text-green-600 transition-colors"
-                                title="Marcar Entregado"
-                              >
-                                <CheckCircle className="h-4 w-4" />
-                              </button>
-                            )}
-                            <button
-                              onClick={() => handleEdit(despacho.id)}
-                              className="rounded p-1 text-gray-500 hover:bg-gray-100 hover:text-blue-600 transition-colors"
-                              title="Editar"
-                            >
-                              <Pencil className="h-4 w-4" />
-                            </button>
-                            {isAdmin && (
-                              <button
-                                onClick={() => handleDelete(despacho.id)}
-                                className="rounded p-1 text-gray-500 hover:bg-gray-100 hover:text-red-600 transition-colors"
-                                title="Eliminar"
-                              >
-                                <Trash2 className="h-4 w-4" />
-                              </button>
-                            )}
-                          </div>
-                        </td>
-                      </motion.tr>
-                    );
-                  })
-                )}
-              </tbody>
-            </table>
-          </div>
-        </div>
-
-        {/* Paginación */}
-        {totalPages > 1 && (
-          <div className="flex flex-col items-center gap-3 sm:flex-row sm:justify-between">
-            <p className="text-sm text-gray-600">Página {page} de {totalPages}</p>
-            <div className="flex w-full gap-2 sm:w-auto">
-              <button
-                onClick={() => setPage(Math.max(1, page - 1))}
-                disabled={page === 1}
-                className="flex-1 rounded-lg border border-gray-300 px-3 py-2 text-sm disabled:opacity-50 sm:flex-initial"
-              >
-                Anterior
-              </button>
-              <button
-                onClick={() => setPage(Math.min(totalPages, page + 1))}
-                disabled={page === totalPages}
-                className="flex-1 rounded-lg border border-gray-300 px-3 py-2 text-sm disabled:opacity-50 sm:flex-initial"
-              >
-                Siguiente
-              </button>
-            </div>
-          </div>
+                  )}
+                  {despacho.estado === 'EnTransito' && (
+                    <button
+                      onClick={() => handleUpdateEstado(despacho.id, 'Entregado')}
+                      className="p-2.5 bg-emerald-50 dark:bg-emerald-950/30 text-emerald-600 dark:text-emerald-400 rounded-xl border border-emerald-100 dark:border-emerald-900/50"
+                      title="Marcar Entregado"
+                    >
+                      <CheckCircle className="h-4 w-4" />
+                    </button>
+                  )}
+                  <button
+                    onClick={() => handleEdit(despacho.id)}
+                    className="p-2.5 bg-slate-50 dark:bg-slate-800 text-slate-400 hover:text-blue-600 rounded-xl border border-slate-200 dark:border-slate-700"
+                    title="Editar"
+                  >
+                    <Pencil className="h-4 w-4" />
+                  </button>
+                  {isAdmin && (
+                    <button
+                      onClick={() => handleDelete(despacho.id)}
+                      className="p-2.5 bg-slate-50 dark:bg-slate-800 text-slate-400 hover:text-red-600 rounded-xl border border-slate-200 dark:border-slate-700"
+                      title="Eliminar"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </button>
+                  )}
+                </div>
+              </motion.div>
+            );
+          })
         )}
       </div>
+
+      {/* Vista desktop - Tabla */}
+      <div className="hidden lg:block bg-white dark:bg-slate-900 rounded-[2rem] shadow-sm border border-slate-200 dark:border-slate-800 overflow-hidden transition-colors">
+        <div className="overflow-x-auto">
+          <table className="w-full border-collapse">
+            <thead>
+              <tr className="bg-slate-50 dark:bg-slate-800/50 border-b border-slate-200 dark:border-slate-800">
+                <th className="px-6 py-4 text-left text-[10px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-400">Fecha</th>
+                <th className="px-6 py-4 text-left text-[10px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-400">Cliente</th>
+                <th className="px-6 py-4 text-right text-[10px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-400">Cantidad</th>
+                <th className="px-6 py-4 text-left text-[10px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-400">Conductor / Vehículo</th>
+                <th className="px-6 py-4 text-left text-[10px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-400">Destino</th>
+                <th className="px-6 py-4 text-center text-[10px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-400">Estado</th>
+                <th className="px-6 py-4 text-right text-[10px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-400">Acciones</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+              {despachos.length === 0 ? (
+                <tr>
+                  <td colSpan={7} className="px-6 py-20 text-center">
+                    <div className="w-16 h-16 bg-slate-50 dark:bg-slate-800 rounded-full flex items-center justify-center mx-auto mb-4 text-slate-300">
+                      <Truck className="w-8 h-8" />
+                    </div>
+                    <p className="text-sm font-bold text-slate-400 uppercase tracking-widest">No hay despachos registrados</p>
+                  </td>
+                </tr>
+              ) : (
+                despachos.map((despacho) => {
+                  const estadoInfo = getEstadoInfo(despacho.estado);
+                  return (
+                    <motion.tr
+                      key={despacho.id}
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      className="hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors group"
+                    >
+                      <td className="px-6 py-4 text-sm font-bold text-slate-600 dark:text-slate-400">{formatDate(despacho.fecha)}</td>
+                      <td className="px-6 py-4">
+                        <span className="text-sm font-black text-slate-900 dark:text-white">{despacho.cliente.nombre}</span>
+                      </td>
+                      <td className="px-6 py-4 text-right">
+                        <span className="text-sm font-black text-slate-900 dark:text-white">{despacho.cantidadDespachada} {despacho.unidad}</span>
+                      </td>
+                      <td className="px-6 py-4 text-sm text-slate-600 dark:text-slate-400">
+                        <div className="flex flex-col">
+                          <span className="font-bold text-slate-700 dark:text-slate-200">{despacho.conductor || 'N/A'}</span>
+                          <span className="text-[10px] uppercase tracking-widest">{despacho.vehiculo || 'N/A'}</span>
+                        </div>
+                      </td>
+                      <td className="px-6 py-4 text-sm text-slate-600 dark:text-slate-400 line-clamp-1">{despacho.destino || '-'}</td>
+                      <td className="px-6 py-4 text-center">
+                        <span className={`px-2 py-0.5 text-[9px] font-black uppercase tracking-widest rounded-lg ${estadoInfo.color}`}>
+                          {estadoInfo.label}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4">
+                        <div className="flex justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                          {despacho.estado === 'Pendiente' && (
+                            <button
+                              onClick={() => handleUpdateEstado(despacho.id, 'EnTransito')}
+                              className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/30 rounded-xl transition-all"
+                              title="Marcar En Tránsito"
+                            >
+                              <Truck className="h-4 w-4" />
+                            </button>
+                          )}
+                          {despacho.estado === 'EnTransito' && (
+                            <button
+                              onClick={() => handleUpdateEstado(despacho.id, 'Entregado')}
+                              className="p-2 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-900/30 rounded-xl transition-all"
+                              title="Marcar Entregado"
+                            >
+                              <CheckCircle className="h-4 w-4" />
+                            </button>
+                          )}
+                          <button
+                            onClick={() => handleEdit(despacho.id)}
+                            className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/30 rounded-xl transition-all"
+                            title="Editar"
+                          >
+                            <Pencil className="h-4 w-4" />
+                          </button>
+                          {isAdmin && (
+                            <button
+                              onClick={() => handleDelete(despacho.id)}
+                              className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/30 rounded-xl transition-all"
+                              title="Eliminar"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </button>
+                          )}
+                        </div>
+                      </td>
+                    </motion.tr>
+                  );
+                })
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {/* Paginación */}
+      {totalPages > 1 && (
+        <div className="mt-8 flex items-center justify-between border-t border-slate-100 dark:border-slate-800 pt-6">
+          <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
+            Página {page} de {totalPages}
+          </span>
+          <div className="flex gap-2">
+            <button
+              onClick={() => setPage(Math.max(1, page - 1))}
+              disabled={page === 1}
+              className="px-4 py-2 text-xs font-bold text-slate-600 dark:text-slate-400 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-700 disabled:opacity-50 transition-all"
+            >
+              Anterior
+            </button>
+            <button
+              onClick={() => setPage(Math.min(totalPages, page + 1))}
+              disabled={page === totalPages}
+              className="px-4 py-2 text-xs font-bold text-white bg-blue-600 rounded-xl hover:bg-blue-700 disabled:opacity-50 transition-all shadow-md shadow-blue-100 dark:shadow-none"
+            >
+              Siguiente
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
 
       <EditarDespachoModal
         isOpen={editarModalOpen}
