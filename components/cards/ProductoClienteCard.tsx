@@ -197,18 +197,21 @@ export function ProductoClienteCard({
       {isExpanded && (
         <div className="bg-gray-50 border-b border-gray-100 divide-y divide-gray-200">
 
-          {/* Especificaciones adicionales */}
-          {(producto.anchoBobina || producto.anchoValvula || producto.anchoSolapa || producto.anchoFuelle ||
+          {/* Especificaciones adicionales — siempre visible si hay calibre u otros campos básicos */}
+          {(producto.calibre || producto.anchoBobina || producto.anchoValvula || producto.anchoSolapa || producto.anchoFuelle ||
             producto.pesoPorUnidad || producto.pesoMaximoBobina || producto.bolsasPorRollo ||
             producto.rollosPorBulto || producto.tipoSellado || producto.tipoRefilado ||
             producto.repeticionesImagen || producto.tipoBobinaCliente ||
             producto.laminaRebobinadorAncho || producto.laminaRebobinadorCalibre ||
-            producto.perforacion || producto.muleteado) && (
+            producto.perforacion || producto.muleteado || producto.color || producto.diametroAnchoBolsa) && (
             <div className="p-4">
               <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2 flex items-center gap-1">
                 <Ruler className="w-3 h-3" /> Especificaciones Técnicas
               </p>
               <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs text-gray-700">
+                {producto.calibre && <InfoRow label="Calibre" value={`${producto.calibre} µ`} />}
+                {producto.color && <InfoRow label="Color" value={producto.color} />}
+                {producto.diametroAnchoBolsa && <InfoRow label="Diámetro Ancho" value={`${producto.diametroAnchoBolsa} cm`} />}
                 {producto.anchoBobina && <InfoRow label="Ancho Bobina" value={`${producto.anchoBobina} cm`} />}
                 {producto.anchoValvula && <InfoRow label="Ancho Válvula" value={`${producto.anchoValvula} cm`} />}
                 {producto.anchoSolapa && <InfoRow label="Ancho Solapa" value={`${producto.anchoSolapa} cm`} />}
@@ -359,9 +362,9 @@ export function ProductoClienteCard({
           )}
 
           {/* Si no hay datos adicionales */}
-          {!producto.anchoBobina && !producto.formFB7000 && !producto.extTemperaturaAmbiente && !producto.sldTipoSelladora && (
+          {!producto.calibre && !producto.anchoBobina && !producto.formFB7000 && !producto.extTemperaturaAmbiente && !producto.sldTipoSelladora && !producto.color && !producto.pesoPorUnidad && !producto.tipoSellado && (
             <div className="p-4 text-center text-xs text-gray-400">
-              No hay información adicional registrada para este producto.
+              No hay información adicional registrada. Usa el botón ⚙️ para editar el producto y agregar más datos.
             </div>
           )}
         </div>
