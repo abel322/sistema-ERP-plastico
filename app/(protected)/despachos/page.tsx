@@ -130,7 +130,7 @@ export default function DespachosPage() {
     });
 
   return (
-  return (
+    <>
     <div className="p-8 bg-slate-50 dark:bg-slate-950 min-h-screen transition-colors duration-300">
       {/* Header Area */}
       <div className="mb-8">
