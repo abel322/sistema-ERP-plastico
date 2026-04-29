@@ -1,4 +1,4 @@
-﻿'use client';
+'use client';
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
@@ -141,74 +141,113 @@ export function ProductoClienteCard({
   const [isExpanded, setIsExpanded] = useState(false);
 
   return (
-    <div className="bg-white rounded-lg shadow-sm border border-gray-200 hover:shadow-md transition-shadow">
-      {/* Header */}
-      <div className="p-4 border-b border-gray-100">
-        <div className="flex items-start justify-between mb-3">
-          <div className="flex items-center gap-2 flex-1">
-            <Package className="w-5 h-5 text-blue-600" />
-            <h3 className="font-semibold text-gray-900">{producto.nombreProducto}</h3>
+    <div className="group bg-white rounded-xl shadow-sm border border-slate-200 hover:shadow-xl hover:border-blue-200 transition-all duration-300 overflow-hidden">
+      {/* Top Banner Accent */}
+      <div className={`h-1.5 w-full ${producto.activo ? 'bg-blue-500' : 'bg-slate-300'}`} />
+      
+      {/* Header Section */}
+      <div className="p-5">
+        <div className="flex items-start justify-between gap-4 mb-4">
+          <div className="flex items-center gap-3 flex-1 min-w-0">
+            <div className={`p-2.5 rounded-lg ${producto.activo ? 'bg-blue-50 text-blue-600' : 'bg-slate-100 text-slate-500'} group-hover:scale-110 transition-transform duration-300`}>
+              <Package className="w-6 h-6" />
+            </div>
+            <div className="min-w-0">
+              <h3 className="font-bold text-slate-900 text-lg leading-tight truncate" title={producto.nombreProducto}>
+                {producto.nombreProducto}
+              </h3>
+              {producto.codigoProducto && (
+                <span className="inline-block mt-0.5 px-2 py-0.5 bg-slate-100 text-slate-600 text-[10px] font-bold uppercase tracking-wider rounded">
+                  {producto.codigoProducto}
+                </span>
+              )}
+            </div>
           </div>
-          <div className="flex gap-1">
-            <button onClick={onToggleActivo} className="p-1 text-gray-600 hover:text-blue-600 transition-colors">
-              {producto.activo ? <CheckCircle className="w-4 h-4 text-green-600" /> : <XCircle className="w-4 h-4 text-gray-400" />}
+          <div className="flex items-center gap-1 shrink-0 bg-slate-50 p-1 rounded-lg border border-slate-100">
+            <button 
+              onClick={onToggleActivo} 
+              className={`p-1.5 rounded-md transition-all ${producto.activo ? 'text-green-600 hover:bg-green-50' : 'text-slate-400 hover:bg-slate-200'}`}
+              title={producto.activo ? 'Desactivar' : 'Activar'}
+            >
+              {producto.activo ? <CheckCircle className="w-4 h-4" /> : <XCircle className="w-4 h-4" />}
             </button>
-            <button onClick={onEdit} className="p-1 text-gray-600 hover:text-purple-600 transition-colors">
+            <button 
+              onClick={onEdit} 
+              className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-md transition-all"
+              title="Configuración"
+            >
               <Settings className="w-4 h-4" />
             </button>
-            <button onClick={onDelete} className="p-1 text-gray-600 hover:text-red-600 transition-colors">
+            <button 
+              onClick={onDelete} 
+              className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-md transition-all"
+              title="Eliminar"
+            >
               <Trash2 className="w-4 h-4" />
             </button>
           </div>
         </div>
 
-        {/* Info básica */}
-        <div className="space-y-1 text-sm text-gray-600">
-          {producto.codigoProducto && <p><span className="font-medium">Código:</span> {producto.codigoProducto}</p>}
-          <p><span className="font-medium">Tipo:</span> {producto.tipoProducto}</p>
-          <p><span className="font-medium">Impresión:</span> {producto.conImpresion ? 'Sí' : 'No'}</p>
+        {/* Quick Info Grid */}
+        <div className="grid grid-cols-2 gap-y-3 gap-x-4 mb-4">
+          <QuickInfo label="Tipo" value={producto.tipoProducto} />
+          <QuickInfo label="Unidad" value={producto.unidadVenta} />
           {producto.ancho && producto.largo && (
-            <p><span className="font-medium">Dimensiones:</span> {producto.ancho}cm x {producto.largo}cm</p>
+            <QuickInfo label="Dimensiones" value={`${producto.ancho}x${producto.largo} cm`} />
           )}
-          {producto.material && <p><span className="font-medium">Material:</span> {producto.material}</p>}
-          <p><span className="font-medium">Unidad:</span> {producto.unidadVenta}</p>
+          {producto.material && (
+            <QuickInfo label="Material" value={producto.material} />
+          )}
         </div>
 
-        {/* Estado */}
-        <div className="mt-3">
-          <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium ${
-            producto.activo ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'
+        <div className="flex items-center justify-between">
+          <div className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold ${
+            producto.activo ? 'bg-green-100 text-green-700' : 'bg-slate-100 text-slate-600'
           }`}>
+            <span className={`w-1.5 h-1.5 rounded-full ${producto.activo ? 'bg-green-500 animate-pulse' : 'bg-slate-400'}`} />
             {producto.activo ? 'Activo' : 'Inactivo'}
-          </span>
+          </div>
+          {producto.conImpresion && (
+            <div className="flex items-center gap-1 px-3 py-1 bg-purple-50 text-purple-700 rounded-full text-xs font-semibold border border-purple-100">
+              <Palette className="w-3 h-3" />
+              Impresión
+            </div>
+          )}
         </div>
       </div>
 
-      {/* Botón Ver más información */}
+      {/* Expand/Collapse Trigger */}
       <button
         onClick={() => setIsExpanded(!isExpanded)}
-        className="w-full px-4 py-3 flex items-center justify-between hover:bg-gray-50 transition-colors border-b border-gray-100"
+        className={`w-full px-5 py-3 flex items-center justify-between transition-colors ${
+          isExpanded ? 'bg-slate-50 border-y border-slate-100' : 'hover:bg-slate-50 border-t border-slate-100'
+        }`}
       >
-        <span className="text-sm font-medium text-gray-700">Ver más información</span>
-        {isExpanded ? <ChevronUp className="w-4 h-4 text-gray-400" /> : <ChevronDown className="w-4 h-4 text-gray-400" />}
+        <div className="flex items-center gap-2">
+          <div className={`w-8 h-8 flex items-center justify-center rounded-lg ${isExpanded ? 'bg-blue-600 text-white' : 'bg-blue-50 text-blue-600'}`}>
+            <FileText className="w-4 h-4" />
+          </div>
+          <span className="text-sm font-bold text-slate-700">Especificaciones Detalladas</span>
+        </div>
+        {isExpanded ? (
+          <ChevronUp className="w-5 h-5 text-slate-400" />
+        ) : (
+          <ChevronDown className="w-5 h-5 text-slate-400" />
+        )}
       </button>
 
-      {/* Información expandida */}
+      {/* Expanded Content Area */}
       {isExpanded && (
-        <div className="bg-gray-50 border-b border-gray-100 divide-y divide-gray-200">
-
-          {/* Especificaciones adicionales — siempre visible si hay calibre u otros campos básicos */}
-          {(producto.calibre || producto.anchoBobina || producto.anchoValvula || producto.anchoSolapa || producto.anchoFuelle ||
-            producto.pesoPorUnidad || producto.pesoMaximoBobina || producto.bolsasPorRollo ||
-            producto.rollosPorBulto || producto.tipoSellado || producto.tipoRefilado ||
-            producto.repeticionesImagen || producto.tipoBobinaCliente ||
-            producto.laminaRebobinadorAncho || producto.laminaRebobinadorCalibre ||
-            producto.perforacion || producto.muleteado || producto.color || producto.diametroAnchoBolsa) && (
-            <div className="p-4">
-              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2 flex items-center gap-1">
-                <Ruler className="w-3 h-3" /> Especificaciones Técnicas
-              </p>
-              <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs text-gray-700">
+        <div className="bg-white">
+          <div className="divide-y divide-slate-100">
+            
+            {/* Technical Specs Section */}
+            <DetailSection 
+              title="Especificaciones Técnicas" 
+              icon={<Ruler className="w-4 h-4" />}
+              accentColor="blue"
+            >
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-1">
                 {producto.calibre && <InfoRow label="Calibre" value={`${producto.calibre} µ`} />}
                 {producto.color && <InfoRow label="Color" value={producto.color} />}
                 {producto.diametroAnchoBolsa && <InfoRow label="Diámetro Ancho" value={`${producto.diametroAnchoBolsa} cm`} />}
@@ -223,7 +262,7 @@ export function ProductoClienteCard({
                 {producto.tipoSellado && <InfoRow label="Tipo Sellado" value={producto.tipoSellado} />}
                 {producto.tipoSelladoEstructura && <InfoRow label="Estructura Sellado" value={producto.tipoSelladoEstructura} />}
                 {producto.tipoRefilado && <InfoRow label="Tipo Refilado" value={producto.tipoRefilado} />}
-                {producto.repeticionesImagen && <InfoRow label="Repeticiones Imagen" value={producto.repeticionesImagen} />}
+                {producto.repeticionesImagen && <InfoRow label="Repeticiones" value={producto.repeticionesImagen} />}
                 {producto.tipoBobinaCliente && <InfoRow label="Tipo Bobina" value={producto.tipoBobinaCliente} />}
                 {producto.laminaRebobinadorAncho && <InfoRow label="Lámina Ancho" value={`${producto.laminaRebobinadorAncho} cm`} />}
                 {producto.laminaRebobinadorCalibre && <InfoRow label="Lámina Calibre" value={`${producto.laminaRebobinadorCalibre} µ`} />}
@@ -231,180 +270,164 @@ export function ProductoClienteCard({
                 {producto.muleteado !== undefined && <InfoRow label="Muleteado" value={producto.muleteado ? 'Sí' : 'No'} />}
                 {producto.intensidadTratador && <InfoRow label="Intensidad Tratador" value={producto.intensidadTratador} />}
               </div>
-            </div>
-          )}
+            </DetailSection>
 
-          {/* Formulación */}
-          {(producto.formFB7000 || producto.form3003 || producto.formLineal || producto.form0240 ||
-            producto.form0348 || producto.form7000F || producto.formDeslizante ||
-            producto.formMasterbachBlanco || producto.formMasterbachNegro ||
-            producto.formMasterbachAzul || producto.formMasterbachAmarillo) && (
-            <div className="p-4">
-              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2 flex items-center gap-1">
-                <Layers className="w-3 h-3" /> Formulación de Materia Prima
-              </p>
-              <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs text-gray-700">
-                {producto.formFB7000 && <InfoRow label="FB7000" value={`${producto.formFB7000}%`} />}
-                {producto.form3003 && <InfoRow label="3003" value={`${producto.form3003}%`} />}
-                {producto.formLineal && <InfoRow label="Lineal" value={`${producto.formLineal}%`} />}
-                {producto.form0240 && <InfoRow label="0240" value={`${producto.form0240}%`} />}
-                {producto.form0348 && <InfoRow label="0348" value={`${producto.form0348}%`} />}
-                {producto.form7000F && <InfoRow label="7000F" value={`${producto.form7000F}%`} />}
-                {producto.formDeslizante && <InfoRow label="Deslizante" value={`${producto.formDeslizante}%`} />}
-                {producto.formMasterbachBlanco && <InfoRow label="MB Blanco" value={`${producto.formMasterbachBlanco}%`} />}
-                {producto.formMasterbachNegro && <InfoRow label="MB Negro" value={`${producto.formMasterbachNegro}%`} />}
-                {producto.formMasterbachAzul && <InfoRow label="MB Azul" value={`${producto.formMasterbachAzul}%`} />}
-                {producto.formMasterbachAmarillo && <InfoRow label="MB Amarillo" value={`${producto.formMasterbachAmarillo}%`} />}
-              </div>
-            </div>
-          )}
+            {/* Formulation Section */}
+            {(producto.formFB7000 || producto.form3003 || producto.formLineal || producto.form0240) && (
+              <DetailSection 
+                title="Formulación Materia Prima" 
+                icon={<Layers className="w-4 h-4" />}
+                accentColor="emerald"
+              >
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                  {producto.formFB7000 && <FormTag label="FB7000" value={producto.formFB7000} />}
+                  {producto.form3003 && <FormTag label="3003" value={producto.form3003} />}
+                  {producto.formLineal && <FormTag label="Lineal" value={producto.formLineal} />}
+                  {producto.form0240 && <FormTag label="0240" value={producto.form0240} />}
+                  {producto.form0348 && <FormTag label="0348" value={producto.form0348} />}
+                  {producto.form7000F && <FormTag label="7000F" value={producto.form7000F} />}
+                  {producto.formDeslizante && <FormTag label="Desliz." value={producto.formDeslizante} />}
+                  {producto.formMasterbachBlanco && <FormTag label="MB Blanco" value={producto.formMasterbachBlanco} />}
+                  {producto.formMasterbachNegro && <FormTag label="MB Negro" value={producto.formMasterbachNegro} />}
+                </div>
+              </DetailSection>
+            )}
 
-          {/* Serigrafía */}
-          {producto.conImpresion && (producto.color1 || producto.color2 || producto.cilindro || producto.tipoImpresion) && (
-            <div className="p-4">
-              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2 flex items-center gap-1">
-                <Palette className="w-3 h-3" /> Serigrafía e Impresión
-              </p>
-              <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs text-gray-700">
-                {producto.tipoImpresion && <InfoRow label="Tipo Impresión" value={producto.tipoImpresion} />}
-                {producto.cilindro && <InfoRow label="Cilindro" value={producto.cilindro} />}
-                {producto.serigrafiaTratadorIntensidad && <InfoRow label="Intensidad Tratador" value={producto.serigrafiaTratadorIntensidad} />}
-                {producto.color1 && <InfoRow label="Color 1" value={producto.color1} />}
-                {producto.color2 && <InfoRow label="Color 2" value={producto.color2} />}
-                {producto.color3 && <InfoRow label="Color 3" value={producto.color3} />}
-                {producto.color4 && <InfoRow label="Color 4" value={producto.color4} />}
-                {producto.color5 && <InfoRow label="Color 5" value={producto.color5} />}
-                {producto.color6 && <InfoRow label="Color 6" value={producto.color6} />}
-              </div>
-            </div>
-          )}
-
-          {/* Parámetros de Extrusión */}
-          {(producto.extTemperaturaAmbiente || producto.extMotorPrincipal || producto.extTraccion ||
-            producto.extTemperaturaZ1 || producto.extTemperaturaZ2) && (
-            <div className="p-4">
-              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2 flex items-center gap-1">
-                <Thermometer className="w-3 h-3" /> Parámetros de Extrusión
-              </p>
-              <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs text-gray-700">
-                {producto.extTemperaturaAmbiente && <InfoRow label="Temp. Ambiente" value={`${producto.extTemperaturaAmbiente}°C`} />}
-                {producto.extMotorPrincipal && <InfoRow label="Motor Principal" value={producto.extMotorPrincipal} />}
-                {producto.extTraccion && <InfoRow label="Tracción" value={producto.extTraccion} />}
-                {producto.extSopladorPrincipal && <InfoRow label="Soplador Principal" value={producto.extSopladorPrincipal} />}
-                {producto.extAberturaBlower && <InfoRow label="Abertura Blower" value={producto.extAberturaBlower} />}
-                {producto.extCuelloGlobo && <InfoRow label="Cuello Globo" value={producto.extCuelloGlobo} />}
-                {producto.extTemperaturaCuelloGlobo && <InfoRow label="Temp. Cuello Globo" value={`${producto.extTemperaturaCuelloGlobo}°C`} />}
-                {producto.extTraccionRebobinador && <InfoRow label="Tracción Rebobinador" value={producto.extTraccionRebobinador} />}
-                {producto.extRebobinadorWinding1 && <InfoRow label="Winding 1" value={producto.extRebobinadorWinding1} />}
-                {producto.extRebobinadorWinding2 && <InfoRow label="Winding 2" value={producto.extRebobinadorWinding2} />}
-                {producto.extIntensidadTratador && <InfoRow label="Intensidad Tratador" value={producto.extIntensidadTratador} />}
-                {producto.extOrientacionFlujoBlower && <InfoRow label="Orientación Flujo" value={producto.extOrientacionFlujoBlower} />}
-              </div>
-              {/* Zonas de temperatura */}
-              {producto.extTemperaturaZ1 && (
-                <div className="mt-2">
-                  <p className="text-xs text-gray-500 mb-1">Temperaturas por Zona:</p>
-                  <div className="grid grid-cols-5 gap-1">
-                    {[1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20].map(i => {
-                      const val = (producto as any)[`extTemperaturaZ${i}`];
-                      return val ? (
-                        <div key={i} className="bg-white border border-gray-200 rounded px-1 py-0.5 text-center text-xs">
-                          <span className="text-gray-400">Z{i}</span><br/>{val}°
-                        </div>
+            {/* Print Section */}
+            {producto.conImpresion && (
+              <DetailSection 
+                title="Serigrafía e Impresión" 
+                icon={<Palette className="w-4 h-4" />}
+                accentColor="purple"
+              >
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-1">
+                  {producto.tipoImpresion && <InfoRow label="Tipo Impresión" value={producto.tipoImpresion} />}
+                  {producto.cilindro && <InfoRow label="Cilindro" value={producto.cilindro} />}
+                  {producto.serigrafiaTratadorIntensidad && <InfoRow label="Intensidad Tratador" value={producto.serigrafiaTratadorIntensidad} />}
+                  <div className="col-span-full mt-2 flex flex-wrap gap-2">
+                    {[1,2,3,4,5,6].map(i => {
+                      const color = (producto as any)[`color${i}`];
+                      return color ? (
+                        <span key={i} className="px-2 py-1 bg-slate-100 text-slate-700 text-[10px] font-bold rounded border border-slate-200">
+                          Color {i}: {color}
+                        </span>
                       ) : null;
                     })}
                   </div>
                 </div>
-              )}
-            </div>
-          )}
+              </DetailSection>
+            )}
 
-          {/* Parámetros de Sellado */}
-          {(producto.sldTipoSelladora || producto.sldTempSuperior || producto.sldTempInferior ||
-            producto.sldCapacidadBolsa || producto.sldGPM) && (
-            <div className="p-4">
-              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2 flex items-center gap-1">
-                <Gauge className="w-3 h-3" /> Parámetros de Sellado
-              </p>
-              {producto.sldTipoSelladora && (
-                <p className="text-xs bg-blue-50 text-blue-700 px-2 py-1 rounded mb-2 inline-block font-medium">
-                  {producto.sldTipoSelladora}
-                </p>
-              )}
-              <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs text-gray-700">
-                {producto.sldCapacidadBolsa && <InfoRow label="Capacidad Bolsa" value={producto.sldCapacidadBolsa} />}
-                {producto.sldTemperaturaAmbiente && <InfoRow label="Temp. Ambiente" value={`${producto.sldTemperaturaAmbiente}°C`} />}
-                {producto.sldTornilloEsparrago && <InfoRow label="Tornillo Espárrago" value={producto.sldTornilloEsparrago} />}
-                {producto.sldTempSuperior && <InfoRow label="Temp. Superior" value={`${producto.sldTempSuperior}°C`} />}
-                {producto.sldTempInferior && <InfoRow label="Temp. Inferior" value={`${producto.sldTempInferior}°C`} />}
-                {producto.sldTempValvula && <InfoRow label="Temp. Válvula" value={`${producto.sldTempValvula}°C`} />}
-                {producto.sldPresellado_A && <InfoRow label="Presellado A" value={producto.sldPresellado_A} />}
-                {producto.sldPresellado_B && <InfoRow label="Presellado B" value={producto.sldPresellado_B} />}
-                {producto.sldTiempoLimite && <InfoRow label="Tiempo Límite" value={producto.sldTiempoLimite} />}
-                {producto.sldTempCuchilla && <InfoRow label="Temp. Cuchilla" value={`${producto.sldTempCuchilla}°C`} />}
-                {producto.sldRodilloAnchoValvula && <InfoRow label="Rodillo Ancho Válvula" value={producto.sldRodilloAnchoValvula} />}
-                {producto.sldGPM && <InfoRow label="GPM" value={producto.sldGPM} />}
-                {producto.sldVelocidadTransportador && <InfoRow label="Vel. Transportador" value={producto.sldVelocidadTransportador} />}
-                {producto.sldCicloTrabajo && <InfoRow label="Ciclo Trabajo" value={producto.sldCicloTrabajo} />}
-                {producto.sldPresionBalancin1 && <InfoRow label="Balancín 1" value={producto.sldPresionBalancin1} />}
-                {producto.sldPresionBalancin2 && <InfoRow label="Balancín 2" value={producto.sldPresionBalancin2} />}
-                {producto.sldPresionBalancin3 && <InfoRow label="Balancín 3" value={producto.sldPresionBalancin3} />}
-                {producto.sldPresionBalancinA1 && <InfoRow label="Balancín A1" value={producto.sldPresionBalancinA1} />}
-                {producto.sldPresionBalancinA2 && <InfoRow label="Balancín A2" value={producto.sldPresionBalancinA2} />}
-                {producto.sldPresionBalancinA3 && <InfoRow label="Balancín A3" value={producto.sldPresionBalancinA3} />}
-                {producto.sldPresionBalancinA4 && <InfoRow label="Balancín A4" value={producto.sldPresionBalancinA4} />}
-                {producto.sldPresionBalancinB1 && <InfoRow label="Balancín B1" value={producto.sldPresionBalancinB1} />}
-                {producto.sldPresionBalancinB2 && <InfoRow label="Balancín B2" value={producto.sldPresionBalancinB2} />}
-                {producto.sldPresionBalancinB3 && <InfoRow label="Balancín B3" value={producto.sldPresionBalancinB3} />}
-                {producto.sldPresionBalancinB4 && <InfoRow label="Balancín B4" value={producto.sldPresionBalancinB4} />}
-              </div>
-            </div>
-          )}
-
-          {/* Si no hay datos adicionales */}
-          {!producto.calibre && !producto.anchoBobina && !producto.formFB7000 && !producto.extTemperaturaAmbiente && !producto.sldTipoSelladora && !producto.color && !producto.pesoPorUnidad && !producto.tipoSellado && (
-            <div className="p-4 text-center text-xs text-gray-400">
-              No hay información adicional registrada. Usa el botón ⚙️ para editar el producto y agregar más datos.
-            </div>
-          )}
+            {/* Extrusion Params */}
+            {(producto.extTemperaturaAmbiente || producto.extMotorPrincipal) && (
+              <DetailSection 
+                title="Parámetros Extrusión" 
+                icon={<Thermometer className="w-4 h-4" />}
+                accentColor="orange"
+              >
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-1">
+                  {producto.extTemperaturaAmbiente && <InfoRow label="Temp. Ambiente" value={`${producto.extTemperaturaAmbiente}°C`} />}
+                  {producto.extMotorPrincipal && <InfoRow label="Motor Principal" value={producto.extMotorPrincipal} />}
+                  {producto.extTraccion && <InfoRow label="Tracción" value={producto.extTraccion} />}
+                  {producto.extSopladorPrincipal && <InfoRow label="Soplador" value={producto.extSopladorPrincipal} />}
+                </div>
+                {producto.extTemperaturaZ1 && (
+                  <div className="mt-3 overflow-x-auto pb-2">
+                    <p className="text-[10px] font-bold text-slate-400 uppercase mb-2">Temperaturas por Zona</p>
+                    <div className="flex gap-1.5">
+                      {[1,2,3,4,5,6,7,8,9,10,11,12].map(i => {
+                        const val = (producto as any)[`extTemperaturaZ${i}`];
+                        return val ? (
+                          <div key={i} className="flex-shrink-0 w-10 bg-slate-50 border border-slate-200 rounded py-1 text-center">
+                            <span className="block text-[8px] text-slate-400 font-bold uppercase">Z{i}</span>
+                            <span className="text-[10px] font-bold text-slate-700">{val}°</span>
+                          </div>
+                        ) : null;
+                      })}
+                    </div>
+                  </div>
+                )}
+              </DetailSection>
+            )}
+          </div>
         </div>
       )}
 
-      {/* Botones de acción */}
-      <div className="p-4 space-y-2">
-        <div className="grid grid-cols-2 gap-2">
+      {/* Footer Actions */}
+      <div className="p-4 bg-slate-50/50 border-t border-slate-100 space-y-3">
+        <div className="grid grid-cols-2 gap-3">
           <button
             onClick={onCreatePedido}
-            className="flex items-center justify-center gap-1 px-2 py-1.5 bg-blue-100 text-blue-700 text-xs font-medium rounded hover:bg-blue-200 transition-colors"
+            className="flex items-center justify-center gap-2 px-4 py-2.5 bg-blue-600 text-white text-xs font-bold rounded-lg hover:bg-blue-700 shadow-sm hover:shadow-md transition-all active:scale-95"
           >
-            <ShoppingCart className="w-3 h-3" />
-            Nuevo Pedido
+            <ShoppingCart className="w-4 h-4" />
+            NUEVO PEDIDO
           </button>
           <button
             onClick={() => router.push(`/produccion?productoId=${producto.id}&clienteId=${producto.clienteId}`)}
-            className="flex items-center justify-center gap-1 px-2 py-1.5 bg-orange-100 text-orange-700 text-xs font-medium rounded hover:bg-orange-200 transition-colors"
+            className="flex items-center justify-center gap-2 px-4 py-2.5 bg-orange-500 text-white text-xs font-bold rounded-lg hover:bg-orange-600 shadow-sm hover:shadow-md transition-all active:scale-95"
           >
-            <Zap className="w-3 h-3" />
-            Producción
+            <Zap className="w-4 h-4" />
+            PRODUCCIÓN
           </button>
         </div>
         <button
           onClick={() => router.push(`/pedidos?productoId=${producto.id}&clienteId=${producto.clienteId}`)}
-          className="w-full flex items-center justify-center gap-1 px-2 py-1.5 bg-gray-100 text-gray-700 text-xs font-medium rounded hover:bg-gray-200 transition-colors"
+          className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-white text-slate-700 text-xs font-bold rounded-lg border border-slate-200 hover:bg-slate-50 hover:border-slate-300 transition-all active:scale-[0.98]"
         >
-          <FileText className="w-3 h-3" />
-          Ver Pedidos
+          <FileText className="w-4 h-4 text-blue-500" />
+          VER HISTORIAL DE PEDIDOS
         </button>
       </div>
     </div>
   );
 }
 
+// Helper Components
+function QuickInfo({ label, value }: { label: string; value: string | number }) {
+  return (
+    <div className="flex flex-col min-w-0">
+      <span className="text-[10px] font-bold text-slate-400 uppercase tracking-tight mb-0.5">{label}</span>
+      <span className="text-sm font-semibold text-slate-700 truncate">{value}</span>
+    </div>
+  );
+}
+
+function DetailSection({ title, icon, children, accentColor }: { title: string; icon: React.ReactNode; children: React.ReactNode; accentColor: string }) {
+  const accentClasses = {
+    blue: 'text-blue-600 bg-blue-50',
+    emerald: 'text-emerald-600 bg-emerald-50',
+    purple: 'text-purple-600 bg-purple-50',
+    orange: 'text-orange-600 bg-orange-50',
+  }[accentColor] || 'text-slate-600 bg-slate-50';
+
+  return (
+    <div className="p-5">
+      <h4 className="flex items-center gap-2 text-xs font-bold text-slate-800 uppercase tracking-wider mb-4">
+        <div className={`p-1.5 rounded-md ${accentClasses}`}>
+          {icon}
+        </div>
+        {title}
+      </h4>
+      {children}
+    </div>
+  );
+}
+
 function InfoRow({ label, value }: { label: string; value: any }) {
   return (
-    <div className="flex justify-between gap-2 py-0.5 border-b border-gray-100 last:border-0">
-      <span className="text-gray-500 shrink-0">{label}:</span>
-      <span className="font-medium text-right">{value}</span>
+    <div className="flex items-center justify-between py-1.5 border-b border-slate-50 last:border-0 hover:bg-slate-50/50 px-1 rounded transition-colors">
+      <span className="text-xs text-slate-500 font-medium">{label}</span>
+      <span className="text-xs font-bold text-slate-800">{value}</span>
+    </div>
+  );
+}
+
+function FormTag({ label, value }: { label: string; value: number }) {
+  return (
+    <div className="flex flex-col items-center justify-center p-2 bg-slate-50 border border-slate-100 rounded-lg hover:border-emerald-200 hover:bg-emerald-50 transition-colors group">
+      <span className="text-[9px] font-bold text-slate-400 uppercase group-hover:text-emerald-600 transition-colors">{label}</span>
+      <span className="text-sm font-black text-slate-700 group-hover:text-emerald-700 transition-colors">{value}%</span>
     </div>
   );
 }

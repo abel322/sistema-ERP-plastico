@@ -112,38 +112,48 @@ export default function ProductosClientePage() {
   }
 
   return (
-    <div className="p-6">
+    <div className="p-8 bg-slate-50 min-h-screen">
       {/* Header */}
-      <div className="mb-6">
+      <div className="mb-8">
         <button
           onClick={() => router.back()}
-          className="flex items-center gap-2 text-gray-600 hover:text-gray-900 mb-4"
+          className="flex items-center gap-2 text-slate-500 hover:text-blue-600 transition-colors mb-6 group"
         >
-          <ArrowLeft className="w-5 h-5" />
-          Volver a Clientes
+          <ArrowLeft className="w-4 h-4 group-hover:-translate-x-1 transition-transform" />
+          <span className="text-sm font-bold uppercase tracking-wider">Volver a Clientes</span>
         </button>
 
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-3xl font-bold text-gray-900 mb-2">
-              Productos de {cliente?.nombre}
-            </h1>
-            <p className="text-gray-600">RIF: {cliente?.rif}</p>
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
+          <div className="flex items-center gap-4">
+            <div className="w-14 h-14 bg-blue-600 rounded-2xl flex items-center justify-center text-white shadow-lg shadow-blue-200">
+              <Package className="w-8 h-8" />
+            </div>
+            <div>
+              <h1 className="text-2xl md:text-3xl font-black text-slate-900 leading-tight">
+                Productos de <span className="text-blue-600">{cliente?.nombre}</span>
+              </h1>
+              <div className="flex items-center gap-2 mt-1">
+                <span className="px-2 py-0.5 bg-slate-100 text-slate-500 text-[10px] font-bold uppercase tracking-widest rounded">RIF: {cliente?.rif}</span>
+                <span className="w-1 h-1 bg-slate-300 rounded-full" />
+                <span className="text-slate-400 text-xs font-medium">{productos.length} productos registrados</span>
+              </div>
+            </div>
           </div>
-          <div className="flex gap-2">
+          
+          <div className="flex flex-wrap gap-3">
             <button
               onClick={() => router.push(`/pedidos?clienteId=${clienteId}`)}
-              className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+              className="flex items-center gap-2 px-5 py-2.5 bg-white text-slate-700 font-bold text-sm rounded-xl border border-slate-200 hover:bg-slate-50 hover:border-slate-300 transition-all shadow-sm active:scale-95"
             >
-              <ShoppingCart className="w-5 h-5" />
-              Ver Pedidos
+              <ShoppingCart className="w-4 h-4 text-blue-500" />
+              VER PEDIDOS
             </button>
             <button
               onClick={() => router.push(`/clientes/${clienteId}/productos/nuevo`)}
-              className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+              className="flex items-center gap-2 px-5 py-2.5 bg-blue-600 text-white font-bold text-sm rounded-xl hover:bg-blue-700 transition-all shadow-lg shadow-blue-100 active:scale-95"
             >
-              <Plus className="w-5 h-5" />
-              Nuevo Producto
+              <Plus className="w-4 h-4" />
+              NUEVO PRODUCTO
             </button>
           </div>
         </div>
