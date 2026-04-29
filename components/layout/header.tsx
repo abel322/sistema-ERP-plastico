@@ -14,20 +14,20 @@ export function Header({ onMenuClick }: HeaderProps) {
   const { data: session } = useSession() || {};
 
   return (
-    <header className="flex h-16 items-center justify-between border-b bg-white px-4 shadow-sm sm:px-6 lg:px-8">
+    <header className="flex h-16 items-center justify-between border-b bg-white dark:bg-slate-900 dark:border-slate-800 px-4 shadow-sm sm:px-6 lg:px-8 transition-colors duration-300">
       <div className="flex items-center gap-3">
         {/* Botón menú móvil - solo visible en pantallas pequeñas */}
         <button
           type="button"
           onClick={onMenuClick}
-          className="flex h-10 w-10 items-center justify-center rounded-lg text-gray-600 hover:bg-gray-100 lg:hidden"
+          className="flex h-10 w-10 items-center justify-center rounded-lg text-gray-600 dark:text-slate-400 hover:bg-gray-100 dark:hover:bg-slate-800 lg:hidden"
           aria-label="Abrir menú"
         >
           <Menu className="h-6 w-6" />
         </button>
         <div className="hidden sm:block">
-          <h2 className="text-lg font-semibold text-gray-800 sm:text-xl">Sistema de Gestión</h2>
-          <p className="hidden text-sm text-gray-500 sm:block">Fabricación de Bolsas y Bobinas de Plástico</p>
+          <h2 className="text-lg font-semibold text-gray-800 dark:text-slate-100 sm:text-xl">Sistema de Gestión</h2>
+          <p className="hidden text-sm text-gray-500 dark:text-slate-400 sm:block">Fabricación de Bolsas y Bobinas de Plástico</p>
         </div>
       </div>
       
@@ -44,10 +44,10 @@ export function Header({ onMenuClick }: HeaderProps) {
         <NotificationBell />
         
         <div className="hidden sm:block text-right">
-          <p className="text-xs font-medium text-gray-700 sm:text-sm">
+          <p className="text-xs font-medium text-gray-700 dark:text-slate-200 sm:text-sm">
             {session?.user?.name || 'Usuario'}
           </p>
-          <p className="text-xs text-gray-500 capitalize">
+          <p className="text-xs text-gray-500 dark:text-slate-400 capitalize">
             {(session?.user as any)?.rol || 'usuario'}
           </p>
         </div>

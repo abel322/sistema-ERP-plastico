@@ -174,21 +174,21 @@ export default function DashboardPage() {
   const anioActual = data?.statsFacturacion?.anio || new Date().getFullYear();
 
   return (
-    <div className="min-h-screen bg-slate-50/50 p-4 lg:p-8 space-y-8">
+    <div className="min-h-screen bg-slate-50/50 dark:bg-slate-950 p-4 lg:p-8 space-y-8 transition-colors duration-300">
       {/* Header Section */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white p-6 rounded-3xl shadow-sm border border-slate-200/60">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white dark:bg-slate-900 p-6 rounded-3xl shadow-sm border border-slate-200/60 dark:border-slate-800">
         <div>
           <div className="flex items-center gap-3 mb-1">
             <div className="w-2 h-8 bg-blue-600 rounded-full" />
-            <h1 className="text-3xl font-black text-slate-900 tracking-tight">Panel de Control</h1>
+            <h1 className="text-3xl font-black text-slate-900 dark:text-white tracking-tight">Panel de Control</h1>
           </div>
-          <p className="text-slate-500 text-sm font-medium ml-5">
+          <p className="text-slate-500 dark:text-slate-400 text-sm font-medium ml-5">
             Bienvenido, Abel. Aquí tienes el resumen operativo de hoy.
           </p>
         </div>
-        <div className="flex items-center gap-2 px-4 py-2 bg-slate-50 rounded-2xl border border-slate-100">
+        <div className="flex items-center gap-2 px-4 py-2 bg-slate-50 dark:bg-slate-800 rounded-2xl border border-slate-100 dark:border-slate-700">
           <div className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse" />
-          <span className="text-xs font-bold text-slate-600 uppercase tracking-widest">Sistema Activo</span>
+          <span className="text-xs font-bold text-slate-600 dark:text-slate-300 uppercase tracking-widest">Sistema Activo</span>
         </div>
       </div>
 
@@ -253,6 +253,11 @@ export default function DashboardPage() {
                 data={chartDataEstados} 
                 options={{
                   ...chartOptions,
+                  scales: {
+                    ...chartOptions.scales,
+                    x: { grid: { display: false }, ticks: { color: '#94a3b8' } },
+                    y: { ...chartOptions.scales.y, grid: { borderDash: [5, 5], color: '#e2e8f010' }, ticks: { color: '#94a3b8' } }
+                  },
                   plugins: {
                     ...chartOptions.plugins,
                     tooltip: {
@@ -277,8 +282,8 @@ export default function DashboardPage() {
                   ...chartOptions,
                   scales: {
                     ...chartOptions.scales,
-                    x: { grid: { display: false } },
-                    y: { ...chartOptions.scales.y, grid: { borderDash: [5, 5] } }
+                    x: { grid: { display: false }, ticks: { color: '#94a3b8' } },
+                    y: { ...chartOptions.scales.y, grid: { borderDash: [5, 5], color: '#e2e8f010' }, ticks: { color: '#94a3b8' } }
                   }
                 }} 
               />
@@ -291,20 +296,20 @@ export default function DashboardPage() {
           <TableContainer title="Pedidos Recientes" icon={<FileText className="w-5 h-5 text-purple-500" />}>
             <table className="w-full">
               <thead>
-                <tr className="border-b border-slate-100">
+                <tr className="border-b border-slate-100 dark:border-slate-800">
                   <th className="px-4 py-4 text-left text-[10px] font-black uppercase tracking-widest text-slate-400">Cliente</th>
                   <th className="px-4 py-4 text-left text-[10px] font-black uppercase tracking-widest text-slate-400">Cantidad</th>
                   <th className="px-4 py-4 text-right text-[10px] font-black uppercase tracking-widest text-slate-400">Estado</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-50">
+              <tbody className="divide-y divide-slate-50 dark:divide-slate-800">
                 {data?.pedidosRecientes?.slice(0, 5).map((pedido) => (
-                  <tr key={pedido?.id} className="group hover:bg-slate-50 transition-colors">
+                  <tr key={pedido?.id} className="group hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors">
                     <td className="px-4 py-4">
-                      <p className="text-sm font-bold text-slate-800">{pedido?.cliente?.nombre || 'N/A'}</p>
+                      <p className="text-sm font-bold text-slate-800 dark:text-slate-200">{pedido?.cliente?.nombre || 'N/A'}</p>
                     </td>
                     <td className="px-4 py-4">
-                      <p className="text-sm font-medium text-slate-500">{pedido?.cantidadSolicitada || 0} {pedido?.unidad || ''}</p>
+                      <p className="text-sm font-medium text-slate-500 dark:text-slate-400">{pedido?.cantidadSolicitada || 0} {pedido?.unidad || ''}</p>
                     </td>
                     <td className="px-4 py-4 text-right">
                       <BadgeEstado estado={pedido?.estado || 'Pendiente'} />
@@ -318,20 +323,20 @@ export default function DashboardPage() {
           <TableContainer title="Pedidos Urgentes" icon={<AlertTriangle className="w-5 h-5 text-rose-500" />}>
             <table className="w-full">
               <thead>
-                <tr className="border-b border-slate-100">
+                <tr className="border-b border-slate-100 dark:border-slate-800">
                   <th className="px-4 py-4 text-left text-[10px] font-black uppercase tracking-widest text-slate-400">Cliente</th>
                   <th className="px-4 py-4 text-left text-[10px] font-black uppercase tracking-widest text-slate-400">Entrega</th>
                   <th className="px-4 py-4 text-right text-[10px] font-black uppercase tracking-widest text-slate-400">Prioridad</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-50">
+              <tbody className="divide-y divide-slate-50 dark:divide-slate-800">
                 {data?.pedidosUrgentesDetalle?.slice(0, 5).map((pedido) => (
-                  <tr key={pedido?.id} className="group hover:bg-slate-50 transition-colors">
+                  <tr key={pedido?.id} className="group hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors">
                     <td className="px-4 py-4">
-                      <p className="text-sm font-bold text-slate-800">{pedido?.cliente?.nombre || 'N/A'}</p>
+                      <p className="text-sm font-bold text-slate-800 dark:text-slate-200">{pedido?.cliente?.nombre || 'N/A'}</p>
                     </td>
                     <td className="px-4 py-4">
-                      <p className="text-sm font-medium text-slate-500">
+                      <p className="text-sm font-medium text-slate-500 dark:text-slate-400">
                         {pedido?.fechaEntrega ? format(new Date(pedido.fechaEntrega), 'dd MMM yyyy', { locale: es }) : 'N/A'}
                       </p>
                     </td>
@@ -364,22 +369,22 @@ function QuickStat({ label, value, icon }: { label: string; value: number | stri
 
 function MiniKPI({ icon, label, value, color }: any) {
   const colorMap: any = {
-    orange: 'bg-orange-50 text-orange-600',
-    yellow: 'bg-yellow-50 text-yellow-600',
-    pink: 'bg-pink-50 text-pink-600',
-    slate: 'bg-slate-100 text-slate-600'
+    orange: 'bg-orange-50 dark:bg-orange-950/30 text-orange-600 dark:text-orange-400',
+    yellow: 'bg-yellow-50 dark:bg-yellow-950/30 text-yellow-600 dark:text-yellow-400',
+    pink: 'bg-pink-50 dark:bg-pink-950/30 text-pink-600 dark:text-pink-400',
+    slate: 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400'
   };
   return (
     <motion.div
       whileHover={{ y: -2 }}
-      className="bg-white rounded-2xl p-4 shadow-sm border border-slate-100 flex items-center gap-4 transition-all hover:shadow-md"
+      className="bg-white dark:bg-slate-900 rounded-2xl p-4 shadow-sm border border-slate-100 dark:border-slate-800 flex items-center gap-4 transition-all hover:shadow-md"
     >
       <div className={`h-10 w-10 rounded-xl flex items-center justify-center ${colorMap[color]}`}>
         {React.cloneElement(icon, { className: 'w-5 h-5' })}
       </div>
       <div>
-        <p className="text-lg font-black text-slate-900 leading-none mb-0.5">{value}</p>
-        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{label}</p>
+        <p className="text-lg font-black text-slate-900 dark:text-slate-100 leading-none mb-0.5">{value}</p>
+        <p className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest">{label}</p>
       </div>
     </motion.div>
   );
@@ -387,12 +392,12 @@ function MiniKPI({ icon, label, value, color }: any) {
 
 function ChartContainer({ title, icon, children }: any) {
   return (
-    <div className="bg-white rounded-[2rem] p-8 shadow-sm border border-slate-100">
+    <div className="bg-white dark:bg-slate-900 rounded-[2rem] p-8 shadow-sm border border-slate-100 dark:border-slate-800 transition-colors">
       <div className="flex items-center gap-3 mb-8">
-        <div className="p-2 bg-slate-50 rounded-xl">
+        <div className="p-2 bg-slate-50 dark:bg-slate-800 rounded-xl">
           {icon}
         </div>
-        <h3 className="text-lg font-black text-slate-900 tracking-tight">{title}</h3>
+        <h3 className="text-lg font-black text-slate-900 dark:text-slate-100 tracking-tight">{title}</h3>
       </div>
       {children}
     </div>
@@ -401,12 +406,12 @@ function ChartContainer({ title, icon, children }: any) {
 
 function TableContainer({ title, icon, children }: any) {
   return (
-    <div className="bg-white rounded-[2rem] overflow-hidden shadow-sm border border-slate-100 flex flex-col">
-      <div className="p-8 border-b border-slate-50 flex items-center gap-3">
-        <div className="p-2 bg-slate-50 rounded-xl">
+    <div className="bg-white dark:bg-slate-900 rounded-[2rem] overflow-hidden shadow-sm border border-slate-100 dark:border-slate-800 flex flex-col transition-colors">
+      <div className="p-8 border-b border-slate-50 dark:border-slate-800 flex items-center gap-3">
+        <div className="p-2 bg-slate-50 dark:bg-slate-800 rounded-xl">
           {icon}
         </div>
-        <h3 className="text-lg font-black text-slate-900 tracking-tight">{title}</h3>
+        <h3 className="text-lg font-black text-slate-900 dark:text-slate-100 tracking-tight">{title}</h3>
       </div>
       <div className="flex-1">
         {children}
