@@ -247,7 +247,7 @@ export function ProductoClienteCard({
               icon={<Ruler className="w-4 h-4" />}
               accentColor="blue"
             >
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-1">
+              <div className="grid grid-cols-1 gap-y-0.5">
                 {producto.calibre && <InfoRow label="Calibre" value={`${producto.calibre} µ`} />}
                 {producto.color && <InfoRow label="Color" value={producto.color} />}
                 {producto.diametroAnchoBolsa && <InfoRow label="Diámetro Ancho" value={`${producto.diametroAnchoBolsa} cm`} />}
@@ -300,7 +300,7 @@ export function ProductoClienteCard({
                 icon={<Palette className="w-4 h-4" />}
                 accentColor="purple"
               >
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-1">
+                <div className="grid grid-cols-1 gap-y-0.5">
                   {producto.tipoImpresion && <InfoRow label="Tipo Impresión" value={producto.tipoImpresion} />}
                   {producto.cilindro && <InfoRow label="Cilindro" value={producto.cilindro} />}
                   {producto.serigrafiaTratadorIntensidad && <InfoRow label="Intensidad Tratador" value={producto.serigrafiaTratadorIntensidad} />}
@@ -325,7 +325,7 @@ export function ProductoClienteCard({
                 icon={<Thermometer className="w-4 h-4" />}
                 accentColor="orange"
               >
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-1">
+                <div className="grid grid-cols-1 gap-y-0.5">
                   {producto.extTemperaturaAmbiente && <InfoRow label="Temp. Ambiente" value={`${producto.extTemperaturaAmbiente}°C`} />}
                   {producto.extMotorPrincipal && <InfoRow label="Motor Principal" value={producto.extMotorPrincipal} />}
                   {producto.extTraccion && <InfoRow label="Tracción" value={producto.extTraccion} />}
@@ -387,8 +387,8 @@ export function ProductoClienteCard({
 function QuickInfo({ label, value }: { label: string; value: string | number }) {
   return (
     <div className="flex flex-col min-w-0">
-      <span className="text-[10px] font-bold text-slate-400 uppercase tracking-tight mb-0.5">{label}</span>
-      <span className="text-sm font-semibold text-slate-700 truncate">{value}</span>
+      <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-0.5">{label}</span>
+      <span className="text-sm font-bold text-slate-800 truncate">{value}</span>
     </div>
   );
 }
@@ -402,32 +402,34 @@ function DetailSection({ title, icon, children, accentColor }: { title: string; 
   }[accentColor] || 'text-slate-600 bg-slate-50';
 
   return (
-    <div className="p-5">
-      <h4 className="flex items-center gap-2 text-xs font-bold text-slate-800 uppercase tracking-wider mb-4">
-        <div className={`p-1.5 rounded-md ${accentClasses}`}>
+    <div className="p-6">
+      <h4 className="flex items-center gap-2 text-xs font-bold text-slate-800 uppercase tracking-widest mb-5">
+        <div className={`p-2 rounded-lg ${accentClasses}`}>
           {icon}
         </div>
         {title}
       </h4>
-      {children}
+      <div className="space-y-1">
+        {children}
+      </div>
     </div>
   );
 }
 
 function InfoRow({ label, value }: { label: string; value: any }) {
   return (
-    <div className="flex items-center justify-between py-1.5 border-b border-slate-50 last:border-0 hover:bg-slate-50/50 px-1 rounded transition-colors">
-      <span className="text-xs text-slate-500 font-medium">{label}</span>
-      <span className="text-xs font-bold text-slate-800">{value}</span>
+    <div className="flex items-baseline justify-between py-2 border-b border-slate-50 last:border-0 hover:bg-slate-50/50 px-2 rounded-lg transition-colors group">
+      <span className="text-xs text-slate-500 font-medium mr-4 whitespace-nowrap">{label}</span>
+      <span className="text-xs font-bold text-slate-900 text-right break-words">{value}</span>
     </div>
   );
 }
 
 function FormTag({ label, value }: { label: string; value: number }) {
   return (
-    <div className="flex flex-col items-center justify-center p-2 bg-slate-50 border border-slate-100 rounded-lg hover:border-emerald-200 hover:bg-emerald-50 transition-colors group">
-      <span className="text-[9px] font-bold text-slate-400 uppercase group-hover:text-emerald-600 transition-colors">{label}</span>
-      <span className="text-sm font-black text-slate-700 group-hover:text-emerald-700 transition-colors">{value}%</span>
+    <div className="flex flex-col items-center justify-center p-3 bg-slate-50 border border-slate-100 rounded-xl hover:border-emerald-200 hover:bg-emerald-50 transition-all group shadow-sm">
+      <span className="text-[10px] font-bold text-slate-400 uppercase group-hover:text-emerald-600 transition-colors mb-1">{label}</span>
+      <span className="text-base font-black text-slate-800 group-hover:text-emerald-700 transition-colors">{value}%</span>
     </div>
   );
 }
