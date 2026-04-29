@@ -141,7 +141,6 @@ export function ProductoClienteCard({
   const [isExpanded, setIsExpanded] = useState(false);
 
   return (
-  return (
     <div className="group bg-white dark:bg-slate-900 rounded-xl shadow-sm border border-slate-200 dark:border-slate-800 hover:shadow-xl dark:hover:border-blue-900 transition-all duration-300 overflow-hidden">
       {/* Top Banner Accent */}
       <div className={`h-1.5 w-full ${producto.activo ? 'bg-blue-500' : 'bg-slate-300'}`} />
