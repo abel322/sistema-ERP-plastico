@@ -200,6 +200,7 @@ export async function POST(
         sldTempSuperior: body.sldTempSuperior || null,
         sldTempInferior: body.sldTempInferior || null,
         sldTempValvula: body.sldTempValvula || null,
+        sldPresionTroquelValvula: body.sldPresionTroquelValvula || null,
         sldPresellado_A: body.sldPresellado_A || null,
         sldPresellado_B: body.sldPresellado_B || null,
         sldTiempoLimite: body.sldTiempoLimite || null,

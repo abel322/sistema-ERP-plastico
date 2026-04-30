@@ -360,6 +360,7 @@ model ProductoCliente {
   sldTempSuperior               Int?
   sldTempInferior               Int?
   sldTempValvula                Int?
+  sldPresionTroquelValvula      Float?
   sldPresellado_A               Int?
   sldPresellado_B               Int?
   sldTiempoLimite               Int?

@@ -1390,6 +1390,18 @@ export default function EditarCompletoPage() {
                             className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
                           />
                         </div>
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">
+                            Presión de Troquel de Válvula
+                          </label>
+                          <input
+                            type="number"
+                            step="0.01"
+                            value={formData.sldPresionTroquelValvula || ''}
+                            onChange={(e) => handleChange('sldPresionTroquelValvula', e.target.value ? parseFloat(e.target.value) : null)}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                          />
+                        </div>
                       </div>
                     </div>
                   )}
