@@ -799,69 +799,191 @@ export default function EditarCompletoPage() {
 
               {/* Materia Prima Principal */}
               <div className="border-t pt-6">
-                <h3 className="text-lg font-semibold text-gray-900 mb-4">Materia Prima Principal</h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Nombre de Materia Prima
-                    </label>
-                    <input
-                      type="text"
-                      value={formData.mpNombre || ''}
-                      onChange={(e) => handleChange('mpNombre', e.target.value)}
-                      placeholder="Ej: Polietileno de Alta Densidad"
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                    />
+                <h3 className="text-lg font-semibold text-gray-900 mb-4">Materias Primas Principales</h3>
+                
+                {/* Materia Prima 1 */}
+                <div className="mb-6 p-4 bg-gray-50 rounded-lg border border-gray-200">
+                  <h4 className="text-md font-bold text-purple-700 mb-3 flex items-center gap-2">
+                    <span className="flex items-center justify-center w-6 h-6 bg-purple-100 rounded-full text-xs">1</span>
+                    Materia Prima 1
+                  </h4>
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Nombre</label>
+                      <input
+                        type="text"
+                        value={formData.mpNombre || ''}
+                        onChange={(e) => handleChange('mpNombre', e.target.value)}
+                        placeholder="Ej: Polietileno de Alta Densidad"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Código</label>
+                      <input
+                        type="text"
+                        value={formData.mpCodigo || ''}
+                        onChange={(e) => handleChange('mpCodigo', e.target.value)}
+                        placeholder="Ej: MP-001"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Densidad (g/cm³)</label>
+                      <input
+                        type="number"
+                        step="0.0001"
+                        value={formData.mpDensidad || ''}
+                        onChange={(e) => handleChange('mpDensidad', e.target.value ? parseFloat(e.target.value) : null)}
+                        placeholder="0.950"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Índice de Fluidez (g/10min)</label>
+                      <input
+                        type="number"
+                        step="0.01"
+                        value={formData.mpIndiceFluidez || ''}
+                        onChange={(e) => handleChange('mpIndiceFluidez', e.target.value ? parseFloat(e.target.value) : null)}
+                        placeholder="0.1"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">País de Fabricación</label>
+                      <input
+                        type="text"
+                        value={formData.mpPaisFabricacion || ''}
+                        onChange={(e) => handleChange('mpPaisFabricacion', e.target.value)}
+                        placeholder="Ej: USA, China"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                      />
+                    </div>
                   </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Código
-                    </label>
-                    <input
-                      type="text"
-                      value={formData.mpCodigo || ''}
-                      onChange={(e) => handleChange('mpCodigo', e.target.value)}
-                      placeholder="Ej: MP-001"
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                    />
+                </div>
+
+                {/* Materia Prima 2 */}
+                <div className="mb-6 p-4 bg-gray-50 rounded-lg border border-gray-200">
+                  <h4 className="text-md font-bold text-purple-700 mb-3 flex items-center gap-2">
+                    <span className="flex items-center justify-center w-6 h-6 bg-purple-100 rounded-full text-xs">2</span>
+                    Materia Prima 2
+                  </h4>
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Nombre</label>
+                      <input
+                        type="text"
+                        value={formData.mpNombre2 || ''}
+                        onChange={(e) => handleChange('mpNombre2', e.target.value)}
+                        placeholder="Ej: Polietileno de Alta Densidad"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Código</label>
+                      <input
+                        type="text"
+                        value={formData.mpCodigo2 || ''}
+                        onChange={(e) => handleChange('mpCodigo2', e.target.value)}
+                        placeholder="Ej: MP-002"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Densidad (g/cm³)</label>
+                      <input
+                        type="number"
+                        step="0.0001"
+                        value={formData.mpDensidad2 || ''}
+                        onChange={(e) => handleChange('mpDensidad2', e.target.value ? parseFloat(e.target.value) : null)}
+                        placeholder="0.950"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Índice de Fluidez (g/10min)</label>
+                      <input
+                        type="number"
+                        step="0.01"
+                        value={formData.mpIndiceFluidez2 || ''}
+                        onChange={(e) => handleChange('mpIndiceFluidez2', e.target.value ? parseFloat(e.target.value) : null)}
+                        placeholder="0.1"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">País de Fabricación</label>
+                      <input
+                        type="text"
+                        value={formData.mpPaisFabricacion2 || ''}
+                        onChange={(e) => handleChange('mpPaisFabricacion2', e.target.value)}
+                        placeholder="Ej: USA, China"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                      />
+                    </div>
                   </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Densidad (g/cm³)
-                    </label>
-                    <input
-                      type="number"
-                      step="0.0001"
-                      value={formData.mpDensidad || ''}
-                      onChange={(e) => handleChange('mpDensidad', e.target.value ? parseFloat(e.target.value) : null)}
-                      placeholder="0.950"
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Índice de Fluidez (g/10min)
-                    </label>
-                    <input
-                      type="number"
-                      step="0.01"
-                      value={formData.mpIndiceFluidez || ''}
-                      onChange={(e) => handleChange('mpIndiceFluidez', e.target.value ? parseFloat(e.target.value) : null)}
-                      placeholder="0.1"
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      País de Fabricación
-                    </label>
-                    <input
-                      type="text"
-                      value={formData.mpPaisFabricacion || ''}
-                      onChange={(e) => handleChange('mpPaisFabricacion', e.target.value)}
-                      placeholder="Ej: USA, China"
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                    />
+                </div>
+
+                {/* Materia Prima 3 */}
+                <div className="p-4 bg-gray-50 rounded-lg border border-gray-200">
+                  <h4 className="text-md font-bold text-purple-700 mb-3 flex items-center gap-2">
+                    <span className="flex items-center justify-center w-6 h-6 bg-purple-100 rounded-full text-xs">3</span>
+                    Materia Prima 3
+                  </h4>
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Nombre</label>
+                      <input
+                        type="text"
+                        value={formData.mpNombre3 || ''}
+                        onChange={(e) => handleChange('mpNombre3', e.target.value)}
+                        placeholder="Ej: Polietileno de Alta Densidad"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Código</label>
+                      <input
+                        type="text"
+                        value={formData.mpCodigo3 || ''}
+                        onChange={(e) => handleChange('mpCodigo3', e.target.value)}
+                        placeholder="Ej: MP-003"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Densidad (g/cm³)</label>
+                      <input
+                        type="number"
+                        step="0.0001"
+                        value={formData.mpDensidad3 || ''}
+                        onChange={(e) => handleChange('mpDensidad3', e.target.value ? parseFloat(e.target.value) : null)}
+                        placeholder="0.950"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Índice de Fluidez (g/10min)</label>
+                      <input
+                        type="number"
+                        step="0.01"
+                        value={formData.mpIndiceFluidez3 || ''}
+                        onChange={(e) => handleChange('mpIndiceFluidez3', e.target.value ? parseFloat(e.target.value) : null)}
+                        placeholder="0.1"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">País de Fabricación</label>
+                      <input
+                        type="text"
+                        value={formData.mpPaisFabricacion3 || ''}
+                        onChange={(e) => handleChange('mpPaisFabricacion3', e.target.value)}
+                        placeholder="Ej: USA, China"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                      />
+                    </div>
                   </div>
                 </div>
               </div>

@@ -178,12 +178,26 @@ export async function PUT(
         extTemperaturaZ19: body.extTemperaturaZ19 || null,
         extTemperaturaZ20: body.extTemperaturaZ20 || null,
         
-        // Materia Prima Principal
+        // Materia Prima Principal 1
         mpNombre: body.mpNombre || null,
         mpCodigo: body.mpCodigo || null,
         mpDensidad: body.mpDensidad || null,
         mpIndiceFluidez: body.mpIndiceFluidez || null,
         mpPaisFabricacion: body.mpPaisFabricacion || null,
+
+        // Materia Prima Principal 2
+        mpNombre2: body.mpNombre2 || null,
+        mpCodigo2: body.mpCodigo2 || null,
+        mpDensidad2: body.mpDensidad2 || null,
+        mpIndiceFluidez2: body.mpIndiceFluidez2 || null,
+        mpPaisFabricacion2: body.mpPaisFabricacion2 || null,
+
+        // Materia Prima Principal 3
+        mpNombre3: body.mpNombre3 || null,
+        mpCodigo3: body.mpCodigo3 || null,
+        mpDensidad3: body.mpDensidad3 || null,
+        mpIndiceFluidez3: body.mpIndiceFluidez3 || null,
+        mpPaisFabricacion3: body.mpPaisFabricacion3 || null,
         
         // Parámetros de Sellado
         sldTipoSelladora: body.sldTipoSelladora || null,

@@ -329,12 +329,26 @@ model ProductoCliente {
   extOrientacionFlujoBlowerInterno Float?
   extOrientacionFlujoBlowerExterno Float?
 
-  // Materia Prima Principal
+  // Materia Prima Principal 1
   mpNombre             String?
   mpCodigo             String?
   mpDensidad           Float?
   mpIndiceFluidez      Float?
   mpPaisFabricacion    String?
+
+  // Materia Prima Principal 2
+  mpNombre2            String?
+  mpCodigo2            String?
+  mpDensidad2          Float?
+  mpIndiceFluidez2     Float?
+  mpPaisFabricacion2   String?
+
+  // Materia Prima Principal 3
+  mpNombre3            String?
+  mpCodigo3            String?
+  mpDensidad3          Float?
+  mpIndiceFluidez3     Float?
+  mpPaisFabricacion3   String?
 
   // Parámetros de Máquinas - Sellado
   sldTipoSelladora              String?   // 'valvula' | 'bolsaASA' | 'bolsaPollo'
