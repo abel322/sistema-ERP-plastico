@@ -216,20 +216,21 @@ export default function ClientesPage() {
             <div className="h-1.5 w-full bg-blue-500 opacity-20 dark:opacity-40 group-hover:opacity-100 transition-opacity" />
             
             <div className="p-6 flex-1">
-              <div className="flex items-start justify-between gap-4 mb-4">
-                <div className="flex items-center gap-3 min-w-0">
-                  <div className="p-2.5 bg-blue-50 dark:bg-blue-950/50 text-blue-600 dark:text-blue-400 rounded-lg group-hover:scale-110 transition-transform duration-300">
-                    <Building2 className="w-6 h-6" />
-                  </div>
-                  <div className="min-w-0">
-                    <h3 className="font-bold text-slate-900 dark:text-white text-lg leading-tight truncate">
-                      {cliente.nombre}
-                    </h3>
-                    <span className="inline-block mt-0.5 px-2 py-0.5 bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 text-[10px] font-bold uppercase tracking-widest rounded">
-                      RIF: {cliente.rif}
-                    </span>
-                  </div>
+              <div className="flex items-center gap-3 mb-4">
+                <div className="p-2.5 bg-blue-50 dark:bg-blue-950/50 text-blue-600 dark:text-blue-400 rounded-lg group-hover:scale-110 transition-transform duration-300">
+                  <Building2 className="w-6 h-6" />
                 </div>
+                <div className="min-w-0 flex-1">
+                  <h3 className="font-bold text-slate-900 dark:text-white text-lg leading-tight whitespace-nowrap overflow-hidden text-ellipsis" title={cliente.nombre}>
+                    {cliente.nombre}
+                  </h3>
+                  <span className="inline-block mt-0.5 px-2 py-0.5 bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 text-[10px] font-bold uppercase tracking-widest rounded">
+                    RIF: {cliente.rif}
+                  </span>
+                </div>
+              </div>
+
+              <div className="flex items-center justify-end mb-4">
                 <div className="flex items-center gap-1 bg-slate-50 dark:bg-slate-800 p-1 rounded-lg border border-slate-100 dark:border-slate-700">
                   <button
                     onClick={() => handleEditCliente(cliente)}
