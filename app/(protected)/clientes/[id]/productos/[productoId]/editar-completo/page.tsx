@@ -1062,6 +1062,7 @@ export default function EditarCompletoPage() {
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     {[
                       { key: 'extMaquinaExtrusora', label: 'Máquina Extrusora', type: 'number', step: '1' },
+                      { key: 'extDiametroCabezal', label: 'Diámetro de Cabezal' },
                       { key: 'extTemperaturaAmbiente', label: 'Temperatura Ambiente' },
                       { key: 'extMotorPrincipal', label: 'Motor Principal' },
                       { key: 'extTraccion', label: 'Tracción' },

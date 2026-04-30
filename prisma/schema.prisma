@@ -294,6 +294,7 @@ model ProductoCliente {
 
   // Parámetros de Máquinas - Extrusión
   extMaquinaExtrusora         Int?
+  extDiametroCabezal          Float?
   extTemperaturaAmbiente      Float?
   extMotorPrincipal           Float?
   extTraccion                 Float?

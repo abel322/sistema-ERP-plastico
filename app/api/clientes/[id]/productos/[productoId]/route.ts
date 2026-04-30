@@ -143,6 +143,7 @@ export async function PUT(
         
         // Parámetros de Extrusión
         extMaquinaExtrusora: body.extMaquinaExtrusora || null,
+        extDiametroCabezal: body.extDiametroCabezal || null,
         extTemperaturaAmbiente: body.extTemperaturaAmbiente || null,
         extMotorPrincipal: body.extMotorPrincipal || null,
         extTraccion: body.extTraccion || null,
