@@ -147,21 +147,36 @@ export function ProductoClienteCard({
       
       {/* Header Section */}
       <div className="p-5">
-        <div className="flex items-start justify-between gap-4 mb-4">
-          <div className="flex items-center gap-3 flex-1 min-w-0">
-            <div className={`p-2.5 rounded-lg ${producto.activo ? 'bg-blue-50 dark:bg-blue-950/30 text-blue-600 dark:text-blue-400' : 'bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400'} group-hover:scale-110 transition-transform duration-300`}>
-              <Package className="w-6 h-6" />
+        <div className="flex items-center gap-3 mb-4">
+          <div className={`p-2.5 rounded-lg ${producto.activo ? 'bg-blue-50 dark:bg-blue-950/30 text-blue-600 dark:text-blue-400' : 'bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400'} group-hover:scale-110 transition-transform duration-300`}>
+            <Package className="w-6 h-6" />
+          </div>
+          <div className="min-w-0 flex-1">
+            <h3 className="font-bold text-slate-900 dark:text-white text-lg leading-tight whitespace-nowrap overflow-hidden text-ellipsis" title={producto.nombreProducto}>
+              {producto.nombreProducto}
+            </h3>
+            {producto.codigoProducto && (
+              <span className="inline-block mt-0.5 px-2 py-0.5 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 text-[10px] font-bold uppercase tracking-wider rounded">
+                {producto.codigoProducto}
+              </span>
+            )}
+          </div>
+        </div>
+
+        <div className="flex items-center justify-between mb-5">
+          <div className="flex flex-wrap gap-2">
+            <div className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold ${
+              producto.activo ? 'bg-green-100 dark:bg-green-950/30 text-green-700 dark:text-green-400' : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400'
+            }`}>
+              <span className={`w-1.5 h-1.5 rounded-full ${producto.activo ? 'bg-green-500 animate-pulse' : 'bg-slate-400'}`} />
+              {producto.activo ? 'Activo' : 'Inactivo'}
             </div>
-            <div className="min-w-0">
-              <h3 className="font-bold text-slate-900 dark:text-white text-lg leading-tight break-words" title={producto.nombreProducto}>
-                {producto.nombreProducto}
-              </h3>
-              {producto.codigoProducto && (
-                <span className="inline-block mt-0.5 px-2 py-0.5 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 text-[10px] font-bold uppercase tracking-wider rounded">
-                  {producto.codigoProducto}
-                </span>
-              )}
-            </div>
+            {producto.conImpresion && (
+              <div className="flex items-center gap-1 px-3 py-1 bg-purple-50 dark:bg-purple-950/30 text-purple-700 dark:text-purple-400 rounded-full text-xs font-semibold border border-purple-100 dark:border-purple-900/50">
+                <Palette className="w-3 h-3" />
+                Impresión
+              </div>
+            )}
           </div>
           <div className="flex items-center gap-1 shrink-0 bg-slate-50 dark:bg-slate-800 p-1 rounded-lg border border-slate-100 dark:border-slate-700">
             <button 
@@ -197,21 +212,6 @@ export function ProductoClienteCard({
           )}
           {producto.material && (
             <QuickInfo label="Material" value={producto.material} />
-          )}
-        </div>
-
-        <div className="flex items-center justify-between">
-          <div className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold ${
-            producto.activo ? 'bg-green-100 dark:bg-green-950/30 text-green-700 dark:text-green-400' : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400'
-          }`}>
-            <span className={`w-1.5 h-1.5 rounded-full ${producto.activo ? 'bg-green-500 animate-pulse' : 'bg-slate-400'}`} />
-            {producto.activo ? 'Activo' : 'Inactivo'}
-          </div>
-          {producto.conImpresion && (
-            <div className="flex items-center gap-1 px-3 py-1 bg-purple-50 dark:bg-purple-950/30 text-purple-700 dark:text-purple-400 rounded-full text-xs font-semibold border border-purple-100 dark:border-purple-900/50">
-              <Palette className="w-3 h-3" />
-              Impresión
-            </div>
           )}
         </div>
       </div>
