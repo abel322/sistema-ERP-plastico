@@ -120,6 +120,14 @@ interface ProductoCliente {
   sldPresionBalancinB2?: number;
   sldPresionBalancinB3?: number;
   sldPresionBalancinB4?: number;
+  extMaquinaExtrusora?: number;
+  extOrientacionFlujoBlowerInterno?: number;
+  extOrientacionFlujoBlowerExterno?: number;
+  mpNombre?: string;
+  mpCodigo?: string;
+  mpDensidad?: number;
+  mpIndiceFluidez?: number;
+  mpPaisFabricacion?: string;
 }
 
 interface ProductoClienteCardProps {
@@ -293,6 +301,23 @@ export function ProductoClienteCard({
               </DetailSection>
             )}
 
+            {/* Main Raw Material Section */}
+            {producto.mpNombre && (
+              <DetailSection 
+                title="Materia Prima Principal" 
+                icon={<Layers className="w-4 h-4" />}
+                accentColor="emerald"
+              >
+                <div className="grid grid-cols-1 gap-y-0.5">
+                  {producto.mpNombre && <InfoRow label="Nombre" value={producto.mpNombre} />}
+                  {producto.mpCodigo && <InfoRow label="Código" value={producto.mpCodigo} />}
+                  {producto.mpDensidad && <InfoRow label="Densidad" value={`${producto.mpDensidad} g/cm³`} />}
+                  {producto.mpIndiceFluidez && <InfoRow label="Índice Fluidez" value={`${producto.mpIndiceFluidez} g/10min`} />}
+                  {producto.mpPaisFabricacion && <InfoRow label="País Origen" value={producto.mpPaisFabricacion} />}
+                </div>
+              </DetailSection>
+            )}
+
             {/* Print Section */}
             {producto.conImpresion && (
               <DetailSection 
@@ -326,10 +351,13 @@ export function ProductoClienteCard({
                 accentColor="orange"
               >
                 <div className="grid grid-cols-1 gap-y-0.5">
+                  {producto.extMaquinaExtrusora && <InfoRow label="Máquina Extrusora" value={producto.extMaquinaExtrusora} />}
                   {producto.extTemperaturaAmbiente && <InfoRow label="Temp. Ambiente" value={`${producto.extTemperaturaAmbiente}°C`} />}
                   {producto.extMotorPrincipal && <InfoRow label="Motor Principal" value={producto.extMotorPrincipal} />}
                   {producto.extTraccion && <InfoRow label="Tracción" value={producto.extTraccion} />}
                   {producto.extSopladorPrincipal && <InfoRow label="Soplador" value={producto.extSopladorPrincipal} />}
+                  {producto.extOrientacionFlujoBlowerInterno && <InfoRow label="Flujo Blower Plato Int." value={`${producto.extOrientacionFlujoBlowerInterno} cm`} />}
+                  {producto.extOrientacionFlujoBlowerExterno && <InfoRow label="Flujo Blower Plato Ext." value={`${producto.extOrientacionFlujoBlowerExterno} cm`} />}
                 </div>
                 {producto.extTemperaturaZ1 && (
                   <div className="mt-3 overflow-x-auto pb-2">

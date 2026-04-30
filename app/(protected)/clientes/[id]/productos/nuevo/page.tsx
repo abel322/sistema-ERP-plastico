@@ -761,6 +761,75 @@ export default function NuevoProductoPage() {
                   </div>
                 ))}
               </div>
+
+              {/* Materia Prima Principal */}
+              <div className="border-t pt-6">
+                <h3 className="text-lg font-semibold text-gray-900 mb-4">Materia Prima Principal</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Nombre de Materia Prima
+                    </label>
+                    <input
+                      type="text"
+                      value={formData.mpNombre || ''}
+                      onChange={(e) => handleChange('mpNombre', e.target.value)}
+                      placeholder="Ej: Polietileno de Alta Densidad"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Código
+                    </label>
+                    <input
+                      type="text"
+                      value={formData.mpCodigo || ''}
+                      onChange={(e) => handleChange('mpCodigo', e.target.value)}
+                      placeholder="Ej: MP-001"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Densidad (g/cm³)
+                    </label>
+                    <input
+                      type="number"
+                      step="0.0001"
+                      value={formData.mpDensidad || ''}
+                      onChange={(e) => handleChange('mpDensidad', e.target.value ? parseFloat(e.target.value) : null)}
+                      placeholder="0.950"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Índice de Fluidez (g/10min)
+                    </label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      value={formData.mpIndiceFluidez || ''}
+                      onChange={(e) => handleChange('mpIndiceFluidez', e.target.value ? parseFloat(e.target.value) : null)}
+                      placeholder="0.1"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      País de Fabricación
+                    </label>
+                    <input
+                      type="text"
+                      value={formData.mpPaisFabricacion || ''}
+                      onChange={(e) => handleChange('mpPaisFabricacion', e.target.value)}
+                      placeholder="Ej: USA, China"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    />
+                  </div>
+                </div>
+              </div>
             </div>
           )}
 
@@ -835,6 +904,7 @@ export default function NuevoProductoPage() {
                   <h3 className="text-lg font-semibold text-gray-900 mb-4">Parámetros Generales</h3>
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     {[
+                      { key: 'extMaquinaExtrusora', label: 'Máquina Extrusora', type: 'number', step: '1' },
                       { key: 'extTemperaturaAmbiente', label: 'Temperatura Ambiente' },
                       { key: 'extMotorPrincipal', label: 'Motor Principal' },
                       { key: 'extTraccion', label: 'Tracción' },
@@ -847,16 +917,18 @@ export default function NuevoProductoPage() {
                       { key: 'extRebobinadorWinding2', label: 'Rebobinador Winding 2' },
                       { key: 'extIntensidadTratador', label: 'Intensidad Tratador' },
                       { key: 'extOrientacionFlujoBlower', label: 'Orientación Flujo Blower' },
+                      { key: 'extOrientacionFlujoBlowerInterno', label: 'Ori. Flujo Blower Plato Int. (cm)' },
+                      { key: 'extOrientacionFlujoBlowerExterno', label: 'Ori. Flujo Blower Plato Ext. (cm)' },
                     ].map((field) => (
                       <div key={field.key}>
                         <label className="block text-sm font-medium text-gray-700 mb-1">
                           {field.label}
                         </label>
                         <input
-                          type="number"
-                          step="0.01"
+                          type={field.type || "number"}
+                          step={field.step || "0.01"}
                           value={formData[field.key] || ''}
-                          onChange={(e) => handleChange(field.key, e.target.value ? parseFloat(e.target.value) : null)}
+                          onChange={(e) => handleChange(field.key, e.target.value ? (field.type === 'number' && field.step === '1' ? parseInt(e.target.value) : parseFloat(e.target.value)) : null)}
                           className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                         />
                       </div>

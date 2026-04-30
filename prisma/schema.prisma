@@ -293,6 +293,7 @@ model ProductoCliente {
   serigrafiaTratadorIntensidad Float?  // Intensidad del tratador en serigrafía (independiente del de bobina)
 
   // Parámetros de Máquinas - Extrusión
+  extMaquinaExtrusora         Int?
   extTemperaturaAmbiente      Float?
   extMotorPrincipal           Float?
   extTraccion                 Float?
@@ -325,6 +326,15 @@ model ProductoCliente {
   extTemperaturaZ19           Int?
   extTemperaturaZ20           Int?
   extOrientacionFlujoBlower   Float?
+  extOrientacionFlujoBlowerInterno Float?
+  extOrientacionFlujoBlowerExterno Float?
+
+  // Materia Prima Principal
+  mpNombre             String?
+  mpCodigo             String?
+  mpDensidad           Float?
+  mpIndiceFluidez      Float?
+  mpPaisFabricacion    String?
 
   // Parámetros de Máquinas - Sellado
   sldTipoSelladora              String?   // 'valvula' | 'bolsaASA' | 'bolsaPollo'

@@ -134,6 +134,7 @@ export async function POST(
         serigrafiaTratadorIntensidad: body.serigrafiaTratadorIntensidad || null,
         
         // Parámetros de Extrusión
+        extMaquinaExtrusora: body.extMaquinaExtrusora || null,
         extTemperaturaAmbiente: body.extTemperaturaAmbiente || null,
         extMotorPrincipal: body.extMotorPrincipal || null,
         extTraccion: body.extTraccion || null,
@@ -146,6 +147,8 @@ export async function POST(
         extRebobinadorWinding2: body.extRebobinadorWinding2 || null,
         extIntensidadTratador: body.extIntensidadTratador || null,
         extOrientacionFlujoBlower: body.extOrientacionFlujoBlower || null,
+        extOrientacionFlujoBlowerInterno: body.extOrientacionFlujoBlowerInterno || null,
+        extOrientacionFlujoBlowerExterno: body.extOrientacionFlujoBlowerExterno || null,
         extTemperaturaZ1: body.extTemperaturaZ1 || null,
         extTemperaturaZ2: body.extTemperaturaZ2 || null,
         extTemperaturaZ3: body.extTemperaturaZ3 || null,
@@ -166,6 +169,13 @@ export async function POST(
         extTemperaturaZ18: body.extTemperaturaZ18 || null,
         extTemperaturaZ19: body.extTemperaturaZ19 || null,
         extTemperaturaZ20: body.extTemperaturaZ20 || null,
+        
+        // Materia Prima Principal
+        mpNombre: body.mpNombre || null,
+        mpCodigo: body.mpCodigo || null,
+        mpDensidad: body.mpDensidad || null,
+        mpIndiceFluidez: body.mpIndiceFluidez || null,
+        mpPaisFabricacion: body.mpPaisFabricacion || null,
         
         // Parámetros de Sellado
         sldTipoSelladora: body.sldTipoSelladora || null,
