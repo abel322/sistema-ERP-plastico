@@ -153,7 +153,7 @@ export function ProductoClienteCard({
               <Package className="w-6 h-6" />
             </div>
             <div className="min-w-0">
-              <h3 className="font-bold text-slate-900 dark:text-white text-lg leading-tight truncate" title={producto.nombreProducto}>
+              <h3 className="font-bold text-slate-900 dark:text-white text-lg leading-tight break-words" title={producto.nombreProducto}>
                 {producto.nombreProducto}
               </h3>
               {producto.codigoProducto && (
