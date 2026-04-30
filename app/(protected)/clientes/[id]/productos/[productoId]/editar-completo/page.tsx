@@ -675,11 +675,11 @@ export default function EditarCompletoPage() {
                       Tipo Refilado
                     </label>
                     <select
-                      value={formData.tipoRefilado || 'Ninguno'}
+                      value={formData.tipoRefilado || ''}
                       onChange={(e) => handleChange('tipoRefilado', e.target.value)}
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
                     >
-                      <option value="Ninguno">Ninguno</option>
+                      <option value="">Ninguno</option>
                       <option value="Simple">Simple</option>
                       <option value="Doble">Doble</option>
                     </select>

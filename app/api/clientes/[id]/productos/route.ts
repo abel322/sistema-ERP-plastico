@@ -104,7 +104,7 @@ export async function POST(
         tipoBobinaCliente: body.tipoBobinaCliente || null,
         pesoMaximoBobina: body.pesoMaximoBobina || null,
         intensidadTratador: body.intensidadTratador || null,
-        tipoRefilado: body.tipoRefilado || null,
+        tipoRefilado: (body.tipoRefilado === 'Ninguno' || !body.tipoRefilado) ? null : body.tipoRefilado,
         muleteado: body.muleteado || false,
         laminaRebobinadorAncho: body.laminaRebobinadorAncho || null,
         laminaRebobinadorCalibre: body.laminaRebobinadorCalibre || null,
@@ -225,7 +225,7 @@ export async function POST(
   } catch (error) {
     console.error('Error al crear producto:', error);
     return NextResponse.json(
-      { error: 'Error al crear producto' },
+      { error: 'Error al crear producto', details: error instanceof Error ? error.message : String(error) },
       { status: 500 }
     );
   }
