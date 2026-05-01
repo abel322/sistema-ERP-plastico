@@ -160,7 +160,7 @@ export function ProductoClienteCard({
             <Package className="w-6 h-6" />
           </div>
           <div className="min-w-0 flex-1">
-            <h3 className="font-bold text-slate-900 dark:text-white text-lg leading-tight whitespace-nowrap overflow-hidden text-ellipsis" title={producto.nombreProducto}>
+            <h3 className="font-bold text-slate-900 dark:text-white text-lg leading-tight break-words" title={producto.nombreProducto}>
               {producto.nombreProducto}
             </h3>
             {producto.codigoProducto && (
@@ -416,7 +416,7 @@ function QuickInfo({ label, value }: { label: string; value: string | number }) 
   return (
     <div className="flex flex-col min-w-0">
       <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-0.5">{label}</span>
-      <span className="text-sm font-bold text-slate-800 dark:text-slate-100 truncate">{value}</span>
+      <span className="text-sm font-bold text-slate-800 dark:text-slate-100 break-words">{value}</span>
     </div>
   );
 }

@@ -98,7 +98,7 @@ export function ProductoTerminadoCard({
               </span>
               <button
                 onClick={() => router.push(`/clientes/${producto.clienteId}`)}
-                className="text-left font-black text-slate-900 dark:text-white text-base leading-tight mt-2 hover:text-blue-600 dark:hover:text-blue-400 transition-colors line-clamp-2"
+                className="text-left font-black text-slate-900 dark:text-white text-base leading-tight mt-2 hover:text-blue-600 dark:hover:text-blue-400 transition-colors break-words"
                 title={producto.cliente.nombre}
               >
                 {producto.cliente.nombre}
