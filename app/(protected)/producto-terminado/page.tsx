@@ -28,7 +28,8 @@ import {
 import { ManualProductModal } from '@/components/modals/ManualProductModal';
 import { NuevoDespachoModal } from '@/components/modals/nuevo-despacho-modal';
 import { EditProductModal } from '@/components/modals/EditProductModal';
-import { ProductoTerminadoCard } from '@/components/cards/ProductoTerminadoCard';
+import { SobranteProductModal } from '@/components/modals/SobranteProductModal';
+import { SobranteCard } from '@/components/cards/SobranteCard';
 
 interface ProductoTerminado {
   id: string;
@@ -73,6 +74,16 @@ interface Resumen {
   pendientesPorArea: Record<string, number>;
 }
 
+interface ProductoSobrante {
+  id: string;
+  tipo: string;
+  cantidad: number;
+  unidad: string;
+  descripcion: string | null;
+  fecha: string;
+}
+
+
 const areaColors: Record<string, string> = {
   'Extrusion': 'bg-blue-100 text-blue-800 border-blue-200',
   'Sellado': 'bg-green-100 text-green-800 border-green-200',
@@ -100,6 +111,9 @@ export default function ProductoTerminadoPage() {
   const [filtroEstado, setFiltroEstado] = useState<string>('todos');
   const [filtroArea, setFiltroArea] = useState<string>('todos');
   const [busqueda, setBusqueda] = useState('');
+  const [sobrantes, setSobrantes] = useState<ProductoSobrante[]>([]);
+  const [showSobranteModal, setShowSobranteModal] = useState(false);
+  const [selectedSobrante, setSelectedSobrante] = useState<ProductoSobrante | null>(null);
   const [seccionesAbiertas, setSeccionesAbiertas] = useState<Record<string, boolean>>({
     listos: true,
     bobinasCon: true,
@@ -107,6 +121,7 @@ export default function ProductoTerminadoPage() {
     bobinasRef: true,
     bolsasCon: true,
     bolsasSin: true,
+    sobrante: true,
   });
   const [showManualModal, setShowManualModal] = useState(false);
   const [despachoModalOpen, setDespachoModalOpen] = useState(false);
@@ -122,6 +137,7 @@ export default function ProductoTerminadoPage() {
 
   useEffect(() => {
     fetchProductos();
+    fetchSobrantes();
   }, []);
 
   const fetchProductos = async (isBackgroundRefresh = false) => {
@@ -137,6 +153,16 @@ export default function ProductoTerminadoPage() {
       console.error('Error al obtener productos:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchSobrantes = async () => {
+    try {
+      const res = await fetch('/api/producto-sobrante');
+      const data = await res.json();
+      setSobrantes(Array.isArray(data) ? data : []);
+    } catch (error) {
+      console.error('Error al obtener sobrantes:', error);
     }
   };
 
@@ -191,6 +217,25 @@ export default function ProductoTerminadoPage() {
       alert('Error inesperado al intentar eliminar');
     } finally {
       setEliminando(null);
+    }
+  };
+
+  const handleEliminarSobrante = async (id: string) => {
+    if (!confirm('¿Estás seguro de que deseas eliminar este registro de sobrante?')) return;
+
+    try {
+      const res = await fetch(`/api/producto-sobrante/${id}`, {
+        method: 'DELETE',
+      });
+
+      if (res.ok) {
+        fetchSobrantes();
+      } else {
+        const error = await res.json();
+        alert(error.error || 'Error al eliminar');
+      }
+    } catch (error) {
+      console.error('Error al eliminar sobrante:', error);
     }
   };
 
@@ -276,6 +321,13 @@ export default function ProductoTerminadoPage() {
             >
               <Package className="h-4 w-4" />
               CLIENTES
+            </button>
+            <button
+              onClick={() => setShowSobranteModal(true)}
+              className="flex items-center gap-2 px-5 py-2.5 bg-slate-800 text-white rounded-xl shadow-lg shadow-slate-200 dark:shadow-none hover:bg-slate-900 transition-all font-bold text-xs uppercase tracking-widest"
+            >
+              <Plus className="h-4 w-4" />
+              PRODUCTO SOBRANTE
             </button>
             <button
               onClick={() => setShowManualModal(true)}
@@ -516,11 +568,80 @@ export default function ProductoTerminadoPage() {
             </AnimatePresence>
           </div>
         ))}
+
+        {/* Sección de Producto Sobrante */}
+        <div className="bg-white dark:bg-slate-900 rounded-[2rem] shadow-sm border border-slate-200 dark:border-slate-800 overflow-hidden mb-6 transition-colors">
+          <button
+            onClick={() => toggleSeccion('sobrante')}
+            className={`w-full px-8 py-5 flex items-center justify-between bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-all border-b border-slate-100 dark:border-slate-800`}
+          >
+            <div className="flex items-center gap-4">
+              <div className="p-3 rounded-2xl bg-slate-700 shadow-lg shadow-slate-200 dark:shadow-none">
+                <Package className="h-5 w-5 text-white" />
+              </div>
+              <div className="text-left">
+                <h2 className="text-lg font-black text-slate-900 dark:text-white leading-tight uppercase tracking-tight">Producto Sobrante</h2>
+                <div className="flex items-center gap-3 mt-1">
+                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{sobrantes.length} {sobrantes.length === 1 ? 'registro' : 'registros'}</p>
+                </div>
+              </div>
+            </div>
+            <div className="p-2 bg-slate-100 dark:bg-slate-800 rounded-xl">
+              {seccionesAbiertas['sobrante'] ? <ChevronUp className="h-5 w-5 text-slate-600 dark:text-slate-400" /> : <ChevronDown className="h-5 w-5 text-slate-600 dark:text-slate-400" />}
+            </div>
+          </button>
+
+          <AnimatePresence>
+            {seccionesAbiertas['sobrante'] && (
+              <motion.div
+                initial={{ height: 0, opacity: 0 }}
+                animate={{ height: 'auto', opacity: 1 }}
+                exit={{ height: 0, opacity: 0 }}
+                className="overflow-hidden"
+              >
+                {sobrantes.length === 0 ? (
+                  <div className="p-12 text-center">
+                    <div className="w-16 h-16 bg-slate-50 dark:bg-slate-800 rounded-full flex items-center justify-center mx-auto mb-4 text-slate-300">
+                      <Package className="w-8 h-8" />
+                    </div>
+                    <p className="text-sm font-bold text-slate-400 uppercase tracking-widest">No hay productos sobrantes registrados</p>
+                  </div>
+                ) : (
+                  <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3 p-8 bg-slate-50/50 dark:bg-slate-950/20">
+                    {sobrantes.map((sobrante) => (
+                      <SobranteCard
+                        key={sobrante.id}
+                        sobrante={sobrante}
+                        onEdit={() => {
+                          setSelectedSobrante(sobrante);
+                          setShowSobranteModal(true);
+                        }}
+                        onDelete={() => handleEliminarSobrante(sobrante.id)}
+                      />
+                    ))}
+                  </div>
+                )}
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
     </div>
       <ManualProductModal
         isOpen={showManualModal}
         onClose={() => setShowManualModal(false)}
         onSuccess={() => fetchProductos(true)}
+      />
+
+      <SobranteProductModal
+        isOpen={showSobranteModal}
+        onClose={() => {
+          setShowSobranteModal(false);
+          setSelectedSobrante(null);
+        }}
+        onSuccess={() => {
+          fetchSobrantes();
+        }}
+        editData={selectedSobrante}
       />
 
       <EditProductModal

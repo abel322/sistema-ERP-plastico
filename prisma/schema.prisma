@@ -85,7 +85,20 @@ enum EstadoProductoTerminado {
   PendienteArea
   Despachado
   Defectuoso
+  Sobrante
 }
+
+model ProductoSobrante {
+  id              String        @id @default(cuid())
+  tipo            String        // 'Bobina Impresa', 'Bobina Sin Impresion', 'Bobina Refilada', 'Bolsa Impresa', 'Bolsa No Impresa'
+  cantidad        Float
+  unidad          UnidadVenta   @default(Kilogramos)
+  descripcion     String?
+  fecha           DateTime      @default(now())
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+}
+
 
 enum SiguienteArea {
   Sellado
