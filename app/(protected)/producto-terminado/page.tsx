@@ -587,8 +587,18 @@ export default function ProductoTerminadoPage() {
               </div>
               <div className="text-left">
                 <h2 className="text-lg font-black text-slate-900 dark:text-white leading-tight uppercase tracking-tight">Producto Sobrante</h2>
-                <div className="flex items-center gap-3 mt-1">
+                <div className="flex flex-col gap-1 mt-1">
                   <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{sobrantes.length} {sobrantes.length === 1 ? 'registro' : 'registros'}</p>
+                  {sobrantes.length > 0 && (
+                    <p className="text-[10px] font-black text-emerald-600 dark:text-emerald-400 uppercase tracking-widest">
+                      Total Bobinas: {
+                        sobrantes
+                          .filter(s => ['Bobina con impresión', 'Bobina sin impresión', 'Bobina refilada', 'Bobinas de empaque'].includes(s.tipo) && s.unidad === 'Kilogramos')
+                          .reduce((acc, s) => acc + s.cantidad, 0)
+                          .toFixed(2)
+                      } Kg
+                    </p>
+                  )}
                 </div>
               </div>
             </div>
