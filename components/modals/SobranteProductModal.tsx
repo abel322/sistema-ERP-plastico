@@ -193,7 +193,11 @@ export function SobranteProductModal({ isOpen, onClose, onSuccess, editData }: S
 
     if (!isOpen) return null;
 
-    const isEmpaque = formData.tipo === 'Bobinas de empaque' || formData.tipo === 'Bolsa de empaque';
+    const isEmpaque = 
+        formData.tipo === 'Bobinas de empaque' || 
+        formData.tipo === 'Bolsa de empaque' ||
+        formData.tipo === 'Bobina de ASA S/I 15Kg' ||
+        formData.tipo === 'Bobina de ASA S/I 10Kg';
 
     return (
         <AnimatePresence>
