@@ -1,7 +1,7 @@
 'use client';
 
 import { motion } from 'framer-motion';
-import { Package, Trash2, Pencil, Calendar, Info } from 'lucide-react';
+import { Package, Trash2, Pencil, Calendar, Info, User, MoveHorizontal, MoveVertical, Ruler } from 'lucide-react';
 
 interface ProductoSobrante {
   id: string;
@@ -10,6 +10,11 @@ interface ProductoSobrante {
   unidad: string;
   descripcion: string | null;
   fecha: string;
+  ancho?: number | null;
+  largo?: number | null;
+  calibre?: number | null;
+  cliente?: { nombre: string } | null;
+  producto?: { nombreProducto: string } | null;
 }
 
 interface SobranteCardProps {
@@ -56,9 +61,25 @@ export function SobranteCard({ sobrante, onEdit, onDelete, eliminando }: Sobrant
         </div>
 
         <div className="mb-4">
+          <div className="flex items-center gap-2 mb-1">
+             <span className="px-2 py-0.5 bg-slate-100 dark:bg-slate-800 text-[9px] font-black uppercase tracking-widest text-slate-500 rounded">
+               Stock Sobrante
+             </span>
+             {sobrante.cliente && (
+               <div className="flex items-center gap-1 text-[9px] font-black uppercase tracking-widest text-blue-600 dark:text-blue-400">
+                 <User className="w-3 h-3" />
+                 {sobrante.cliente.nombre}
+               </div>
+             )}
+          </div>
           <h3 className="text-lg font-black text-slate-900 dark:text-white uppercase tracking-tight leading-tight mb-1">
             {sobrante.tipo}
           </h3>
+          {sobrante.producto && (
+            <p className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-1">
+              Producto: {sobrante.producto.nombreProducto}
+            </p>
+          )}
           <div className="flex items-center gap-2 text-slate-400 dark:text-slate-500">
             <Calendar className="w-3.5 h-3.5" />
             <span className="text-[10px] font-bold uppercase tracking-widest">
@@ -67,19 +88,40 @@ export function SobranteCard({ sobrante, onEdit, onDelete, eliminando }: Sobrant
           </div>
         </div>
 
-        <div className="bg-slate-50 dark:bg-slate-800/50 rounded-2xl p-4 mb-4 border border-slate-100 dark:border-slate-700/50">
-          <div className="text-2xl font-black text-slate-900 dark:text-white flex items-baseline gap-1">
-            {sobrante.cantidad.toLocaleString(undefined, { minimumFractionDigits: 2 })}
-            <span className="text-xs font-bold text-slate-400 uppercase tracking-widest">{sobrante.unidad}</span>
+        {/* Medidas */}
+        {(sobrante.ancho || sobrante.largo || sobrante.calibre) && (
+          <div className="grid grid-cols-3 gap-2 mb-4 p-3 bg-slate-50/50 dark:bg-slate-800/30 rounded-2xl border border-slate-100 dark:border-slate-700/50">
+            <div className="flex flex-col items-center">
+              <MoveHorizontal className="w-3 h-3 text-slate-400 mb-1" />
+              <span className="text-[10px] font-black text-slate-900 dark:text-white">{sobrante.ancho || '-'}</span>
+              <span className="text-[8px] font-bold text-slate-400 uppercase tracking-tighter">Ancho</span>
+            </div>
+            <div className="flex flex-col items-center border-x border-slate-200 dark:border-slate-700">
+              <MoveVertical className="w-3 h-3 text-slate-400 mb-1" />
+              <span className="text-[10px] font-black text-slate-900 dark:text-white">{sobrante.largo || '-'}</span>
+              <span className="text-[8px] font-bold text-slate-400 uppercase tracking-tighter">Largo</span>
+            </div>
+            <div className="flex flex-col items-center">
+              <Ruler className="w-3 h-3 text-slate-400 mb-1" />
+              <span className="text-[10px] font-black text-slate-900 dark:text-white">{sobrante.calibre || '-'}</span>
+              <span className="text-[8px] font-bold text-slate-400 uppercase tracking-tighter">Calibre</span>
+            </div>
           </div>
-          <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-1">Cantidad en stock</p>
+        )}
+
+        <div className="bg-slate-900 dark:bg-white rounded-2xl p-4 mb-4 shadow-lg shadow-slate-200 dark:shadow-none">
+          <div className="text-2xl font-black text-white dark:text-slate-900 flex items-baseline gap-1">
+            {sobrante.cantidad.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+            <span className="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest">{sobrante.unidad}</span>
+          </div>
+          <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mt-1">Cantidad Disponible</p>
         </div>
 
         {sobrante.descripcion && (
-          <div className="flex items-start gap-2 bg-blue-50/50 dark:bg-blue-900/10 p-3 rounded-xl border border-blue-100/50 dark:border-blue-900/20">
-            <Info className="w-3.5 h-3.5 text-blue-500 mt-0.5" />
-            <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed italic">
-              "{sobrante.descripcion}"
+          <div className="flex items-start gap-2 bg-slate-50 dark:bg-slate-800/50 p-3 rounded-xl border border-slate-100 dark:border-slate-700">
+            <Info className="w-3.5 h-3.5 text-slate-400 mt-0.5" />
+            <p className="text-[11px] text-slate-500 dark:text-slate-400 leading-relaxed line-clamp-2">
+              {sobrante.descripcion}
             </p>
           </div>
         )}

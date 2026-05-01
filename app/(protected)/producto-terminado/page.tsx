@@ -81,7 +81,13 @@ interface ProductoSobrante {
   unidad: string;
   descripcion: string | null;
   fecha: string;
+  ancho?: number | null;
+  largo?: number | null;
+  calibre?: number | null;
+  cliente?: { id: string, nombre: string } | null;
+  producto?: { id: string, nombreProducto: string } | null;
 }
+
 
 
 const areaColors: Record<string, string> = {

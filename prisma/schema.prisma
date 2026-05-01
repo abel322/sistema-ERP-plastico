@@ -90,14 +90,25 @@ enum EstadoProductoTerminado {
 
 model ProductoSobrante {
   id              String        @id @default(cuid())
-  tipo            String        // 'Bobina Impresa', 'Bobina Sin Impresion', 'Bobina Refilada', 'Bolsa Impresa', 'Bolsa No Impresa'
+  tipo            String        // 'Bobina Impresa', 'Bobina Sin Impresion', 'Bobina Refilada', 'Bolsa Impresa', 'Bolsa No Impresa', 'Bobinas de empaque', 'Bolsa de empaque'
   cantidad        Float
   unidad          UnidadVenta   @default(Kilogramos)
+  ancho           Float?
+  largo           Float?
+  calibre         Float?
   descripcion     String?
   fecha           DateTime      @default(now())
+  
+  clienteId       String?
+  productoId      String?
+  
+  cliente         Cliente?      @relation(fields: [clienteId], references: [id])
+  producto        ProductoCliente? @relation(fields: [productoId], references: [id])
+  
   createdAt       DateTime      @default(now())
   updatedAt       DateTime      @updatedAt
 }
+
 
 
 enum SiguienteArea {
@@ -236,6 +247,7 @@ model Cliente {
   muestras            Muestra[]
   facturas            Factura[]
   productosTerminados ProductoTerminado[]
+  productosSobrantes  ProductoSobrante[]
 }
 
 model ProductoCliente {
@@ -438,6 +450,7 @@ model ProductoCliente {
   muestras            Muestra[]
   productosTerminados ProductoTerminado[]
   producciones        Produccion[]
+  productosSobrantes  ProductoSobrante[]
 
   @@index([clienteId])
   @@index([activo])

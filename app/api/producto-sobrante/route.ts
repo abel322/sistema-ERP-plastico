@@ -14,6 +14,14 @@ export async function GET() {
     }
 
     const sobrantes = await prisma.productoSobrante.findMany({
+      include: {
+        cliente: {
+          select: { id: true, nombre: true }
+        },
+        producto: {
+          select: { id: true, nombreProducto: true }
+        }
+      },
       orderBy: { fecha: 'desc' }
     });
 
@@ -35,7 +43,7 @@ export async function POST(request: Request) {
     }
 
     const body = await request.json();
-    const { tipo, cantidad, unidad, descripcion, fecha } = body;
+    const { tipo, cantidad, unidad, descripcion, fecha, clienteId, productoId, ancho, largo, calibre } = body;
 
     if (!tipo || !cantidad || !unidad) {
       return NextResponse.json(
@@ -50,7 +58,12 @@ export async function POST(request: Request) {
         cantidad: parseFloat(cantidad),
         unidad,
         descripcion,
-        fecha: fecha ? new Date(fecha) : new Date()
+        fecha: fecha ? new Date(fecha) : new Date(),
+        clienteId: clienteId || null,
+        productoId: productoId || null,
+        ancho: ancho ? parseFloat(ancho) : null,
+        largo: largo ? parseFloat(largo) : null,
+        calibre: calibre ? parseFloat(calibre) : null
       }
     });
 
@@ -63,3 +76,4 @@ export async function POST(request: Request) {
     );
   }
 }
+
