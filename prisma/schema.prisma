@@ -96,6 +96,9 @@ model ProductoSobrante {
   ancho           Float?
   largo           Float?
   calibre         Float?
+  fuelles         Float?
+  anchoTroquel    Float?
+  largoTroquel    Float?
   descripcion     String?
   fecha           DateTime      @default(now())
   

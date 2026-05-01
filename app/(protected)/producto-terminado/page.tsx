@@ -84,6 +84,9 @@ interface ProductoSobrante {
   ancho?: number | null;
   largo?: number | null;
   calibre?: number | null;
+  fuelles?: number | null;
+  anchoTroquel?: number | null;
+  largoTroquel?: number | null;
   cliente?: { id: string, nombre: string } | null;
   producto?: { id: string, nombreProducto: string } | null;
 }
@@ -593,7 +596,14 @@ export default function ProductoTerminadoPage() {
                     <p className="text-[10px] font-black text-emerald-600 dark:text-emerald-400 uppercase tracking-widest">
                       Total Bobinas: {
                         sobrantes
-                          .filter(s => ['Bobina con impresión', 'Bobina sin impresión', 'Bobina refilada', 'Bobinas de empaque'].includes(s.tipo) && s.unidad === 'Kilogramos')
+                          .filter(s => [
+                            'Bobina con impresión', 
+                            'Bobina sin impresión', 
+                            'Bobina refilada', 
+                            'Bobinas de empaque',
+                            'Bobina de ASA S/I 15Kg',
+                            'Bobina de ASA S/I 10Kg'
+                          ].includes(s.tipo) && s.unidad === 'Kilogramos')
                           .reduce((acc, s) => acc + s.cantidad, 0)
                           .toFixed(2)
                       } Kg

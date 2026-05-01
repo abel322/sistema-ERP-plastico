@@ -13,6 +13,9 @@ interface ProductoSobrante {
   ancho?: number | null;
   largo?: number | null;
   calibre?: number | null;
+  fuelles?: number | null;
+  anchoTroquel?: number | null;
+  largoTroquel?: number | null;
   cliente?: { nombre: string } | null;
   producto?: { nombreProducto: string } | null;
 }
@@ -90,7 +93,7 @@ export function SobranteCard({ sobrante, onEdit, onDelete, eliminando }: Sobrant
 
         {/* Medidas */}
         {(sobrante.ancho || sobrante.largo || sobrante.calibre) && (
-          <div className="grid grid-cols-3 gap-2 mb-4 p-3 bg-slate-50/50 dark:bg-slate-800/30 rounded-2xl border border-slate-100 dark:border-slate-700/50">
+          <div className="grid grid-cols-3 gap-2 mb-2 p-3 bg-slate-50/50 dark:bg-slate-800/30 rounded-2xl border border-slate-100 dark:border-slate-700/50">
             <div className="flex flex-col items-center">
               <MoveHorizontal className="w-3 h-3 text-slate-400 mb-1" />
               <span className="text-[10px] font-black text-slate-900 dark:text-white">{sobrante.ancho || '-'}</span>
@@ -105,6 +108,27 @@ export function SobranteCard({ sobrante, onEdit, onDelete, eliminando }: Sobrant
               <Ruler className="w-3 h-3 text-slate-400 mb-1" />
               <span className="text-[10px] font-black text-slate-900 dark:text-white">{sobrante.calibre || '-'}</span>
               <span className="text-[8px] font-bold text-slate-400 uppercase tracking-tighter">Calibre</span>
+            </div>
+          </div>
+        )}
+
+        {/* Medidas Adicionales */}
+        {(sobrante.fuelles || sobrante.anchoTroquel || sobrante.largoTroquel) && (
+          <div className="grid grid-cols-3 gap-2 mb-4 p-3 bg-slate-50/50 dark:bg-slate-800/30 rounded-2xl border border-slate-100 dark:border-slate-700/50">
+            <div className="flex flex-col items-center">
+              <MoveHorizontal className="w-3 h-3 text-slate-400 mb-1" />
+              <span className="text-[10px] font-black text-slate-900 dark:text-white">{sobrante.fuelles || '-'}</span>
+              <span className="text-[8px] font-bold text-slate-400 uppercase tracking-tighter">Fuelles</span>
+            </div>
+            <div className="flex flex-col items-center border-x border-slate-200 dark:border-slate-700">
+              <Ruler className="w-3 h-3 text-slate-400 mb-1" />
+              <span className="text-[10px] font-black text-slate-900 dark:text-white">{sobrante.anchoTroquel || '-'}</span>
+              <span className="text-[8px] font-bold text-slate-400 uppercase tracking-tighter">A. Troquel</span>
+            </div>
+            <div className="flex flex-col items-center">
+              <Ruler className="w-3 h-3 text-slate-400 mb-1" />
+              <span className="text-[10px] font-black text-slate-900 dark:text-white">{sobrante.largoTroquel || '-'}</span>
+              <span className="text-[8px] font-bold text-slate-400 uppercase tracking-tighter">L. Troquel</span>
             </div>
           </div>
         )}

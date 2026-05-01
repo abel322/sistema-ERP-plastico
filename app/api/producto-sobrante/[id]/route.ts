@@ -18,7 +18,7 @@ export async function PATCH(
 
     const { id } = params;
     const body = await request.json();
-    const { tipo, cantidad, unidad, descripcion, fecha, clienteId, productoId, ancho, largo, calibre } = body;
+    const { tipo, cantidad, unidad, descripcion, fecha, clienteId, productoId, ancho, largo, calibre, fuelles, anchoTroquel, largoTroquel } = body;
 
     const sobrante = await prisma.productoSobrante.update({
       where: { id },
@@ -32,7 +32,10 @@ export async function PATCH(
         productoId: productoId === undefined ? undefined : (productoId || null),
         ancho: ancho === undefined ? undefined : (ancho ? parseFloat(ancho) : null),
         largo: largo === undefined ? undefined : (largo ? parseFloat(largo) : null),
-        calibre: calibre === undefined ? undefined : (calibre ? parseFloat(calibre) : null)
+        calibre: calibre === undefined ? undefined : (calibre ? parseFloat(calibre) : null),
+        fuelles: fuelles === undefined ? undefined : (fuelles ? parseFloat(fuelles) : null),
+        anchoTroquel: anchoTroquel === undefined ? undefined : (anchoTroquel ? parseFloat(anchoTroquel) : null),
+        largoTroquel: largoTroquel === undefined ? undefined : (largoTroquel ? parseFloat(largoTroquel) : null)
       }
     });
 

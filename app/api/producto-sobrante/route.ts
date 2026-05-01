@@ -43,7 +43,7 @@ export async function POST(request: Request) {
     }
 
     const body = await request.json();
-    const { tipo, cantidad, unidad, descripcion, fecha, clienteId, productoId, ancho, largo, calibre } = body;
+    const { tipo, cantidad, unidad, descripcion, fecha, clienteId, productoId, ancho, largo, calibre, fuelles, anchoTroquel, largoTroquel } = body;
 
     if (!tipo || !cantidad || !unidad) {
       return NextResponse.json(
@@ -63,7 +63,10 @@ export async function POST(request: Request) {
         productoId: productoId || null,
         ancho: ancho ? parseFloat(ancho) : null,
         largo: largo ? parseFloat(largo) : null,
-        calibre: calibre ? parseFloat(calibre) : null
+        calibre: calibre ? parseFloat(calibre) : null,
+        fuelles: fuelles ? parseFloat(fuelles) : null,
+        anchoTroquel: anchoTroquel ? parseFloat(anchoTroquel) : null,
+        largoTroquel: largoTroquel ? parseFloat(largoTroquel) : null
       }
     });
 
