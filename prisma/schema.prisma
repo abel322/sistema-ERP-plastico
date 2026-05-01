@@ -280,6 +280,10 @@ model ProductoCliente {
   anchoValvula       Float?
   anchoSolapa        Float?
   anchoFuelle        Float?
+  esBolsaASA         Boolean?      @default(false)
+  fuelleASA          Float?
+  anchoTroquelASA    Float?
+  largoTroquelASA    Float?
   intensidadTratador Float?
   pesoMaximoBobina   Float?
   perforacion        Boolean?       @default(false)

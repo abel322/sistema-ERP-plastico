@@ -100,6 +100,12 @@ export async function PUT(
         anchoSolapa: body.anchoSolapa || null,
         anchoFuelle: body.anchoFuelle || null,
         
+        // Campos de bolsa ASA
+        esBolsaASA: body.esBolsaASA || false,
+        fuelleASA: body.fuelleASA || null,
+        anchoTroquelASA: body.anchoTroquelASA || null,
+        largoTroquelASA: body.largoTroquelASA || null,
+        
         // Atributos de sellado
         tipoSellado: body.tipoSellado || null,
         tipoSelladoEstructura: body.tipoSelladoEstructura || null,

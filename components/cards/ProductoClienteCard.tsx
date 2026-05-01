@@ -263,6 +263,9 @@ export function ProductoClienteCard({
                 {producto.anchoValvula && <InfoRow label="Ancho Válvula" value={`${producto.anchoValvula} cm`} />}
                 {producto.anchoSolapa && <InfoRow label="Ancho Solapa" value={`${producto.anchoSolapa} cm`} />}
                 {producto.anchoFuelle && <InfoRow label="Ancho Fuelle" value={`${producto.anchoFuelle} cm`} />}
+                {producto.fuelleASA && <InfoRow label="Fuelle (ASA)" value={`${producto.fuelleASA} cm`} />}
+                {producto.anchoTroquelASA && <InfoRow label="Ancho Troquel (ASA)" value={`${producto.anchoTroquelASA} cm`} />}
+                {producto.largoTroquelASA && <InfoRow label="Largo Troquel (ASA)" value={`${producto.largoTroquelASA} cm`} />}
                 {producto.pesoPorUnidad && <InfoRow label="Peso/Unidad" value={`${producto.pesoPorUnidad} kg`} />}
                 {producto.pesoMaximoBobina && <InfoRow label="Peso Máx. Bobina" value={`${producto.pesoMaximoBobina} kg`} />}
                 {producto.bolsasPorRollo && <InfoRow label="Bolsas/Rollo" value={producto.bolsasPorRollo} />}
