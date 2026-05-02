@@ -3,8 +3,9 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { motion } from 'framer-motion';
-import { ArrowLeft, ArrowDownCircle, ArrowUpCircle, RefreshCw, Undo2, Filter } from 'lucide-react';
+import { ArrowLeft, ArrowDownCircle, ArrowUpCircle, RefreshCw, Undo2, Filter, Edit, Trash2 } from 'lucide-react';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
+import { MovimientoModal } from '@/components/modals/MovimientoModal';
 
 interface Movimiento {
   id: string;
@@ -43,6 +44,8 @@ export default function MovimientosPage() {
   const [fechaFin, setFechaFin] = useState('');
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
+  const [editingMovimiento, setEditingMovimiento] = useState<Movimiento | null>(null);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
 
   const fetchMovimientos = async () => {
     setLoading(true);
@@ -68,6 +71,26 @@ export default function MovimientosPage() {
   useEffect(() => {
     fetchMovimientos();
   }, [tipo, fechaInicio, fechaFin, page]);
+
+  const handleDelete = async (id: string) => {
+    if (!confirm('¿Estás seguro de eliminar este movimiento? Esto revertirá su efecto en el inventario.')) return;
+    try {
+      const res = await fetch(`/api/inventario/movimientos/${id}`, { method: 'DELETE' });
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error || 'Error al eliminar');
+      }
+      fetchMovimientos();
+    } catch (error) {
+      console.error('Error:', error);
+      alert(error instanceof Error ? error.message : 'Error al eliminar');
+    }
+  };
+
+  const handleEdit = (mov: Movimiento) => {
+    setEditingMovimiento(mov);
+    setIsEditModalOpen(true);
+  };
 
   return (
     <>
@@ -163,6 +186,22 @@ export default function MovimientosPage() {
                     <p className="mt-2 text-sm text-gray-600">{mov.motivo}</p>
                   )}
                   <p className="mt-1 text-xs text-gray-400">Por: {mov.responsable}</p>
+                  <div className="mt-3 flex justify-end gap-2 border-t border-gray-100 pt-3">
+                    <button
+                      onClick={() => handleEdit(mov)}
+                      className="p-1.5 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                      title="Editar"
+                    >
+                      <Edit className="h-4 w-4" />
+                    </button>
+                    <button
+                      onClick={() => handleDelete(mov.id)}
+                      className="p-1.5 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                      title="Eliminar"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </button>
+                  </div>
                 </motion.div>
               ))}
             </div>
@@ -179,6 +218,7 @@ export default function MovimientosPage() {
                       <th className="px-4 py-3 text-left text-xs font-medium uppercase text-gray-500">Cantidad</th>
                       <th className="px-4 py-3 text-left text-xs font-medium uppercase text-gray-500">Motivo</th>
                       <th className="px-4 py-3 text-left text-xs font-medium uppercase text-gray-500">Responsable</th>
+                      <th className="px-4 py-3 text-right text-xs font-medium uppercase text-gray-500">Acciones</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-200">
@@ -209,6 +249,24 @@ export default function MovimientosPage() {
                         </td>
                         <td className="px-4 py-3 text-sm text-gray-600">{mov.motivo || '-'}</td>
                         <td className="px-4 py-3 text-sm text-gray-600">{mov.responsable}</td>
+                        <td className="px-4 py-3">
+                          <div className="flex justify-end gap-1">
+                            <button
+                              onClick={() => handleEdit(mov)}
+                              className="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                              title="Editar"
+                            >
+                              <Edit className="h-4 w-4" />
+                            </button>
+                            <button
+                              onClick={() => handleDelete(mov.id)}
+                              className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                              title="Eliminar"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </button>
+                          </div>
+                        </td>
                       </tr>
                     ))}
                   </tbody>
@@ -241,6 +299,27 @@ export default function MovimientosPage() {
           </>
         )}
       </div>
+       <MovimientoModal
+        isOpen={isEditModalOpen}
+        onClose={() => {
+          setIsEditModalOpen(false);
+          setEditingMovimiento(null);
+        }}
+        onSuccess={() => {
+          setIsEditModalOpen(false);
+          setEditingMovimiento(null);
+          fetchMovimientos();
+        }}
+        itemId={editingMovimiento?.inventario.id || ''}
+        itemName={editingMovimiento?.inventario.nombre || ''}
+        itemUnidad={editingMovimiento?.inventario.unidad || ''}
+        editData={editingMovimiento ? {
+          id: editingMovimiento.id,
+          tipo: editingMovimiento.tipo,
+          cantidad: editingMovimiento.cantidad,
+          motivo: editingMovimiento.motivo
+        } : undefined}
+      />
     </>
   );
 }

@@ -14,15 +14,33 @@ interface MovimientoModalProps {
     itemId: string;
     itemName: string;
     itemUnidad: string;
+    editData?: {
+        id: string;
+        tipo: string;
+        cantidad: number;
+        motivo: string | null;
+    };
 }
 
-export function MovimientoModal({ isOpen, onClose, onSuccess, itemId, itemName, itemUnidad }: MovimientoModalProps) {
+export function MovimientoModal({ isOpen, onClose, onSuccess, itemId, itemName, itemUnidad, editData }: MovimientoModalProps) {
+    const isEdit = !!editData;
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
     const [formData, setFormData] = useState({
-        tipo: 'Entrada',
-        cantidad: '',
-        motivo: ''
+        tipo: editData?.tipo || 'Entrada',
+        cantidad: editData?.cantidad.toString() || '',
+        motivo: editData?.motivo || ''
+    });
+
+    // Actualizar form si cambia editData
+    useState(() => {
+        if (editData) {
+            setFormData({
+                tipo: editData.tipo,
+                cantidad: editData.cantidad.toString(),
+                motivo: editData.motivo || ''
+            });
+        }
     });
 
     const handleSubmit = async (e: FormEvent) => {
@@ -31,8 +49,11 @@ export function MovimientoModal({ isOpen, onClose, onSuccess, itemId, itemName, 
         setLoading(true);
 
         try {
-            const res = await fetch('/api/inventario/movimientos', {
-                method: 'POST',
+            const url = isEdit ? `/api/inventario/movimientos/${editData.id}` : '/api/inventario/movimientos';
+            const method = isEdit ? 'PATCH' : 'POST';
+            
+            const res = await fetch(url, {
+                method,
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     inventarioId: itemId,
@@ -44,7 +65,7 @@ export function MovimientoModal({ isOpen, onClose, onSuccess, itemId, itemName, 
 
             if (!res.ok) {
                 const data = await res.json();
-                throw new Error(data.error || 'Error al registrar movimiento');
+                throw new Error(data.error || `Error al ${isEdit ? 'actualizar' : 'registrar'} movimiento`);
             }
 
             onSuccess();
@@ -76,7 +97,7 @@ export function MovimientoModal({ isOpen, onClose, onSuccess, itemId, itemName, 
                                 <ArrowLeftRight className="w-6 h-6" />
                             </div>
                             <div>
-                                <h2 className="text-xl font-bold">Registrar Movimiento</h2>
+                                <h2 className="text-xl font-bold">{isEdit ? 'Editar Movimiento' : 'Registrar Movimiento'}</h2>
                                 <p className="text-blue-100 text-sm truncate max-w-[200px]">{itemName}</p>
                             </div>
                         </div>
@@ -102,6 +123,7 @@ export function MovimientoModal({ isOpen, onClose, onSuccess, itemId, itemName, 
                                 value={formData.tipo}
                                 onChange={(e) => setFormData({ ...formData, tipo: e.target.value })}
                                 required
+                                disabled={isEdit}
                                 options={[
                                     { value: 'Entrada', label: 'Entrada' },
                                     { value: 'Salida', label: 'Salida' },
