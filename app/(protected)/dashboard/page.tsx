@@ -55,6 +55,7 @@ interface DashboardData {
     mejorasPendientes: number;
     totalMateriaPrima: number;
     pedidosPendientes: number;
+    eficienciaHoy: number;
   };
   statsFacturacion?: {
     mes: number;
@@ -260,7 +261,13 @@ export default function DashboardPage() {
         <MiniKPI icon={<TrendingDown />} label="Merma Hoy" value={`${data?.stats?.mermaHoy ?? 0} kg`} color="orange" onClick={() => router.push('/produccion')} />
         <MiniKPI icon={<FileText />} label="Pendientes" value={data?.stats?.pedidosPendientes ?? 0} color="blue" onClick={() => router.push('/pedidos')} />
         <MiniKPI icon={<AlertTriangle />} label="Stock Bajo" value={data?.stats?.stockBajoCount ?? 0} color="yellow" onClick={() => router.push('/inventario')} />
-        <MiniKPI icon={<Wrench />} label="Producción" value={data?.stats?.registrosProduccionHoy ?? 0} color="slate" onClick={() => router.push('/produccion')} />
+        <MiniKPI 
+          icon={<TrendingDown />} 
+          label="Eficiencia" 
+          value={`${(data?.stats?.eficienciaHoy ?? 0).toFixed(1)}%`} 
+          color="emerald" 
+          onClick={() => router.push('/produccion')} 
+        />
       </div>
 
       {/* Charts & Tables Section */}
@@ -481,7 +488,8 @@ function MiniKPI({ icon, label, value, color, onClick }: any) {
     yellow: 'bg-yellow-50 dark:bg-yellow-950/30 text-yellow-600 dark:text-yellow-400',
     pink: 'bg-pink-50 dark:bg-pink-950/30 text-pink-600 dark:text-pink-400',
     slate: 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400',
-    blue: 'bg-blue-50 dark:bg-blue-950/30 text-blue-600 dark:text-blue-400'
+    blue: 'bg-blue-50 dark:bg-blue-950/30 text-blue-600 dark:text-blue-400',
+    emerald: 'bg-emerald-50 dark:bg-emerald-950/30 text-emerald-600 dark:text-emerald-400'
   };
   return (
     <motion.div

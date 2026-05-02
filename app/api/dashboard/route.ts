@@ -195,6 +195,17 @@ export async function GET() {
       orderBy: { createdAt: 'desc' }
     });
 
+    // Próximas Entregas (48 horas)
+    const proximasEntregas = await prisma.pedido.findMany({
+      where: {
+        estado: { in: ['Pendiente', 'EnProceso'] },
+        fechaEntrega: { lte: new Date(hoy.getTime() + 48 * 60 * 60 * 1000), gte: hoy }
+      },
+      include: { cliente: true },
+      take: 5,
+      orderBy: { fechaEntrega: 'asc' }
+    });
+
     // Pedidos por mes (últimos 6 meses)
     const pedidosPorMes = await prisma.$queryRaw<
       Array<{ mes: string; count: bigint }>
@@ -233,9 +244,13 @@ export async function GET() {
         stockBajoCount,
         totalMateriaPrima: totalMateriaPrima._sum.cantidad || 0,
         pedidosPendientes: pedidosPendientesCount,
+        eficienciaHoy: produccionHoy._sum.cantidadProducida && (produccionHoy._sum.cantidadProducida + (produccionHoy._sum.merma || 0)) > 0 
+          ? (produccionHoy._sum.cantidadProducida / (produccionHoy._sum.cantidadProducida + (produccionHoy._sum.merma || 0))) * 100 
+          : 0,
       },
       pedidosRecientes,
       pedidosUrgentesDetalle,
+      proximasEntregas,
       pedidosPorEstado: pedidosPorEstado.map((item: any) => ({
         estado: item.estado,
         count: item._count,
