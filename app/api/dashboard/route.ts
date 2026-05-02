@@ -156,6 +156,45 @@ export async function GET() {
       orderBy: { fecha: 'desc' },
     });
 
+    // Detalle de Materia Prima (Resumen)
+    const materiaPrimaDetalle = await prisma.inventario.findMany({
+      where: { categoria: 'MateriaPrima' },
+      select: { nombre: true, cantidad: true, unidad: true },
+      take: 5,
+      orderBy: { cantidad: 'desc' }
+    });
+
+    // Detalle de Pedidos Pendientes (Resumen)
+    const pedidosPendientesDetalle = await prisma.pedido.findMany({
+      where: { estado: 'Pendiente' },
+      include: { cliente: true },
+      take: 5,
+      orderBy: { fechaPedido: 'desc' }
+    });
+
+    // Detalle de Producto Terminado
+    const productoTerminadoDetalle = await prisma.inventario.findMany({
+      where: { categoria: 'ProductoTerminado' },
+      select: { nombre: true, cantidad: true, unidad: true },
+      take: 5,
+      orderBy: { cantidad: 'desc' }
+    });
+
+    // Producción en Proceso
+    const produccionEnProcesoDetalle = await prisma.produccion.findMany({
+      where: { 
+        pedido: {
+          estado: 'EnProceso'
+        }
+      },
+      include: { 
+        pedido: { include: { cliente: true } },
+        maquina: true 
+      },
+      take: 5,
+      orderBy: { createdAt: 'desc' }
+    });
+
     // Pedidos por mes (últimos 6 meses)
     const pedidosPorMes = await prisma.$queryRaw<
       Array<{ mes: string; count: bigint }>
@@ -210,6 +249,10 @@ export async function GET() {
       })),
       produccionesRecientes,
       despachosRecientes,
+      materiaPrimaDetalle,
+      pedidosPendientesDetalle,
+      productoTerminadoDetalle,
+      produccionEnProcesoDetalle,
     });
   } catch (error) {
     console.error('Error al obtener datos del dashboard:', error);

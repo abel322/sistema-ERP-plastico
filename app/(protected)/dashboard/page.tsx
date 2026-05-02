@@ -71,6 +71,10 @@ interface DashboardData {
   produccionPorArea: { area: string; cantidadProducida: number; merma: number; registros: number }[];
   produccionesRecientes: any[];
   despachosRecientes: any[];
+  materiaPrimaDetalle: any[];
+  pedidosPendientesDetalle: any[];
+  productoTerminadoDetalle: any[];
+  produccionEnProcesoDetalle: any[];
 }
 
 export default function DashboardPage() {
@@ -337,6 +341,119 @@ export default function DashboardPage() {
           </TableContainer>
 
         </div>
+      </div>
+
+      {/* NUEVA SECCIÓN: Materia Prima y Pedidos Pendientes */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
+        <TableContainer title="Materia Prima (Resumen Stock)" icon={<Package className="w-5 h-5 text-amber-500" />}>
+          <table className="w-full">
+            <thead>
+              <tr className="border-b border-slate-100 dark:border-slate-800">
+                <th className="px-4 py-4 text-left text-[10px] font-black uppercase tracking-widest text-slate-400">Material</th>
+                <th className="px-4 py-4 text-right text-[10px] font-black uppercase tracking-widest text-slate-400">Stock</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-50 dark:divide-slate-800">
+              {data?.materiaPrimaDetalle?.length ? data.materiaPrimaDetalle.map((item, i) => (
+                <tr key={i} className="group hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors">
+                  <td className="px-4 py-4">
+                    <p className="text-sm font-bold text-slate-800 dark:text-slate-200">{item.nombre}</p>
+                  </td>
+                  <td className="px-4 py-4 text-right">
+                    <span className="text-sm font-black text-blue-600 dark:text-blue-400">{item.cantidad.toLocaleString()} {item.unidad}</span>
+                  </td>
+                </tr>
+              )) : (
+                <tr><td colSpan={2} className="px-4 py-8 text-center text-slate-400 text-xs">No hay datos de materia prima</td></tr>
+              )}
+            </tbody>
+          </table>
+        </TableContainer>
+
+        <TableContainer title="Pedidos Pendientes" icon={<FileText className="w-5 h-5 text-blue-500" />}>
+          <table className="w-full">
+            <thead>
+              <tr className="border-b border-slate-100 dark:border-slate-800">
+                <th className="px-4 py-4 text-left text-[10px] font-black uppercase tracking-widest text-slate-400">Cliente</th>
+                <th className="px-4 py-4 text-right text-[10px] font-black uppercase tracking-widest text-slate-400">Fecha</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-50 dark:divide-slate-800">
+              {data?.pedidosPendientesDetalle?.length ? data.pedidosPendientesDetalle.map((pedido, i) => (
+                <tr key={i} className="group hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors">
+                  <td className="px-4 py-4">
+                    <p className="text-sm font-bold text-slate-800 dark:text-slate-200 line-clamp-1">{pedido.cliente?.nombre}</p>
+                  </td>
+                  <td className="px-4 py-4 text-right">
+                    <p className="text-xs font-bold text-slate-500 dark:text-slate-400">
+                      {format(new Date(pedido.fechaPedido), 'dd/MM/yy', { locale: es })}
+                    </p>
+                  </td>
+                </tr>
+              )) : (
+                <tr><td colSpan={2} className="px-4 py-8 text-center text-slate-400 text-xs">No hay pedidos pendientes</td></tr>
+              )}
+            </tbody>
+          </table>
+        </TableContainer>
+      </div>
+
+      {/* NUEVA SECCIÓN: Producto Terminado y Producción en Proceso */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
+        <TableContainer title="Stock Producto Terminado" icon={<CheckCircle className="w-5 h-5 text-emerald-500" />}>
+          <table className="w-full">
+            <thead>
+              <tr className="border-b border-slate-100 dark:border-slate-800">
+                <th className="px-4 py-4 text-left text-[10px] font-black uppercase tracking-widest text-slate-400">Producto</th>
+                <th className="px-4 py-4 text-right text-[10px] font-black uppercase tracking-widest text-slate-400">Cantidad</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-50 dark:divide-slate-800">
+              {data?.productoTerminadoDetalle?.length ? data.productoTerminadoDetalle.map((item, i) => (
+                <tr key={i} className="group hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors">
+                  <td className="px-4 py-4">
+                    <p className="text-sm font-bold text-slate-800 dark:text-slate-200">{item.nombre}</p>
+                  </td>
+                  <td className="px-4 py-4 text-right">
+                    <span className="text-sm font-black text-emerald-600 dark:text-emerald-400">{item.cantidad.toLocaleString()} {item.unidad}</span>
+                  </td>
+                </tr>
+              )) : (
+                <tr><td colSpan={2} className="px-4 py-8 text-center text-slate-400 text-xs">No hay stock de producto terminado</td></tr>
+              )}
+            </tbody>
+          </table>
+        </TableContainer>
+
+        <TableContainer title="Producción en Tiempo Real" icon={<Factory className="w-5 h-5 text-indigo-500" />}>
+          <table className="w-full">
+            <thead>
+              <tr className="border-b border-slate-100 dark:border-slate-800">
+                <th className="px-4 py-4 text-left text-[10px] font-black uppercase tracking-widest text-slate-400">Máquina / Cliente</th>
+                <th className="px-4 py-4 text-right text-[10px] font-black uppercase tracking-widest text-slate-400">Estado</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-50 dark:divide-slate-800">
+              {data?.produccionEnProcesoDetalle?.length ? data.produccionEnProcesoDetalle.map((item, i) => (
+                <tr key={i} className="group hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors">
+                  <td className="px-4 py-4">
+                    <div className="flex flex-col">
+                      <p className="text-sm font-bold text-slate-800 dark:text-slate-200">{item.maquina?.nombre}</p>
+                      <p className="text-[10px] text-slate-400 dark:text-slate-500 uppercase font-black">{item.pedido?.cliente?.nombre}</p>
+                    </div>
+                  </td>
+                  <td className="px-4 py-4 text-right">
+                    <span className="px-3 py-1 bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 text-[10px] font-black rounded-lg border border-indigo-100/50 dark:border-indigo-800/50">
+                      EN PROCESO
+                    </span>
+                  </td>
+                </tr>
+              )) : (
+                <tr><td colSpan={2} className="px-4 py-8 text-center text-slate-400 text-xs">No hay producción activa</td></tr>
+              )}
+            </tbody>
+          </table>
+        </TableContainer>
       </div>
     </div>
   );
