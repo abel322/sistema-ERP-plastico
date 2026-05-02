@@ -159,12 +159,12 @@ export default function DashboardPage() {
 
       {/* Primary Stats Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
-        <StatsCard title="CLIENTES" value={data?.stats?.totalClientes ?? 0} icon={<Users />} color="blue" onClick={() => router.push('/clientes')} />
-        <StatsCard title="PEDIDOS" value={data?.stats?.pedidosActivos ?? 0} icon={<ShoppingCart />} color="purple" onClick={() => router.push('/pedidos')} />
-        <StatsCard title="COMPLETADOS" value={data?.stats?.pedidosCompletadosMes ?? 0} icon={<CheckCircle />} color="emerald" onClick={() => router.push('/pedidos')} />
-        <StatsCard title="MATERIA PRIMA" value={<span className="flex items-baseline gap-1">{(data?.stats?.totalMateriaPrima ?? 0).toLocaleString()}<small className="text-[10px] opacity-50">KG</small></span>} icon={<Package />} color="amber" onClick={() => router.push('/inventario')} />
-        <StatsCard title="PRODUCCIÓN" value={data?.stats?.produccionHoy ?? 0} icon={<TrendingUp />} color="indigo" onClick={() => router.push('/produccion')} />
-        <StatsCard title="DESPACHOS" value={data?.stats?.despachosHoy ?? 0} icon={<Truck />} color="cyan" onClick={() => router.push('/despachos')} />
+        <StatsCard index={0} title="CLIENTES" value={data?.stats?.totalClientes ?? 0} icon={Users} color="blue" onClick={() => router.push('/clientes')} />
+        <StatsCard index={1} title="PEDIDOS" value={data?.stats?.pedidosActivos ?? 0} icon={ShoppingCart} color="purple" onClick={() => router.push('/pedidos')} />
+        <StatsCard index={2} title="COMPLETADOS" value={data?.stats?.pedidosCompletadosMes ?? 0} icon={CheckCircle} color="emerald" onClick={() => router.push('/pedidos')} />
+        <StatsCard index={3} title="MATERIA PRIMA" value={<span className="flex items-baseline gap-1">{(data?.stats?.totalMateriaPrima ?? 0).toLocaleString()}<small className="text-[10px] opacity-50">KG</small></span>} icon={Package} color="amber" onClick={() => router.push('/inventario')} />
+        <StatsCard index={4} title="PRODUCCIÓN" value={data?.stats?.produccionHoy ?? 0} icon={TrendingUp} color="indigo" onClick={() => router.push('/produccion')} />
+        <StatsCard index={5} title="DESPACHOS" value={data?.stats?.despachosHoy ?? 0} icon={Truck} color="cyan" onClick={() => router.push('/despachos')} />
       </div>
 
       {/* Mini KPIs */}
