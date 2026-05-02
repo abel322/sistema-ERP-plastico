@@ -1,35 +1,48 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { StatsCard } from '@/components/dashboard/stats-card';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import { BadgeEstado } from '@/components/ui/badge-estado';
-import { BadgePrioridad } from '@/components/ui/badge-prioridad';
-import { Users, FileText, CheckCircle, AlertTriangle, Factory, TrendingDown, DollarSign, Package, Wrench, Lightbulb, Truck } from 'lucide-react';
-import { Bar, Line, Doughnut } from 'react-chartjs-2';
+import { 
+  Users, 
+  ShoppingCart, 
+  CheckCircle, 
+  Package, 
+  TrendingDown, 
+  Truck, 
+  Beaker,
+  TrendingUp,
+  AlertTriangle,
+  Factory,
+  FileText,
+  DollarSign,
+  Wrench
+} from 'lucide-react';
 import { motion } from 'framer-motion';
 import {
   Chart as ChartJS,
   CategoryScale,
   LinearScale,
-  BarElement,
   PointElement,
   LineElement,
-  ArcElement,
+  BarElement,
   Title,
   Tooltip,
   Legend,
+  ArcElement,
 } from 'chart.js';
+import { Line, Bar } from 'react-chartjs-2';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 
 ChartJS.register(
   CategoryScale,
   LinearScale,
-  BarElement,
   PointElement,
   LineElement,
+  BarElement,
   ArcElement,
   Title,
   Tooltip,
@@ -48,22 +61,13 @@ interface DashboardData {
     despachosHoy: number;
     despachosPendientes: number;
     muestrasPendientes: number;
+    peletizadoHoy: number;
     facturasPendientes: number;
     mantenimientosProgramados: number;
     stockBajoCount: number;
-    ventasMes: number;
-    mejorasPendientes: number;
     totalMateriaPrima: number;
     pedidosPendientes: number;
     eficienciaHoy: number;
-  };
-  statsFacturacion?: {
-    mes: number;
-    anio: number;
-    totalFacturado: number;
-    facturasEmitidas: number;
-    facturasPagadas: number;
-    despachosPendientes: number;
   };
   pedidosRecientes: any[];
   pedidosUrgentesDetalle: any[];
@@ -89,66 +93,47 @@ export default function DashboardPage() {
 
   const fetchDashboardData = async () => {
     try {
-      const [dashboardRes, statsFacturacionRes] = await Promise.all([
-        fetch('/api/dashboard'),
-        fetch('/api/facturas/stats-mes')
-      ]);
-      
-      const result = await dashboardRes.json();
-      const statsFacturacion = await statsFacturacionRes.json();
-      
-      setData({ ...result, statsFacturacion });
+      const response = await fetch('/api/dashboard');
+      if (response.ok) {
+        const result = await response.json();
+        setData(result);
+      }
     } catch (error) {
-      console.error('Error al cargar dashboard:', error);
+      console.error('Error fetching dashboard data:', error);
     } finally {
       setLoading(false);
     }
   };
 
-  if (loading) {
-    return (
-      <div className="flex h-[50vh] w-full items-center justify-center"><LoadingSpinner /></div>
-    );
-  }
-
-  if (!data) {
-    return (
-      <>
-        <div className="text-center text-gray-600">Error al cargar datos</div>
-      </>
-    );
-  }
-
-  const estadoLabels: Record<string, string> = {
-    Pendiente: 'Pendiente',
-    EnProceso: 'En Proceso',
-    Completado: 'Completado',
-  };
+  if (loading) return <LoadingSpinner />;
 
   const chartDataEstados = {
-    labels: (data?.pedidosPorEstado ?? []).map((item) => estadoLabels[item?.estado] || item?.estado || 'N/A'),
+    labels: (data?.pedidosPorEstado ?? []).map((item) => item.estado),
     datasets: [
       {
         label: 'Pedidos',
-        data: (data?.pedidosPorEstado ?? []).map((item) => item?.count || 0),
-        backgroundColor: ['#FCD34D', '#60A5FA', '#34D399'],
-        borderColor: ['#F59E0B', '#3B82F6', '#10B981'],
-        borderWidth: 2,
+        data: (data?.pedidosPorEstado ?? []).map((item) => item.count),
+        backgroundColor: [
+          '#3B82F6', // Blue
+          '#10B981', // Emerald
+          '#F59E0B', // Amber
+          '#EF4444', // Red
+          '#8B5CF6', // Violet
+        ],
+        borderRadius: 8,
       },
     ],
   };
 
   const chartDataMeses = {
     labels: (data?.pedidosPorMes ?? []).map((item) => {
-      const [year, month] = (item?.mes ?? '').split('-');
-      return format(new Date(parseInt(year || '2024'), parseInt(month || '1') - 1), 'MMM yyyy', {
-        locale: es,
-      });
+      const [year, month] = item.mes.split('-');
+      return format(new Date(parseInt(year), parseInt(month) - 1), 'MMM', { locale: es });
     }),
     datasets: [
       {
         label: 'Pedidos',
-        data: (data?.pedidosPorMes ?? []).map((item) => item?.count || 0),
+        data: (data?.pedidosPorMes ?? []).map((item) => item.count),
         borderColor: '#3B82F6',
         backgroundColor: '#93C5FD',
         tension: 0.4,
@@ -159,41 +144,23 @@ export default function DashboardPage() {
   const chartOptions = {
     responsive: true,
     maintainAspectRatio: false,
-    plugins: {
-      legend: {
-        display: false,
-      },
-    },
+    plugins: { legend: { display: false } },
     scales: {
-      y: {
-        beginAtZero: true,
-        ticks: {
-          stepSize: 1,
-        },
-      },
+      y: { beginAtZero: true, ticks: { stepSize: 1, color: '#94a3b8' }, grid: { color: '#e2e8f010' } },
+      x: { ticks: { color: '#94a3b8' }, grid: { display: false } }
     },
   };
 
-  const mesesNombres = [
-    'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
-    'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'
-  ];
-
-  const mesActual = data?.statsFacturacion?.mes ? mesesNombres[data.statsFacturacion.mes - 1] : '';
-  const anioActual = data?.statsFacturacion?.anio || new Date().getFullYear();
-
   return (
     <div className="min-h-screen bg-slate-50/50 dark:bg-slate-950 p-4 lg:p-8 space-y-8 transition-colors duration-300">
-      {/* Header Section */}
+      {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white dark:bg-slate-900 p-6 rounded-3xl shadow-sm border border-slate-200/60 dark:border-slate-800">
         <div>
-          <div className="flex items-center gap-3 mb-1">
+          <h1 className="text-3xl font-black text-slate-900 dark:text-white tracking-tight flex items-center gap-3">
             <div className="w-2 h-8 bg-blue-600 rounded-full" />
-            <h1 className="text-3xl font-black text-slate-900 dark:text-white tracking-tight">Panel de Control</h1>
-          </div>
-          <p className="text-slate-500 dark:text-slate-400 text-sm font-medium ml-5">
-            Bienvenido, Abel. Aquí tienes el resumen operativo de hoy.
-          </p>
+            Panel de Control
+          </h1>
+          <p className="text-slate-500 dark:text-slate-400 text-sm font-medium ml-5">Resumen operativo y métricas en tiempo real.</p>
         </div>
         <div className="flex items-center gap-2 px-4 py-2 bg-slate-50 dark:bg-slate-800 rounded-2xl border border-slate-100 dark:border-slate-700">
           <div className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse" />
@@ -201,283 +168,157 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      {/* KPI Principal - Facturación con Glassmorphism */}
-      <motion.div
-        initial={{ opacity: 0, scale: 0.98 }}
-        animate={{ opacity: 1, scale: 1 }}
-        className="relative overflow-hidden rounded-[2.5rem] bg-slate-900 p-8 text-white shadow-2xl shadow-blue-900/20"
-      >
-        {/* Animated Background Ornaments */}
-        <div className="absolute -right-20 -top-20 h-80 w-80 rounded-full bg-blue-600/20 blur-[100px]" />
-        <div className="absolute -left-20 -bottom-20 h-80 w-80 rounded-full bg-indigo-600/10 blur-[100px]" />
-        
-        <div className="relative flex flex-col lg:flex-row lg:items-center gap-10">
-          <div className="flex-1 space-y-4">
-            <div className="inline-flex items-center gap-2 px-3 py-1 bg-white/10 backdrop-blur-md rounded-full border border-white/10">
-              <DollarSign className="w-3 h-3 text-blue-300" />
-              <span className="text-[10px] font-black uppercase tracking-[0.2em] text-blue-100">Rendimiento Mensual</span>
-            </div>
-            <div>
-              <p className="text-blue-200/70 text-sm font-bold uppercase tracking-widest mb-1">Total Facturado • {mesActual} {anioActual}</p>
-              <h2 className="text-5xl sm:text-6xl font-black tracking-tighter">
-                ${(data?.statsFacturacion?.totalFacturado ?? 0).toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-              </h2>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-6 p-6 bg-white/5 backdrop-blur-xl rounded-[2rem] border border-white/10 shadow-inner">
-            <QuickStat label="Emitidas" value={data?.statsFacturacion?.facturasEmitidas ?? 0} icon={<FileText className="w-4 h-4" />} />
-            <QuickStat label="Pagadas" value={data?.statsFacturacion?.facturasPagadas ?? 0} icon={<CheckCircle className="w-4 h-4" />} />
-            <QuickStat label="Por Facturar" value={data?.statsFacturacion?.despachosPendientes ?? 0} icon={<TrendingDown className="w-4 h-4" />} />
-            <QuickStat label="Mantenimiento" value={data?.stats?.mantenimientosProgramados ?? 0} icon={<Wrench className="w-4 h-4" />} />
-          </div>
-        </div>
-      </motion.div>
-
-      {/* Grid de Tarjetas de Estadísticas Principales */}
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 lg:gap-6">
-        <StatsCard title="Clientes" value={data?.stats?.totalClientes ?? 0} icon={Users} color="bg-blue-600" index={0} onClick={() => router.push('/clientes')} />
-        <StatsCard title="Pedidos Activos" value={data?.stats?.pedidosActivos ?? 0} icon={FileText} color="bg-purple-600" index={1} onClick={() => router.push('/pedidos')} />
-        <StatsCard title="Completados" value={data?.stats?.pedidosCompletadosMes ?? 0} icon={CheckCircle} color="bg-emerald-600" index={2} onClick={() => router.push('/pedidos')} />
-        <StatsCard 
-          title="Materia Prima" 
-          value={
-            <div className="flex items-baseline gap-1">
-              <span>{(data?.stats?.totalMateriaPrima ?? 0).toLocaleString()}</span>
-              <span className="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest">Kg</span>
-            </div>
-          } 
-          icon={Package} 
-          color="bg-amber-600" 
-          index={3} 
-          onClick={() => router.push('/inventario/materia-prima')}
-        />
-        <StatsCard title="Producción" value={data?.stats?.produccionHoy ?? 0} icon={Factory} color="bg-indigo-600" index={4} onClick={() => router.push('/produccion')} />
-        <StatsCard title="Despachos" value={data?.stats?.despachosHoy ?? 0} icon={Truck} color="bg-cyan-600" index={5} onClick={() => router.push('/despachos')} />
+      {/* Primary Stats Grid */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
+        <StatsCard title="CLIENTES" value={data?.stats?.totalClientes ?? 0} icon={<Users />} color="blue" onClick={() => router.push('/clientes')} />
+        <StatsCard title="PEDIDOS" value={data?.stats?.pedidosActivos ?? 0} icon={<ShoppingCart />} color="purple" onClick={() => router.push('/pedidos')} />
+        <StatsCard title="COMPLETADOS" value={data?.stats?.pedidosCompletadosMes ?? 0} icon={<CheckCircle />} color="emerald" onClick={() => router.push('/pedidos')} />
+        <StatsCard title="MATERIA PRIMA" value={<span className="flex items-baseline gap-1">{(data?.stats?.totalMateriaPrima ?? 0).toLocaleString()}<small className="text-[10px] opacity-50">KG</small></span>} icon={<Package />} color="amber" onClick={() => router.push('/inventario')} />
+        <StatsCard title="PRODUCCIÓN" value={data?.stats?.produccionHoy ?? 0} icon={<TrendingUp />} color="indigo" onClick={() => router.push('/produccion')} />
+        <StatsCard title="DESPACHOS" value={data?.stats?.despachosHoy ?? 0} icon={<Truck />} color="cyan" onClick={() => router.push('/despachos')} />
       </div>
 
-      {/* Indicadores Secundarios Compactos */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+      {/* Mini KPIs */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         <MiniKPI icon={<TrendingDown />} label="Merma Hoy" value={`${data?.stats?.mermaHoy ?? 0} kg`} color="orange" onClick={() => router.push('/produccion')} />
         <MiniKPI icon={<FileText />} label="Pendientes" value={data?.stats?.pedidosPendientes ?? 0} color="blue" onClick={() => router.push('/pedidos')} />
         <MiniKPI icon={<AlertTriangle />} label="Stock Bajo" value={data?.stats?.stockBajoCount ?? 0} color="yellow" onClick={() => router.push('/inventario')} />
-        <MiniKPI 
-          icon={<TrendingDown />} 
-          label="Eficiencia" 
-          value={`${(data?.stats?.eficienciaHoy ?? 0).toFixed(1)}%`} 
-          color="emerald" 
-          onClick={() => router.push('/produccion')} 
-        />
+        <MiniKPI icon={<TrendingUp />} label="Eficiencia" value={`${(data?.stats?.eficienciaHoy ?? 0).toFixed(1)}%`} color="emerald" onClick={() => router.push('/produccion')} />
       </div>
 
-      {/* Charts & Tables Section */}
-      <div className="grid grid-cols-1 xl:grid-cols-2 gap-8">
-        {/* Gráficos */}
-        <div className="space-y-8">
-          <ChartContainer title="Pedidos por Estado" icon={<BadgeEstado estado="EnProceso" />}>
-            <div className="h-72">
-              <Bar 
-                data={chartDataEstados} 
-                options={{
-                  ...chartOptions,
-                  scales: {
-                    ...chartOptions.scales,
-                    x: { grid: { display: false }, ticks: { color: '#94a3b8' } },
-                    y: { ...chartOptions.scales.y, grid: { borderDash: [5, 5], color: '#e2e8f010' }, ticks: { color: '#94a3b8' } }
-                  },
-                  plugins: {
-                    ...chartOptions.plugins,
-                    tooltip: {
-                      backgroundColor: '#1e293b',
-                      padding: 12,
-                      titleFont: { size: 14, weight: 'bold' },
-                      bodyFont: { size: 13 },
-                      cornerRadius: 12,
-                      displayColors: false
-                    }
-                  }
-                }} 
-              />
-            </div>
-          </ChartContainer>
-
-          <ChartContainer title="Evolución Mensual" icon={<TrendingDown className="w-5 h-5 text-blue-500" />}>
-            <div className="h-72">
-              <Line 
-                data={chartDataMeses} 
-                options={{
-                  ...chartOptions,
-                  scales: {
-                    ...chartOptions.scales,
-                    x: { grid: { display: false }, ticks: { color: '#94a3b8' } },
-                    y: { ...chartOptions.scales.y, grid: { borderDash: [5, 5], color: '#e2e8f010' }, ticks: { color: '#94a3b8' } }
-                  }
-                }} 
-              />
-            </div>
-          </ChartContainer>
-        </div>
-
-        {/* Tablas */}
-        <div className="space-y-8">
-          <TableContainer title="Pedidos Recientes" icon={<FileText className="w-5 h-5 text-purple-500" />}>
-            <table className="w-full">
-              <thead>
-                <tr className="border-b border-slate-100 dark:border-slate-800">
-                  <th className="px-4 py-4 text-left text-[10px] font-black uppercase tracking-widest text-slate-400">Cliente</th>
-                  <th className="px-4 py-4 text-left text-[10px] font-black uppercase tracking-widest text-slate-400">Cantidad</th>
-                  <th className="px-4 py-4 text-right text-[10px] font-black uppercase tracking-widest text-slate-400">Estado</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-50 dark:divide-slate-800">
-                {data?.pedidosRecientes?.slice(0, 5).map((pedido) => (
-                  <tr key={pedido?.id} className="group hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors">
-                    <td className="px-4 py-4">
-                      <p className="text-sm font-bold text-slate-800 dark:text-slate-200">{pedido?.cliente?.nombre || 'N/A'}</p>
-                    </td>
-                    <td className="px-4 py-4">
-                      <p className="text-sm font-medium text-slate-500 dark:text-slate-400">{pedido?.cantidadSolicitada || 0} {pedido?.unidad || ''}</p>
-                    </td>
-                    <td className="px-4 py-4 text-right">
-                      <BadgeEstado estado={pedido?.estado || 'Pendiente'} />
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </TableContainer>
-
-        </div>
-      </div>
-
-      {/* NUEVA SECCIÓN: Materia Prima y Pedidos Pendientes */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
-        <TableContainer title="Materia Prima (Resumen Stock)" icon={<Package className="w-5 h-5 text-amber-500" />}>
+      {/* Summary Tables Row 1 (HIGH PRIORITY) */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        <TableContainer title="Materia Prima (Stock)" icon={<Package className="text-amber-500" />}>
           <table className="w-full">
             <thead>
               <tr className="border-b border-slate-100 dark:border-slate-800">
-                <th className="px-4 py-4 text-left text-[10px] font-black uppercase tracking-widest text-slate-400">Material</th>
-                <th className="px-4 py-4 text-right text-[10px] font-black uppercase tracking-widest text-slate-400">Stock</th>
+                <th className="px-6 py-4 text-left text-[10px] font-black uppercase tracking-widest text-slate-400">Material</th>
+                <th className="px-6 py-4 text-right text-[10px] font-black uppercase tracking-widest text-slate-400">Stock</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-50 dark:divide-slate-800">
               {data?.materiaPrimaDetalle?.length ? data.materiaPrimaDetalle.map((item, i) => (
                 <tr key={i} className="group hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors">
-                  <td className="px-4 py-4">
-                    <div className="flex flex-col">
-                      <p className="text-sm font-bold text-slate-800 dark:text-slate-200">{item.nombre}</p>
-                      <p className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest leading-none mt-0.5">{item.codigo || 'S/C'}</p>
-                    </div>
+                  <td className="px-6 py-4">
+                    <p className="text-sm font-bold text-slate-800 dark:text-slate-200">{item.nombre}</p>
+                    <p className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest leading-none mt-0.5">{item.codigo || 'S/C'}</p>
                   </td>
-                  <td className="px-4 py-4 text-right">
+                  <td className="px-6 py-4 text-right">
                     <span className="text-sm font-black text-blue-600 dark:text-blue-400">{item.cantidad.toLocaleString()} {item.unidad}</span>
                   </td>
                 </tr>
               )) : (
-                <tr><td colSpan={2} className="px-4 py-8 text-center text-slate-400 text-xs">No hay datos de materia prima</td></tr>
+                <tr><td colSpan={2} className="px-6 py-8 text-center text-slate-400 text-xs italic">No hay registros disponibles</td></tr>
               )}
             </tbody>
           </table>
         </TableContainer>
 
-        <TableContainer title="Pedidos Pendientes" icon={<FileText className="w-5 h-5 text-blue-500" />}>
+        <TableContainer title="Pedidos Pendientes" icon={<FileText className="text-blue-500" />}>
           <table className="w-full">
             <thead>
               <tr className="border-b border-slate-100 dark:border-slate-800">
-                <th className="px-4 py-4 text-left text-[10px] font-black uppercase tracking-widest text-slate-400">Cliente</th>
-                <th className="px-4 py-4 text-right text-[10px] font-black uppercase tracking-widest text-slate-400">Fecha</th>
+                <th className="px-6 py-4 text-left text-[10px] font-black uppercase tracking-widest text-slate-400">Cliente</th>
+                <th className="px-6 py-4 text-right text-[10px] font-black uppercase tracking-widest text-slate-400">Fecha</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-50 dark:divide-slate-800">
               {data?.pedidosPendientesDetalle?.length ? data.pedidosPendientesDetalle.map((pedido, i) => (
                 <tr key={i} className="group hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors">
-                  <td className="px-4 py-4">
-                    <p className="text-sm font-bold text-slate-800 dark:text-slate-200 line-clamp-1">{pedido.cliente?.nombre}</p>
+                  <td className="px-6 py-4">
+                    <p className="text-sm font-bold text-slate-800 dark:text-slate-200">{pedido.cliente?.nombre}</p>
                   </td>
-                  <td className="px-4 py-4 text-right">
-                    <p className="text-xs font-bold text-slate-500 dark:text-slate-400">
-                      {format(new Date(pedido.fechaPedido), 'dd/MM/yy', { locale: es })}
-                    </p>
+                  <td className="px-6 py-4 text-right text-xs font-bold text-slate-500">
+                    {format(new Date(pedido.fechaPedido), 'dd/MM/yy', { locale: es })}
                   </td>
                 </tr>
               )) : (
-                <tr><td colSpan={2} className="px-4 py-8 text-center text-slate-400 text-xs">No hay pedidos pendientes</td></tr>
+                <tr><td colSpan={2} className="px-6 py-8 text-center text-slate-400 text-xs italic">No hay pedidos en espera</td></tr>
               )}
             </tbody>
           </table>
         </TableContainer>
       </div>
 
-      {/* NUEVA SECCIÓN: Producto Terminado y Producción en Proceso */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
-        <TableContainer title="Stock Producto Terminado" icon={<CheckCircle className="w-5 h-5 text-emerald-500" />}>
+      {/* Summary Tables Row 2 */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        <TableContainer title="Stock Producto Terminado" icon={<CheckCircle className="text-emerald-500" />}>
           <table className="w-full">
             <thead>
               <tr className="border-b border-slate-100 dark:border-slate-800">
-                <th className="px-4 py-4 text-left text-[10px] font-black uppercase tracking-widest text-slate-400">Producto</th>
-                <th className="px-4 py-4 text-right text-[10px] font-black uppercase tracking-widest text-slate-400">Cantidad</th>
+                <th className="px-6 py-4 text-left text-[10px] font-black uppercase tracking-widest text-slate-400">Producto</th>
+                <th className="px-6 py-4 text-right text-[10px] font-black uppercase tracking-widest text-slate-400">Cantidad</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-50 dark:divide-slate-800">
               {data?.productoTerminadoDetalle?.length ? data.productoTerminadoDetalle.map((item, i) => (
                 <tr key={i} className="group hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors">
-                  <td className="px-4 py-4">
+                  <td className="px-6 py-4">
                     <p className="text-sm font-bold text-slate-800 dark:text-slate-200">{item.nombre}</p>
                   </td>
-                  <td className="px-4 py-4 text-right">
+                  <td className="px-6 py-4 text-right">
                     <span className="text-sm font-black text-emerald-600 dark:text-emerald-400">{item.cantidad.toLocaleString()} {item.unidad}</span>
                   </td>
                 </tr>
               )) : (
-                <tr><td colSpan={2} className="px-4 py-8 text-center text-slate-400 text-xs">No hay stock de producto terminado</td></tr>
+                <tr><td colSpan={2} className="px-6 py-8 text-center text-slate-400 text-xs italic">Sin stock de producto terminado</td></tr>
               )}
             </tbody>
           </table>
         </TableContainer>
 
-        <TableContainer title="Producción en Tiempo Real" icon={<Factory className="w-5 h-5 text-indigo-500" />}>
+        <TableContainer title="Producción en Proceso" icon={<Factory className="text-indigo-500" />}>
           <table className="w-full">
             <thead>
               <tr className="border-b border-slate-100 dark:border-slate-800">
-                <th className="px-4 py-4 text-left text-[10px] font-black uppercase tracking-widest text-slate-400">Máquina / Cliente</th>
-                <th className="px-4 py-4 text-right text-[10px] font-black uppercase tracking-widest text-slate-400">Estado</th>
+                <th className="px-6 py-4 text-left text-[10px] font-black uppercase tracking-widest text-slate-400">Máquina / Cliente</th>
+                <th className="px-6 py-4 text-right text-[10px] font-black uppercase tracking-widest text-slate-400">Estado</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-50 dark:divide-slate-800">
               {data?.produccionEnProcesoDetalle?.length ? data.produccionEnProcesoDetalle.map((item, i) => (
                 <tr key={i} className="group hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors">
-                  <td className="px-4 py-4">
-                    <div className="flex flex-col">
-                      <p className="text-sm font-bold text-slate-800 dark:text-slate-200">{item.maquina?.nombre}</p>
-                      <p className="text-[10px] text-slate-400 dark:text-slate-500 uppercase font-black">{item.pedido?.cliente?.nombre}</p>
-                    </div>
+                  <td className="px-6 py-4">
+                    <p className="text-sm font-bold text-slate-800 dark:text-slate-200">{item.maquina?.nombre}</p>
+                    <p className="text-[10px] text-slate-400 dark:text-slate-500 uppercase font-black">{item.pedido?.cliente?.nombre}</p>
                   </td>
-                  <td className="px-4 py-4 text-right">
-                    <span className="px-3 py-1 bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 text-[10px] font-black rounded-lg border border-indigo-100/50 dark:border-indigo-800/50">
-                      EN PROCESO
-                    </span>
+                  <td className="px-6 py-4 text-right">
+                    <span className="px-3 py-1 bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 text-[10px] font-black rounded-lg">EN PROCESO</span>
                   </td>
                 </tr>
               )) : (
-                <tr><td colSpan={2} className="px-4 py-8 text-center text-slate-400 text-xs">No hay producción activa</td></tr>
+                <tr><td colSpan={2} className="px-6 py-8 text-center text-slate-400 text-xs italic">No hay producción activa</td></tr>
               )}
             </tbody>
           </table>
         </TableContainer>
       </div>
-    </div>
-  );
-}
 
-// Helper Components
-function QuickStat({ label, value, icon }: { label: string; value: number | string; icon: React.ReactNode }) {
-  return (
-    <div className="flex flex-col items-center text-center">
-      <div className="p-2 bg-white/10 rounded-xl mb-2 text-blue-300">
-        {icon}
+      {/* Charts & Bottom Tables */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 pb-10">
+        <ChartContainer title="Pedidos por Estado" icon={<BadgeEstado estado="EnProceso" />}>
+          <div className="h-72">
+            <Bar data={chartDataEstados} options={chartOptions} />
+          </div>
+        </ChartContainer>
+
+        <TableContainer title="Pedidos Recientes" icon={<FileText className="text-purple-500" />}>
+          <table className="w-full">
+            <tbody className="divide-y divide-slate-50 dark:divide-slate-800">
+              {data?.pedidosRecientes?.slice(0, 5).map((pedido) => (
+                <tr key={pedido?.id} className="group hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors">
+                  <td className="px-6 py-4">
+                    <p className="text-sm font-bold text-slate-800 dark:text-slate-200">{pedido?.cliente?.nombre}</p>
+                  </td>
+                  <td className="px-6 py-4 text-right">
+                    <BadgeEstado estado={pedido?.estado} />
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </TableContainer>
       </div>
-      <p className="text-xl font-black leading-none mb-1">{value}</p>
-      <p className="text-[10px] font-bold text-blue-200/60 uppercase tracking-widest">{label}</p>
     </div>
   );
 }
@@ -486,23 +327,23 @@ function MiniKPI({ icon, label, value, color, onClick }: any) {
   const colorMap: any = {
     orange: 'bg-orange-50 dark:bg-orange-950/30 text-orange-600 dark:text-orange-400',
     yellow: 'bg-yellow-50 dark:bg-yellow-950/30 text-yellow-600 dark:text-yellow-400',
-    pink: 'bg-pink-50 dark:bg-pink-950/30 text-pink-600 dark:text-pink-400',
-    slate: 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400',
     blue: 'bg-blue-50 dark:bg-blue-950/30 text-blue-600 dark:text-blue-400',
-    emerald: 'bg-emerald-50 dark:bg-emerald-950/30 text-emerald-600 dark:text-emerald-400'
+    emerald: 'bg-emerald-50 dark:bg-emerald-950/30 text-emerald-600 dark:text-emerald-400',
+    indigo: 'bg-indigo-50 dark:bg-indigo-950/30 text-indigo-600 dark:text-indigo-400',
+    purple: 'bg-purple-50 dark:bg-purple-950/30 text-purple-600 dark:text-purple-400'
   };
   return (
     <motion.div
       whileHover={{ y: -2 }}
       onClick={onClick}
-      className={`bg-white dark:bg-slate-900 rounded-2xl p-4 shadow-sm border border-slate-100 dark:border-slate-800 flex items-center gap-4 transition-all hover:shadow-md ${onClick ? 'cursor-pointer active:scale-95' : ''}`}
+      className={`bg-white dark:bg-slate-900 rounded-3xl p-6 shadow-sm border border-slate-100 dark:border-slate-800 flex items-center gap-5 transition-all hover:shadow-xl ${onClick ? 'cursor-pointer active:scale-95' : ''}`}
     >
-      <div className={`h-10 w-10 rounded-xl flex items-center justify-center ${colorMap[color]}`}>
-        {React.cloneElement(icon, { className: 'w-5 h-5' })}
+      <div className={`h-12 w-12 rounded-2xl flex items-center justify-center ${colorMap[color]}`}>
+        {React.cloneElement(icon, { className: 'w-6 h-6' })}
       </div>
       <div>
-        <p className="text-lg font-black text-slate-900 dark:text-slate-100 leading-none mb-0.5">{value}</p>
-        <p className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest">{label}</p>
+        <p className="text-xl font-black text-slate-900 dark:text-slate-100 leading-none mb-1">{value}</p>
+        <p className="text-[11px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-[0.1em]">{label}</p>
       </div>
     </motion.div>
   );
@@ -510,12 +351,10 @@ function MiniKPI({ icon, label, value, color, onClick }: any) {
 
 function ChartContainer({ title, icon, children }: any) {
   return (
-    <div className="bg-white dark:bg-slate-900 rounded-[2rem] p-8 shadow-sm border border-slate-100 dark:border-slate-800 transition-colors">
+    <div className="bg-white dark:bg-slate-900 rounded-[2.5rem] p-8 shadow-sm border border-slate-100 dark:border-slate-800 transition-colors">
       <div className="flex items-center gap-3 mb-8">
-        <div className="p-2 bg-slate-50 dark:bg-slate-800 rounded-xl">
-          {icon}
-        </div>
-        <h3 className="text-lg font-black text-slate-900 dark:text-slate-100 tracking-tight">{title}</h3>
+        <div className="p-2.5 bg-slate-50 dark:bg-slate-800 rounded-xl">{icon}</div>
+        <h3 className="text-xl font-black text-slate-900 dark:text-slate-100 tracking-tight">{title}</h3>
       </div>
       {children}
     </div>
@@ -524,17 +363,12 @@ function ChartContainer({ title, icon, children }: any) {
 
 function TableContainer({ title, icon, children }: any) {
   return (
-    <div className="bg-white dark:bg-slate-900 rounded-[2rem] overflow-hidden shadow-sm border border-slate-100 dark:border-slate-800 flex flex-col transition-colors">
+    <div className="bg-white dark:bg-slate-900 rounded-[2.5rem] overflow-hidden shadow-sm border border-slate-100 dark:border-slate-800 flex flex-col transition-colors">
       <div className="p-8 border-b border-slate-50 dark:border-slate-800 flex items-center gap-3">
-        <div className="p-2 bg-slate-50 dark:bg-slate-800 rounded-xl">
-          {icon}
-        </div>
-        <h3 className="text-lg font-black text-slate-900 dark:text-slate-100 tracking-tight">{title}</h3>
+        <div className="p-2.5 bg-slate-50 dark:bg-slate-800 rounded-xl">{icon}</div>
+        <h3 className="text-xl font-black text-slate-900 dark:text-slate-100 tracking-tight">{title}</h3>
       </div>
-      <div className="flex-1">
-        {children}
-      </div>
+      <div className="flex-1 overflow-x-auto">{children}</div>
     </div>
   );
 }
-import React from 'react';
