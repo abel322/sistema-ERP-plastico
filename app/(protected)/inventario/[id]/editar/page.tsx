@@ -9,6 +9,7 @@ import { FormInput } from '@/components/forms/form-input';
 import { FormSelect } from '@/components/forms/form-select';
 import { FormTextarea } from '@/components/forms/form-textarea';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
+import { MovimientoModal } from '@/components/modals/MovimientoModal';
 
 interface Movimiento {
   id: string;
@@ -27,11 +28,6 @@ export default function EditarInventarioPage() {
   const [error, setError] = useState('');
   const [movimientos, setMovimientos] = useState<Movimiento[]>([]);
   const [showMovimiento, setShowMovimiento] = useState(false);
-  const [movimientoForm, setMovimientoForm] = useState({
-    tipo: 'Entrada',
-    cantidad: '',
-    motivo: ''
-  });
   const [formData, setFormData] = useState({
     nombre: '',
     codigo: '',
@@ -110,35 +106,13 @@ export default function EditarInventarioPage() {
     }
   };
 
-  const handleMovimiento = async (e: FormEvent) => {
-    e.preventDefault();
-    try {
-      const res = await fetch('/api/inventario/movimientos', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          inventarioId: params.id,
-          tipo: movimientoForm.tipo,
-          cantidad: parseFloat(movimientoForm.cantidad),
-          motivo: movimientoForm.motivo
-        })
-      });
-
-      if (!res.ok) {
-        const data = await res.json();
-        throw new Error(data.error || 'Error al registrar movimiento');
-      }
-
-      // Recargar datos
-      const itemRes = await fetch(`/api/inventario/${params.id}`);
-      const data = await itemRes.json();
-      setFormData(prev => ({ ...prev, cantidad: data.cantidad }));
-      setMovimientos(data.movimientos || []);
-      setShowMovimiento(false);
-      setMovimientoForm({ tipo: 'Entrada', cantidad: '', motivo: '' });
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Error al registrar movimiento');
-    }
+  const handleMovimientoSuccess = async () => {
+    // Recargar datos
+    const itemRes = await fetch(`/api/inventario/${params.id}`);
+    const data = await itemRes.json();
+    setFormData(prev => ({ ...prev, cantidad: data.cantidad }));
+    setMovimientos(data.movimientos || []);
+    setShowMovimiento(false);
   };
 
   const tipoLabels: Record<string, string> = {
@@ -338,61 +312,14 @@ export default function EditarInventarioPage() {
         </div>
 
         {/* Modal de movimiento */}
-        {showMovimiento && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-            <motion.div
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-              className="w-full max-w-md rounded-lg bg-white p-6 shadow-xl"
-            >
-              <h3 className="mb-4 text-lg font-semibold">Registrar Movimiento</h3>
-              <form onSubmit={handleMovimiento} className="space-y-4">
-                <FormSelect
-                  label="Tipo de Movimiento"
-                  value={movimientoForm.tipo}
-                  onChange={(e) => setMovimientoForm({ ...movimientoForm, tipo: e.target.value })}
-                  required
-                  options={[
-                    { value: 'Entrada', label: 'Entrada' },
-                    { value: 'Salida', label: 'Salida' },
-                    { value: 'Ajuste', label: 'Ajuste (nuevo stock)' },
-                    { value: 'Devolucion', label: 'Devolución' }
-                  ]}
-                />
-                <FormInput
-                  label={movimientoForm.tipo === 'Ajuste' ? 'Nueva Cantidad' : 'Cantidad'}
-                  type="number"
-                  step="0.01"
-                  min="0"
-                  value={movimientoForm.cantidad}
-                  onChange={(e) => setMovimientoForm({ ...movimientoForm, cantidad: e.target.value })}
-                  required
-                />
-                <FormInput
-                  label="Motivo"
-                  value={movimientoForm.motivo}
-                  onChange={(e) => setMovimientoForm({ ...movimientoForm, motivo: e.target.value })}
-                  placeholder="Descripción del movimiento"
-                />
-                <div className="flex justify-end gap-3">
-                  <button
-                    type="button"
-                    onClick={() => setShowMovimiento(false)}
-                    className="rounded-lg border border-gray-300 px-4 py-2 text-sm"
-                  >
-                    Cancelar
-                  </button>
-                  <button
-                    type="submit"
-                    className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700"
-                  >
-                    Registrar
-                  </button>
-                </div>
-              </form>
-            </motion.div>
-          </div>
-        )}
+        <MovimientoModal
+          isOpen={showMovimiento}
+          onClose={() => setShowMovimiento(false)}
+          onSuccess={handleMovimientoSuccess}
+          itemId={params.id as string}
+          itemName={formData.nombre}
+          itemUnidad={formData.unidad}
+        />
       </div>
     </>
   );

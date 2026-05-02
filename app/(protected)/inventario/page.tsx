@@ -4,9 +4,10 @@ import { useState, useEffect } from 'react';
 import { useSession } from 'next-auth/react';
 import Link from 'next/link';
 import { motion } from 'framer-motion';
-import { Package, Plus, Search, AlertTriangle, Edit, Trash2, History, Filter } from 'lucide-react';
+import { Package, Plus, Search, AlertTriangle, Edit, Trash2, History, Filter, ArrowLeftRight } from 'lucide-react';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import { NuevoInventarioModal } from '@/components/modals/NuevoInventarioModal';
+import { MovimientoModal } from '@/components/modals/MovimientoModal';
 
 interface Inventario {
   id: string;
@@ -39,6 +40,8 @@ export default function InventarioPage() {
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [nuevoItemModalOpen, setNuevoItemModalOpen] = useState(false);
+  const [movimientoModalOpen, setMovimientoModalOpen] = useState(false);
+  const [selectedItem, setSelectedItem] = useState<Inventario | null>(null);
 
   const isAdmin = (session?.user as { rol?: string })?.rol === 'admin';
 
@@ -74,6 +77,11 @@ export default function InventarioPage() {
     } catch (error) {
       console.error('Error:', error);
     }
+  };
+
+  const handleOpenMovimiento = (item: Inventario) => {
+    setSelectedItem(item);
+    setMovimientoModalOpen(true);
   };
 
   return (
@@ -230,6 +238,12 @@ export default function InventarioPage() {
                   </div>
 
                   <div className="flex gap-2 border-t border-slate-100 dark:border-slate-800 pt-4">
+                    <button
+                      onClick={() => handleOpenMovimiento(item)}
+                      className="flex-1 flex items-center justify-center gap-2 py-2.5 bg-blue-50 dark:bg-blue-900/30 text-[10px] font-black uppercase tracking-widest text-blue-600 dark:text-blue-400 rounded-xl hover:bg-blue-100 dark:hover:bg-blue-800 transition-all border border-blue-100 dark:border-blue-900/50"
+                    >
+                      <ArrowLeftRight className="h-3.5 w-3.5" /> MOVIMIENTO
+                    </button>
                     <Link
                       href={`/inventario/${item.id}/editar`}
                       className="flex-1 flex items-center justify-center gap-2 py-2.5 bg-slate-50 dark:bg-slate-800 text-[10px] font-black uppercase tracking-widest text-slate-600 dark:text-slate-400 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-700 transition-all border border-slate-200 dark:border-slate-700"
@@ -303,6 +317,13 @@ export default function InventarioPage() {
                         </td>
                         <td className="px-6 py-4">
                           <div className="flex justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                            <button
+                              onClick={() => handleOpenMovimiento(item)}
+                              className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-900/30 rounded-xl transition-all"
+                              title="Registrar Movimiento"
+                            >
+                              <ArrowLeftRight className="h-4 w-4" />
+                            </button>
                             <Link
                               href={`/inventario/${item.id}/editar`}
                               className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/30 rounded-xl transition-all"
@@ -361,6 +382,23 @@ export default function InventarioPage() {
           fetchInventarios();
         }}
       />
+      {selectedItem && (
+        <MovimientoModal
+          isOpen={movimientoModalOpen}
+          onClose={() => {
+            setMovimientoModalOpen(false);
+            setSelectedItem(null);
+          }}
+          onSuccess={() => {
+            setMovimientoModalOpen(false);
+            setSelectedItem(null);
+            fetchInventarios();
+          }}
+          itemId={selectedItem.id}
+          itemName={selectedItem.nombre}
+          itemUnidad={selectedItem.unidad}
+        />
+      )}
     </div>
   );
 }
