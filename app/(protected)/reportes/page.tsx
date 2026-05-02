@@ -101,6 +101,10 @@ export default function ReportesPage() {
         a.href = url;
         a.download = `reporte_${tipoReporte}_${format(new Date(), 'yyyy-MM-dd')}.pdf`;
         a.click();
+        window.URL.revokeObjectURL(url);
+      } else {
+        const error = await res.json();
+        alert(`Error al generar PDF: ${error.error || 'Error desconocido'}`);
       }
     } catch (error) {
       console.error('Error:', error);

@@ -134,8 +134,9 @@ export async function POST(request: Request) {
     const { tipo, fechaInicio, fechaFin, filtros } = await request.json();
 
     // Obtener datos según el tipo
-    let reportData;
-    const baseUrl = process.env.NEXTAUTH_URL || request.headers.get('origin') || '';
+    const host = request.headers.get('host');
+    const protocol = host?.includes('localhost') ? 'http' : 'https';
+    const baseUrl = `${protocol}://${host}`;
     
     const params = new URLSearchParams();
     if (fechaInicio) params.set('fechaInicio', fechaInicio);
