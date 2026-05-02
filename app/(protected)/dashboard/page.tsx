@@ -322,34 +322,6 @@ export default function DashboardPage() {
             </table>
           </TableContainer>
 
-          <TableContainer title="Pedidos Urgentes" icon={<AlertTriangle className="w-5 h-5 text-rose-500" />}>
-            <table className="w-full">
-              <thead>
-                <tr className="border-b border-slate-100 dark:border-slate-800">
-                  <th className="px-4 py-4 text-left text-[10px] font-black uppercase tracking-widest text-slate-400">Cliente</th>
-                  <th className="px-4 py-4 text-left text-[10px] font-black uppercase tracking-widest text-slate-400">Entrega</th>
-                  <th className="px-4 py-4 text-right text-[10px] font-black uppercase tracking-widest text-slate-400">Prioridad</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-50 dark:divide-slate-800">
-                {data?.pedidosUrgentesDetalle?.slice(0, 5).map((pedido) => (
-                  <tr key={pedido?.id} className="group hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors">
-                    <td className="px-4 py-4">
-                      <p className="text-sm font-bold text-slate-800 dark:text-slate-200">{pedido?.cliente?.nombre || 'N/A'}</p>
-                    </td>
-                    <td className="px-4 py-4">
-                      <p className="text-sm font-medium text-slate-500 dark:text-slate-400">
-                        {pedido?.fechaEntrega ? format(new Date(pedido.fechaEntrega), 'dd MMM yyyy', { locale: es }) : 'N/A'}
-                      </p>
-                    </td>
-                    <td className="px-4 py-4 text-right">
-                      <BadgePrioridad prioridad={pedido?.prioridad || 'Media'} />
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </TableContainer>
         </div>
       </div>
     </div>

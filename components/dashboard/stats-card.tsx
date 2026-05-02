@@ -28,17 +28,19 @@ export function StatsCard({ title, value, icon: Icon, color, index }: StatsCardP
       {/* Background Accent Ornament */}
       <div className={`absolute -right-4 -top-4 h-24 w-24 rounded-full opacity-[0.03] dark:opacity-[0.05] transition-transform duration-500 group-hover:scale-150 ${color}`} />
       
-      <div className="relative flex items-center justify-between gap-4">
+      <div className="relative z-10 flex items-start justify-between gap-3">
         <div className="min-w-0 flex-1">
-          <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500 mb-1 leading-none">{title}</p>
-          <p className="text-2xl font-black text-slate-900 dark:text-white leading-none tracking-tight sm:text-3xl">
-            {typeof value === 'number' ? value.toLocaleString() : value}
-          </p>
+          <p className="text-[9px] font-black uppercase tracking-[0.15em] text-slate-400 dark:text-slate-500 mb-2 leading-none">{title}</p>
+          <div className="flex flex-wrap items-baseline gap-1">
+            <span className="text-xl font-black text-slate-900 dark:text-white leading-tight tracking-tight sm:text-2xl transition-colors group-hover:text-slate-700 dark:group-hover:text-slate-200">
+              {typeof value === 'number' ? value.toLocaleString() : value}
+            </span>
+          </div>
         </div>
         <div
-          className={`flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-2xl shadow-inner transition-transform duration-300 group-hover:rotate-12 ${softBgColor} ${softBgColorDark} ${textColor} ${textColorDark}`}
+          className={`flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl shadow-sm border border-black/5 dark:border-white/5 transition-all duration-300 group-hover:scale-110 group-hover:rotate-6 ${softBgColor} ${softBgColorDark} ${textColor} ${textColorDark}`}
         >
-          <Icon className="h-6 w-6" />
+          <Icon className="h-5 w-5" />
         </div>
       </div>
       
