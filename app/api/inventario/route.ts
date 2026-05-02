@@ -64,8 +64,20 @@ export async function GET(request: Request) {
       ? inventarios.filter(i => i.cantidad <= i.stockMinimo)
       : inventarios;
 
+    // Obtener totales por categoría para el resumen
+    const totalsByCategory = await prisma.inventario.groupBy({
+      by: ['categoria'],
+      _sum: {
+        cantidad: true
+      }
+    });
+
     return NextResponse.json({
       inventarios: resultado,
+      totalsByCategory: totalsByCategory.map(t => ({
+        categoria: t.categoria,
+        total: t._sum.cantidad || 0
+      })),
       pagination: {
         total: stockBajo ? resultado.length : total,
         page,

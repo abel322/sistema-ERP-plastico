@@ -42,6 +42,7 @@ export default function InventarioPage() {
   const [nuevoItemModalOpen, setNuevoItemModalOpen] = useState(false);
   const [movimientoModalOpen, setMovimientoModalOpen] = useState(false);
   const [selectedItem, setSelectedItem] = useState<Inventario | null>(null);
+  const [categoryTotals, setCategoryTotals] = useState<{categoria: string, total: number}[]>([]);
 
   const isAdmin = (session?.user as { rol?: string })?.rol === 'admin';
 
@@ -58,6 +59,7 @@ export default function InventarioPage() {
       const data = await res.json();
       setInventarios(data.inventarios || []);
       setTotalPages(data.pagination?.totalPages || 1);
+      setCategoryTotals(data.totalsByCategory || []);
     } catch (error) {
       console.error('Error:', error);
     } finally {
@@ -135,6 +137,36 @@ export default function InventarioPage() {
             </motion.button>
           </div>
         </div>
+      </div>
+      
+      {/* Summary Totals */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+        {Object.entries(categoriaLabels).map(([key, label]) => {
+          const total = categoryTotals.find(t => t.categoria === key)?.total || 0;
+          return (
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              key={key}
+              className="bg-white dark:bg-slate-900 p-5 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-800 flex flex-col justify-between transition-all hover:shadow-md"
+            >
+              <div className="flex items-center gap-2 mb-2">
+                <div className={`w-2 h-2 rounded-full ${
+                  key === 'MateriaPrima' ? 'bg-blue-500' :
+                  key === 'ProductoTerminado' ? 'bg-emerald-500' :
+                  key === 'Peletizado' ? 'bg-amber-500' : 'bg-purple-500'
+                }`} />
+                <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{label}</span>
+              </div>
+              <div className="flex items-baseline gap-1">
+                <span className="text-2xl font-black text-slate-900 dark:text-white">
+                  {total.toLocaleString(undefined, { minimumFractionDigits: 1, maximumFractionDigits: 1 })}
+                </span>
+                <span className="text-xs font-bold text-slate-500 uppercase tracking-widest">Kg</span>
+              </div>
+            </motion.div>
+          );
+        })}
       </div>
 
       {/* Filtros */}
