@@ -203,71 +203,85 @@ export default function ClientesPage() {
             </button>
           </div>
         </div>
-      </div>
-
-      {/* Lista de clientes */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {filteredClientes.map((cliente) => (
-          <div
-            key={cliente.id}
-            className="group bg-white dark:bg-slate-900 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-800 hover:shadow-xl dark:hover:border-blue-900 transition-all duration-300 overflow-hidden flex flex-col"
-          >
-            {/* Accent Bar */}
-            <div className="h-1.5 w-full bg-blue-500 opacity-20 dark:opacity-40 group-hover:opacity-100 transition-opacity" />
-            
-            <div className="p-6 flex-1">
-              <div className="flex items-center gap-3 mb-4">
-                <div className="p-2.5 bg-blue-50 dark:bg-blue-950/50 text-blue-600 dark:text-blue-400 rounded-lg group-hover:scale-110 transition-transform duration-300">
-                  <Building2 className="w-6 h-6" />
-                </div>
-                <div className="min-w-0 flex-1">
-                  <h3 className="font-bold text-slate-900 dark:text-white text-lg leading-tight whitespace-nowrap overflow-hidden text-ellipsis" title={cliente.nombre}>
-                    {cliente.nombre}
-                  </h3>
-                  <span className="inline-block mt-0.5 px-2 py-0.5 bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 text-[10px] font-bold uppercase tracking-widest rounded">
-                    RIF: {cliente.rif}
-                  </span>
-                </div>
-              </div>
-
-              <div className="flex items-center justify-end mb-4">
-                <div className="flex items-center gap-1 bg-slate-50 dark:bg-slate-800 p-1 rounded-lg border border-slate-100 dark:border-slate-700">
-                  <button
-                    onClick={() => handleEditCliente(cliente)}
-                    className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-md transition-all"
-                    title="Editar"
-                  >
-                    <Edit className="w-4 h-4" />
-                  </button>
-                  <button
-                    onClick={() => handleDelete(cliente.id)}
-                    className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-md transition-all"
-                    title="Eliminar"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </button>
-                </div>
-              </div>
-
-              <div className="space-y-2 mt-4">
-                {cliente.contacto && <ClientInfoRow label="Contacto" value={cliente.contacto} />}
-                {cliente.telefono && <ClientInfoRow label="Teléfono" value={cliente.telefono} />}
-                {cliente.email && <ClientInfoRow label="Email" value={cliente.email} />}
-              </div>
-            </div>
-
-            <div className="p-4 bg-slate-50 dark:bg-slate-800/50 border-t border-slate-100 dark:border-slate-800">
-              <button
-                onClick={() => handleViewProducts(cliente)}
-                className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 font-bold text-xs rounded-xl border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-700 transition-all active:scale-[0.98] shadow-sm"
-              >
-                <Package className="w-4 h-4 text-blue-500" />
-                VER PRODUCTOS
-                <ChevronRight className="w-3 h-3 ml-auto text-slate-400" />
-              </button>
-            </div>
-          </div>
-        ))}
+      </div>      {/* Tabla de clientes moderna */}
+      <div className="bg-white dark:bg-slate-900 rounded-3xl shadow-xl border border-slate-200 dark:border-slate-800 overflow-hidden transition-all duration-300">
+        <div className="overflow-x-auto">
+          <table className="w-full text-left border-collapse">
+            <thead>
+              <tr className="bg-slate-50/50 dark:bg-slate-800/50 border-b border-slate-100 dark:border-slate-800">
+                <th className="px-6 py-5 text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 dark:text-slate-500">Empresa</th>
+                <th className="px-6 py-5 text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 dark:text-slate-500">Contacto Directo</th>
+                <th className="px-6 py-5 text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 dark:text-slate-500">Ubicación Fiscal</th>
+                <th className="px-6 py-5 text-right text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 dark:text-slate-500">Acciones</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-50 dark:divide-slate-800">
+              {filteredClientes.map((cliente) => (
+                <tr key={cliente.id} className="group hover:bg-slate-50/80 dark:hover:bg-slate-800/50 transition-colors duration-200">
+                  <td className="px-6 py-5">
+                    <div className="flex items-center gap-4">
+                      <div className="h-10 w-10 rounded-xl bg-blue-50 dark:bg-blue-900/30 flex items-center justify-center text-blue-600 dark:text-blue-400 group-hover:scale-110 transition-transform shadow-sm border border-blue-100/50 dark:border-blue-800/50">
+                        <Building2 className="w-5 h-5" />
+                      </div>
+                      <div className="min-w-0">
+                        <p className="text-sm font-bold text-slate-900 dark:text-white leading-tight mb-1 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
+                          {cliente.nombre}
+                        </p>
+                        <span className="text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded-md">
+                          RIF: {cliente.rif}
+                        </span>
+                      </div>
+                    </div>
+                  </td>
+                  <td className="px-6 py-5">
+                    <div className="flex flex-col gap-1">
+                      <p className="text-sm font-semibold text-slate-700 dark:text-slate-300">{cliente.contacto || 'N/A'}</p>
+                      <div className="flex flex-col text-[11px] text-slate-500 dark:text-slate-400 font-medium">
+                        {cliente.email && <span className="truncate max-w-[180px]">{cliente.email}</span>}
+                        {cliente.telefono && <span>{cliente.telefono}</span>}
+                      </div>
+                    </div>
+                  </td>
+                  <td className="px-6 py-5">
+                    <div className="flex items-start gap-2 max-w-[220px]">
+                      <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed line-clamp-2 italic" title={cliente.direccion}>
+                        {cliente.direccion || 'Sin dirección registrada'}
+                      </p>
+                    </div>
+                  </td>
+                  <td className="px-6 py-5 text-right">
+                    <div className="flex items-center justify-end gap-3">
+                      <button
+                        onClick={() => handleViewProducts(cliente)}
+                        className="flex items-center gap-2 px-3 py-2 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 text-[10px] font-black uppercase tracking-widest rounded-xl hover:bg-blue-600 hover:text-white dark:hover:bg-blue-600 transition-all shadow-sm group/btn"
+                      >
+                        <Package className="w-3.5 h-3.5 text-blue-500 group-hover/btn:text-white" />
+                        Productos
+                      </button>
+                      <div className="h-8 w-[1px] bg-slate-100 dark:bg-slate-800 mx-1" />
+                      <div className="flex items-center gap-1">
+                        <button
+                          onClick={() => handleEditCliente(cliente)}
+                          className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/30 rounded-xl transition-all"
+                          title="Editar"
+                        >
+                          <Edit className="w-4 h-4" />
+                        </button>
+                        <button
+                          onClick={() => handleDelete(cliente.id)}
+                          className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/30 rounded-xl transition-all"
+                          title="Eliminar"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       </div>
 
       {filteredClientes.length === 0 && (
