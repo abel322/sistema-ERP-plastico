@@ -95,15 +95,21 @@ export default function ReportesPage() {
         body: JSON.stringify({ tipo: tipoReporte, fechaInicio, fechaFin }),
       });
       if (res.ok) {
-        const blob = await res.blob();
-        const url = window.URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `reporte_${tipoReporte}_${format(new Date(), 'yyyy-MM-dd')}.pdf`;
-        a.click();
-        window.URL.revokeObjectURL(url);
+        const html = await res.text();
+        const printWindow = window.open('', '_blank');
+        if (printWindow) {
+          printWindow.document.open();
+          printWindow.document.write(html);
+          printWindow.document.close();
+          // Retraso pequeño para asegurar que el contenido se renderice
+          setTimeout(() => {
+            printWindow.print();
+          }, 500);
+        } else {
+          alert('Por favor habilita las ventanas emergentes (pop-ups) para ver e imprimir el reporte.');
+        }
       } else {
-        const error = await res.json();
+        const error = await res.json().catch(() => ({ error: 'Error de red' }));
         alert(`Error al generar PDF: ${error.error || 'Error desconocido'}`);
       }
     } catch (error) {

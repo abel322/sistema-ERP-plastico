@@ -158,60 +158,15 @@ export async function POST(request: Request) {
 
     const html_content = generateHTML(tipo, reportData, { inicio: fechaInicio, fin: fechaFin });
 
-    // Crear solicitud PDF
-    const createResponse = await fetch('https://apps.abacus.ai/api/createConvertHtmlToPdfRequest', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        deployment_token: process.env.ABACUSAI_API_KEY,
-        html_content,
-        pdf_options: { format: 'A4', margin: { top: '20mm', right: '15mm', bottom: '20mm', left: '15mm' } },
-      }),
+    // Enviar el HTML al cliente para que el navegador genere el PDF nativamente
+    // Esto evita depender de APIs externas que pueden expirar o fallar
+    return new NextResponse(html_content, {
+      headers: {
+        'Content-Type': 'text/html; charset=utf-8',
+      },
     });
-
-    if (!createResponse.ok) {
-      const errorBody = await createResponse.text();
-      return NextResponse.json({ error: `Error al crear solicitud PDF en Abacus: ${createResponse.status} ${errorBody}` }, { status: 500 });
-    }
-
-    const { request_id } = await createResponse.json();
-
-    // Polling
-    const maxAttempts = 60;
-    let attempts = 0;
-
-    while (attempts < maxAttempts) {
-      await new Promise(resolve => setTimeout(resolve, 1000));
-
-      const statusResponse = await fetch('https://apps.abacus.ai/api/getConvertHtmlToPdfStatus', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ request_id, deployment_token: process.env.ABACUSAI_API_KEY }),
-      });
-
-      if (!statusResponse.ok) {
-        return NextResponse.json({ error: 'Error al consultar estado del PDF' }, { status: 500 });
-      }
-
-      const statusResult = await statusResponse.json();
-      
-      if (statusResult?.status === 'SUCCESS' && statusResult?.result?.result) {
-        const pdfBuffer = Buffer.from(statusResult.result.result, 'base64');
-        return new NextResponse(pdfBuffer, {
-          headers: {
-            'Content-Type': 'application/pdf',
-            'Content-Disposition': `attachment; filename="reporte_${tipo}_${format(new Date(), 'yyyy-MM-dd')}.pdf"`,
-          },
-        });
-      } else if (statusResult?.status === 'FAILED') {
-        return NextResponse.json({ error: `Error en Abacus al generar PDF: ${statusResult?.error || 'Desconocido'}` }, { status: 500 });
-      }
-      attempts++;
-    }
-
-    return NextResponse.json({ error: 'Tiempo de espera agotado' }, { status: 500 });
   } catch (error: any) {
-    console.error('Error generando PDF:', error);
+    console.error('Error generando reporte:', error);
     return NextResponse.json({ error: `Error interno: ${error.message || 'Desconocido'}` }, { status: 500 });
   }
 }
