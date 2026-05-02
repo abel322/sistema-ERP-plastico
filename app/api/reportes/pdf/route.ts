@@ -147,6 +147,12 @@ export async function POST(request: Request) {
     const res = await fetch(`${baseUrl}/api/reportes/${tipo}?${params.toString()}`, {
       headers: { cookie: request.headers.get('cookie') || '' },
     });
+    
+    if (!res.ok) {
+      const errorText = await res.text();
+      return NextResponse.json({ error: `Error al obtener datos del reporte: ${res.status} ${errorText}` }, { status: res.status });
+    }
+    
     reportData = await res.json();
 
     const html_content = generateHTML(tipo, reportData, { inicio: fechaInicio, fin: fechaFin });
@@ -163,7 +169,8 @@ export async function POST(request: Request) {
     });
 
     if (!createResponse.ok) {
-      return NextResponse.json({ error: 'Error al crear solicitud PDF' }, { status: 500 });
+      const errorBody = await createResponse.text();
+      return NextResponse.json({ error: `Error al crear solicitud PDF en Abacus: ${createResponse.status} ${errorBody}` }, { status: 500 });
     }
 
     const { request_id } = await createResponse.json();
@@ -181,6 +188,10 @@ export async function POST(request: Request) {
         body: JSON.stringify({ request_id, deployment_token: process.env.ABACUSAI_API_KEY }),
       });
 
+      if (!statusResponse.ok) {
+        return NextResponse.json({ error: 'Error al consultar estado del PDF' }, { status: 500 });
+      }
+
       const statusResult = await statusResponse.json();
       
       if (statusResult?.status === 'SUCCESS' && statusResult?.result?.result) {
@@ -192,14 +203,14 @@ export async function POST(request: Request) {
           },
         });
       } else if (statusResult?.status === 'FAILED') {
-        return NextResponse.json({ error: 'Error al generar PDF' }, { status: 500 });
+        return NextResponse.json({ error: `Error en Abacus al generar PDF: ${statusResult?.error || 'Desconocido'}` }, { status: 500 });
       }
       attempts++;
     }
 
     return NextResponse.json({ error: 'Tiempo de espera agotado' }, { status: 500 });
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error generando PDF:', error);
-    return NextResponse.json({ error: 'Error interno' }, { status: 500 });
+    return NextResponse.json({ error: `Error interno: ${error.message || 'Desconocido'}` }, { status: 500 });
   }
 }
