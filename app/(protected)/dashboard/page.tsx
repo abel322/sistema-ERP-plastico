@@ -229,9 +229,9 @@ export default function DashboardPage() {
 
       {/* Grid de Tarjetas de Estadísticas Principales */}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 lg:gap-6">
-        <StatsCard title="Clientes" value={data?.stats?.totalClientes ?? 0} icon={Users} color="bg-blue-600" index={0} />
-        <StatsCard title="Pedidos Activos" value={data?.stats?.pedidosActivos ?? 0} icon={FileText} color="bg-purple-600" index={1} />
-        <StatsCard title="Completados" value={data?.stats?.pedidosCompletadosMes ?? 0} icon={CheckCircle} color="bg-emerald-600" index={2} />
+        <StatsCard title="Clientes" value={data?.stats?.totalClientes ?? 0} icon={Users} color="bg-blue-600" index={0} onClick={() => router.push('/clientes')} />
+        <StatsCard title="Pedidos Activos" value={data?.stats?.pedidosActivos ?? 0} icon={FileText} color="bg-purple-600" index={1} onClick={() => router.push('/pedidos')} />
+        <StatsCard title="Completados" value={data?.stats?.pedidosCompletadosMes ?? 0} icon={CheckCircle} color="bg-emerald-600" index={2} onClick={() => router.push('/pedidos')} />
         <StatsCard 
           title="Materia Prima" 
           value={
@@ -243,17 +243,18 @@ export default function DashboardPage() {
           icon={Package} 
           color="bg-amber-600" 
           index={3} 
+          onClick={() => router.push('/inventario/materia-prima')}
         />
-        <StatsCard title="Producción" value={data?.stats?.produccionHoy ?? 0} icon={Factory} color="bg-indigo-600" index={4} />
-        <StatsCard title="Despachos" value={data?.stats?.despachosHoy ?? 0} icon={Truck} color="bg-cyan-600" index={5} />
+        <StatsCard title="Producción" value={data?.stats?.produccionHoy ?? 0} icon={Factory} color="bg-indigo-600" index={4} onClick={() => router.push('/produccion')} />
+        <StatsCard title="Despachos" value={data?.stats?.despachosHoy ?? 0} icon={Truck} color="bg-cyan-600" index={5} onClick={() => router.push('/despachos')} />
       </div>
 
       {/* Indicadores Secundarios Compactos */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <MiniKPI icon={<TrendingDown />} label="Merma Hoy" value={`${data?.stats?.mermaHoy ?? 0} kg`} color="orange" />
-        <MiniKPI icon={<FileText />} label="Pendientes" value={data?.stats?.pedidosPendientes ?? 0} color="blue" />
-        <MiniKPI icon={<AlertTriangle />} label="Stock Bajo" value={data?.stats?.stockBajoCount ?? 0} color="yellow" />
-        <MiniKPI icon={<Wrench />} label="Producción" value={data?.stats?.registrosProduccionHoy ?? 0} color="slate" />
+        <MiniKPI icon={<TrendingDown />} label="Merma Hoy" value={`${data?.stats?.mermaHoy ?? 0} kg`} color="orange" onClick={() => router.push('/produccion')} />
+        <MiniKPI icon={<FileText />} label="Pendientes" value={data?.stats?.pedidosPendientes ?? 0} color="blue" onClick={() => router.push('/pedidos')} />
+        <MiniKPI icon={<AlertTriangle />} label="Stock Bajo" value={data?.stats?.stockBajoCount ?? 0} color="yellow" onClick={() => router.push('/inventario')} />
+        <MiniKPI icon={<Wrench />} label="Producción" value={data?.stats?.registrosProduccionHoy ?? 0} color="slate" onClick={() => router.push('/produccion')} />
       </div>
 
       {/* Charts & Tables Section */}
@@ -352,7 +353,7 @@ function QuickStat({ label, value, icon }: { label: string; value: number | stri
   );
 }
 
-function MiniKPI({ icon, label, value, color }: any) {
+function MiniKPI({ icon, label, value, color, onClick }: any) {
   const colorMap: any = {
     orange: 'bg-orange-50 dark:bg-orange-950/30 text-orange-600 dark:text-orange-400',
     yellow: 'bg-yellow-50 dark:bg-yellow-950/30 text-yellow-600 dark:text-yellow-400',
@@ -363,7 +364,8 @@ function MiniKPI({ icon, label, value, color }: any) {
   return (
     <motion.div
       whileHover={{ y: -2 }}
-      className="bg-white dark:bg-slate-900 rounded-2xl p-4 shadow-sm border border-slate-100 dark:border-slate-800 flex items-center gap-4 transition-all hover:shadow-md"
+      onClick={onClick}
+      className={`bg-white dark:bg-slate-900 rounded-2xl p-4 shadow-sm border border-slate-100 dark:border-slate-800 flex items-center gap-4 transition-all hover:shadow-md ${onClick ? 'cursor-pointer active:scale-95' : ''}`}
     >
       <div className={`h-10 w-10 rounded-xl flex items-center justify-center ${colorMap[color]}`}>
         {React.cloneElement(icon, { className: 'w-5 h-5' })}

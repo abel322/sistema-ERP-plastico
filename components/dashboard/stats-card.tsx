@@ -10,9 +10,10 @@ interface StatsCardProps {
   icon: LucideIcon;
   color: string;
   index: number;
+  onClick?: () => void;
 }
 
-export function StatsCard({ title, value, icon: Icon, color, index }: StatsCardProps) {
+export function StatsCard({ title, value, icon: Icon, color, index, onClick }: StatsCardProps) {
   // Map standard tailwind bg colors to soft variants
   const softBgColor = color.replace('bg-', 'bg-').replace('-600', '-50');
   const softBgColorDark = color.replace('bg-', 'dark:bg-').replace('-600', '-950/40');
@@ -24,7 +25,8 @@ export function StatsCard({ title, value, icon: Icon, color, index }: StatsCardP
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay: index * 0.1, duration: 0.5, ease: "easeOut" }}
-      className="group relative overflow-hidden rounded-2xl bg-white dark:bg-slate-900 p-5 shadow-sm border border-slate-100 dark:border-slate-800 transition-all duration-300 hover:shadow-xl hover:-translate-y-1 hover:border-slate-200 dark:hover:border-slate-700"
+      onClick={onClick}
+      className={`group relative overflow-hidden rounded-2xl bg-white dark:bg-slate-900 p-5 shadow-sm border border-slate-100 dark:border-slate-800 transition-all duration-300 hover:shadow-xl hover:-translate-y-1 hover:border-slate-200 dark:hover:border-slate-700 ${onClick ? 'cursor-pointer active:scale-95' : ''}`}
     >
       {/* Background Accent Ornament */}
       <div className={`absolute -right-4 -top-4 h-24 w-24 rounded-full opacity-[0.03] dark:opacity-[0.05] transition-transform duration-500 group-hover:scale-150 ${color}`} />
