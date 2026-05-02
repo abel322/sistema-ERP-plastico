@@ -232,7 +232,18 @@ export default function DashboardPage() {
         <StatsCard title="Clientes" value={data?.stats?.totalClientes ?? 0} icon={Users} color="bg-blue-600" index={0} />
         <StatsCard title="Pedidos Activos" value={data?.stats?.pedidosActivos ?? 0} icon={FileText} color="bg-purple-600" index={1} />
         <StatsCard title="Completados" value={data?.stats?.pedidosCompletadosMes ?? 0} icon={CheckCircle} color="bg-emerald-600" index={2} />
-        <StatsCard title="Materia Prima" value={`${(data?.stats?.totalMateriaPrima ?? 0).toLocaleString()} Kg`} icon={Package} color="bg-amber-600" index={3} />
+        <StatsCard 
+          title="Materia Prima" 
+          value={
+            <div className="flex items-baseline gap-1">
+              <span>{(data?.stats?.totalMateriaPrima ?? 0).toLocaleString()}</span>
+              <span className="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest">Kg</span>
+            </div>
+          } 
+          icon={Package} 
+          color="bg-amber-600" 
+          index={3} 
+        />
         <StatsCard title="Producción" value={data?.stats?.produccionHoy ?? 0} icon={Factory} color="bg-indigo-600" index={4} />
         <StatsCard title="Despachos" value={data?.stats?.despachosHoy ?? 0} icon={Truck} color="bg-cyan-600" index={5} />
       </div>
