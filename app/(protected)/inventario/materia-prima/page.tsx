@@ -171,9 +171,10 @@ export default function MateriaPrimaPage() {
                                     </div>
                                 ) : (
                                     filteredStock.map((item) => {
-                                        const sacos = item.unidad === 'kg'
+                                        const isKg = item.unidad.toLowerCase() === 'kg' || item.unidad.toLowerCase() === 'kilogramos';
+                                        const sacos = isKg
                                             ? (item.cantidad / kilosPorSaco).toFixed(1)
-                                            : item.cantidad; // Si ya esta en sacos
+                                            : item.cantidad;
 
                                         const isLowStock = item.cantidad <= item.stockMinimo;
 
@@ -215,7 +216,7 @@ export default function MateriaPrimaPage() {
                                                     <div className="border-l border-gray-200 pl-3">
                                                         <p className="text-xs text-gray-500 uppercase tracking-wider font-semibold mb-1">Eq. Sacos </p>
                                                         <p className="text-xl font-bold text-blue-700">
-                                                            {item.unidad === 'kg' ? sacos : '-'}
+                                                            {isKg ? sacos : '-'}
                                                         </p>
                                                     </div>
                                                 </div>
