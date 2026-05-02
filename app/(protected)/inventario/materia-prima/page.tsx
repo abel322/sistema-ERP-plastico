@@ -245,10 +245,16 @@ export default function MateriaPrimaPage() {
                                         </div>
                                     ) : (
                                         <ResponsiveContainer width="100%" height="100%">
-                                            <BarChart data={datosAnalisis} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                                            <BarChart data={datosAnalisis} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
                                                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E5E7EB" />
-                                                <XAxis dataKey="material" tick={{ fontSize: 12, fill: '#6B7280' }} axisLine={false} tickLine={false} />
-                                                <YAxis tick={{ fontSize: 12, fill: '#6B7280' }} axisLine={false} tickLine={false} />
+                                                <XAxis dataKey="material" tick={{ fontSize: 11, fill: '#6B7280' }} axisLine={false} tickLine={false} />
+                                                <YAxis 
+                                                    tick={{ fontSize: 11, fill: '#374151', fontWeight: 600 }} 
+                                                    axisLine={false} 
+                                                    tickLine={false} 
+                                                    width={60}
+                                                    tickFormatter={(value) => value.toLocaleString()}
+                                                />
                                                 <Tooltip
                                                     cursor={{ fill: '#F3F4F6' }}
                                                     contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
