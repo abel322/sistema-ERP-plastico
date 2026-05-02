@@ -357,7 +357,10 @@ export default function DashboardPage() {
               {data?.materiaPrimaDetalle?.length ? data.materiaPrimaDetalle.map((item, i) => (
                 <tr key={i} className="group hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors">
                   <td className="px-4 py-4">
-                    <p className="text-sm font-bold text-slate-800 dark:text-slate-200">{item.nombre}</p>
+                    <div className="flex flex-col">
+                      <p className="text-sm font-bold text-slate-800 dark:text-slate-200">{item.nombre}</p>
+                      <p className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest leading-none mt-0.5">{item.codigo || 'S/C'}</p>
+                    </div>
                   </td>
                   <td className="px-4 py-4 text-right">
                     <span className="text-sm font-black text-blue-600 dark:text-blue-400">{item.cantidad.toLocaleString()} {item.unidad}</span>

@@ -159,7 +159,7 @@ export async function GET() {
     // Detalle de Materia Prima (Resumen)
     const materiaPrimaDetalle = await prisma.inventario.findMany({
       where: { categoria: 'MateriaPrima' },
-      select: { nombre: true, cantidad: true, unidad: true },
+      select: { nombre: true, codigo: true, cantidad: true, unidad: true },
       take: 5,
       orderBy: { cantidad: 'desc' }
     });
