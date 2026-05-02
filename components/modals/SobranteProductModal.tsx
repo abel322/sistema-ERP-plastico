@@ -199,6 +199,10 @@ export function SobranteProductModal({ isOpen, onClose, onSuccess, editData }: S
         formData.tipo === 'Bobina de ASA S/I 15Kg' ||
         formData.tipo === 'Bobina de ASA S/I 10Kg';
 
+    const isASABag = 
+        formData.tipo === 'Bobina de ASA S/I 15Kg' || 
+        formData.tipo === 'Bobina de ASA S/I 10Kg';
+
     return (
         <AnimatePresence>
             <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm">
@@ -323,41 +327,47 @@ export function SobranteProductModal({ isOpen, onClose, onSuccess, editData }: S
                                 </div>
                             </div>
 
-                            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                                <div className="space-y-2">
-                                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Fuelles (cm)</label>
-                                    <input
-                                        type="number"
-                                        step="0.1"
-                                        value={formData.fuelles}
-                                        onChange={(e) => setFormData({ ...formData, fuelles: e.target.value })}
-                                        className="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl focus:ring-2 focus:ring-slate-500 outline-none transition-all text-sm"
-                                        placeholder="0.0"
-                                    />
-                                </div>
-                                <div className="space-y-2">
-                                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Ancho Troquel (cm)</label>
-                                    <input
-                                        type="number"
-                                        step="0.1"
-                                        value={formData.anchoTroquel}
-                                        onChange={(e) => setFormData({ ...formData, anchoTroquel: e.target.value })}
-                                        className="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl focus:ring-2 focus:ring-slate-500 outline-none transition-all text-sm"
-                                        placeholder="0.0"
-                                    />
-                                </div>
-                                <div className="space-y-2">
-                                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Largo Troquel (cm)</label>
-                                    <input
-                                        type="number"
-                                        step="0.1"
-                                        value={formData.largoTroquel}
-                                        onChange={(e) => setFormData({ ...formData, largoTroquel: e.target.value })}
-                                        className="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl focus:ring-2 focus:ring-slate-500 outline-none transition-all text-sm"
-                                        placeholder="0.0"
-                                    />
-                                </div>
-                            </div>
+                            {isASABag && (
+                                <motion.div 
+                                    initial={{ opacity: 0, height: 0 }}
+                                    animate={{ opacity: 1, height: 'auto' }}
+                                    className="grid grid-cols-1 md:grid-cols-3 gap-6"
+                                >
+                                    <div className="space-y-2">
+                                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Fuelles (cm)</label>
+                                        <input
+                                            type="number"
+                                            step="0.1"
+                                            value={formData.fuelles}
+                                            onChange={(e) => setFormData({ ...formData, fuelles: e.target.value })}
+                                            className="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl focus:ring-2 focus:ring-slate-500 outline-none transition-all text-sm"
+                                            placeholder="0.0"
+                                        />
+                                    </div>
+                                    <div className="space-y-2">
+                                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Ancho Troquel (cm)</label>
+                                        <input
+                                            type="number"
+                                            step="0.1"
+                                            value={formData.anchoTroquel}
+                                            onChange={(e) => setFormData({ ...formData, anchoTroquel: e.target.value })}
+                                            className="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl focus:ring-2 focus:ring-slate-500 outline-none transition-all text-sm"
+                                            placeholder="0.0"
+                                        />
+                                    </div>
+                                    <div className="space-y-2">
+                                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Largo Troquel (cm)</label>
+                                        <input
+                                            type="number"
+                                            step="0.1"
+                                            value={formData.largoTroquel}
+                                            onChange={(e) => setFormData({ ...formData, largoTroquel: e.target.value })}
+                                            className="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl focus:ring-2 focus:ring-slate-500 outline-none transition-all text-sm"
+                                            placeholder="0.0"
+                                        />
+                                    </div>
+                                </motion.div>
+                            )}
 
                             <div className="grid grid-cols-2 gap-6">
                                 <div className="space-y-2">
