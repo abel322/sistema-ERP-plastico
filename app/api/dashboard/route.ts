@@ -32,6 +32,8 @@ export async function GET() {
       despachosPendientes,
       muestrasPendientes,
       peletizadoHoy,
+      totalMateriaPrima,
+      pedidosPendientesCount,
     ] = await Promise.all([
       prisma.cliente.count(),
       prisma.pedido.count({
@@ -64,6 +66,13 @@ export async function GET() {
         where: { fecha: { gte: inicioHoy } },
         _sum: { materialSalida: true, merma: true },
         _count: true,
+      }),
+      prisma.inventario.aggregate({
+        where: { categoria: 'MateriaPrima' },
+        _sum: { cantidad: true }
+      }),
+      prisma.pedido.count({
+        where: { estado: 'Pendiente' }
       }),
     ]);
 
@@ -183,6 +192,8 @@ export async function GET() {
         facturasPendientes,
         mantenimientosProgramados,
         stockBajoCount,
+        totalMateriaPrima: totalMateriaPrima._sum.cantidad || 0,
+        pedidosPendientes: pedidosPendientesCount,
       },
       pedidosRecientes,
       pedidosUrgentesDetalle,

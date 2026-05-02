@@ -52,6 +52,8 @@ interface DashboardData {
     stockBajoCount: number;
     ventasMes: number;
     mejorasPendientes: number;
+    totalMateriaPrima: number;
+    pedidosPendientes: number;
   };
   statsFacturacion?: {
     mes: number;
@@ -230,7 +232,7 @@ export default function DashboardPage() {
         <StatsCard title="Clientes" value={data?.stats?.totalClientes ?? 0} icon={Users} color="bg-blue-600" index={0} />
         <StatsCard title="Pedidos Activos" value={data?.stats?.pedidosActivos ?? 0} icon={FileText} color="bg-purple-600" index={1} />
         <StatsCard title="Completados" value={data?.stats?.pedidosCompletadosMes ?? 0} icon={CheckCircle} color="bg-emerald-600" index={2} />
-        <StatsCard title="Urgentes" value={data?.stats?.pedidosUrgentes ?? 0} icon={AlertTriangle} color="bg-rose-600" index={3} />
+        <StatsCard title="Materia Prima" value={`${(data?.stats?.totalMateriaPrima ?? 0).toLocaleString()} Kg`} icon={Package} color="bg-amber-600" index={3} />
         <StatsCard title="Producción" value={data?.stats?.produccionHoy ?? 0} icon={Factory} color="bg-indigo-600" index={4} />
         <StatsCard title="Despachos" value={data?.stats?.despachosHoy ?? 0} icon={Truck} color="bg-cyan-600" index={5} />
       </div>
@@ -238,8 +240,8 @@ export default function DashboardPage() {
       {/* Indicadores Secundarios Compactos */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <MiniKPI icon={<TrendingDown />} label="Merma Hoy" value={`${data?.stats?.mermaHoy ?? 0} kg`} color="orange" />
-        <MiniKPI icon={<Lightbulb />} label="Mejoras" value={data?.stats?.mejorasPendientes ?? 0} color="yellow" />
-        <MiniKPI icon={<Package />} label="Muestras" value={data?.stats?.muestrasPendientes ?? 0} color="pink" />
+        <MiniKPI icon={<FileText />} label="Pendientes" value={data?.stats?.pedidosPendientes ?? 0} color="blue" />
+        <MiniKPI icon={<AlertTriangle />} label="Stock Bajo" value={data?.stats?.stockBajoCount ?? 0} color="yellow" />
         <MiniKPI icon={<Wrench />} label="Producción" value={data?.stats?.registrosProduccionHoy ?? 0} color="slate" />
       </div>
 
@@ -372,7 +374,8 @@ function MiniKPI({ icon, label, value, color }: any) {
     orange: 'bg-orange-50 dark:bg-orange-950/30 text-orange-600 dark:text-orange-400',
     yellow: 'bg-yellow-50 dark:bg-yellow-950/30 text-yellow-600 dark:text-yellow-400',
     pink: 'bg-pink-50 dark:bg-pink-950/30 text-pink-600 dark:text-pink-400',
-    slate: 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400'
+    slate: 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400',
+    blue: 'bg-blue-50 dark:bg-blue-950/30 text-blue-600 dark:text-blue-400'
   };
   return (
     <motion.div
