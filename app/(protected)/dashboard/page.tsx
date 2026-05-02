@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { StatsCard } from '@/components/dashboard/stats-card';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import { BadgeEstado } from '@/components/ui/badge-estado';
@@ -73,6 +74,7 @@ interface DashboardData {
 }
 
 export default function DashboardPage() {
+  const router = useRouter();
   const [data, setData] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState(true);
 
