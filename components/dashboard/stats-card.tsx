@@ -42,7 +42,7 @@ export function StatsCard({ title, value, icon: Icon, color, index }: StatsCardP
         </div>
         
         <div className="flex flex-wrap items-baseline gap-1">
-          <span className="text-2xl font-black text-slate-900 dark:text-white leading-none tracking-tight sm:text-3xl transition-colors group-hover:text-blue-600 dark:group-hover:text-blue-400">
+          <span className="text-lg font-black text-slate-900 dark:text-white leading-none tracking-tight sm:text-xl transition-colors group-hover:text-blue-600 dark:group-hover:text-blue-400">
             {typeof value === 'number' ? value.toLocaleString() : value}
           </span>
         </div>
