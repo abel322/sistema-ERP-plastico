@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, FormEvent } from 'react';
+import { useState, useEffect, FormEvent } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Save, ArrowLeftRight } from 'lucide-react';
 import { FormInput } from '@/components/forms/form-input';
@@ -33,15 +33,21 @@ export function MovimientoModal({ isOpen, onClose, onSuccess, itemId, itemName, 
     });
 
     // Actualizar form si cambia editData
-    useState(() => {
+    useEffect(() => {
         if (editData) {
             setFormData({
                 tipo: editData.tipo,
                 cantidad: editData.cantidad.toString(),
                 motivo: editData.motivo || ''
             });
+        } else {
+            setFormData({
+                tipo: 'Entrada',
+                cantidad: '',
+                motivo: ''
+            });
         }
-    });
+    }, [editData, isOpen]);
 
     const handleSubmit = async (e: FormEvent) => {
         e.preventDefault();
