@@ -12,13 +12,10 @@ import {
   Package, 
   TrendingDown, 
   Truck, 
-  Beaker,
   TrendingUp,
   AlertTriangle,
   Factory,
-  FileText,
-  DollarSign,
-  Wrench
+  FileText
 } from 'lucide-react';
 import { motion } from 'framer-motion';
 import {
@@ -34,7 +31,7 @@ import {
   ArcElement,
 } from 'chart.js';
 import { Line, Bar } from 'react-chartjs-2';
-import { format } from 'date-fns';
+import { format, isValid } from 'date-fns';
 import { es } from 'date-fns/locale';
 
 ChartJS.register(
@@ -54,28 +51,17 @@ interface DashboardData {
     totalClientes: number;
     pedidosActivos: number;
     pedidosCompletadosMes: number;
-    pedidosUrgentes: number;
+    totalMateriaPrima: number;
     produccionHoy: number;
     mermaHoy: number;
-    registrosProduccionHoy: number;
     despachosHoy: number;
-    despachosPendientes: number;
-    muestrasPendientes: number;
-    peletizadoHoy: number;
-    facturasPendientes: number;
-    mantenimientosProgramados: number;
-    stockBajoCount: number;
-    totalMateriaPrima: number;
     pedidosPendientes: number;
+    stockBajoCount: number;
     eficienciaHoy: number;
   };
   pedidosRecientes: any[];
-  pedidosUrgentesDetalle: any[];
   pedidosPorEstado: { estado: string; count: number }[];
   pedidosPorMes: { mes: string; count: number }[];
-  produccionPorArea: { area: string; cantidadProducida: number; merma: number; registros: number }[];
-  produccionesRecientes: any[];
-  despachosRecientes: any[];
   materiaPrimaDetalle: any[];
   pedidosPendientesDetalle: any[];
   productoTerminadoDetalle: any[];
@@ -108,18 +94,12 @@ export default function DashboardPage() {
   if (loading) return <LoadingSpinner />;
 
   const chartDataEstados = {
-    labels: (data?.pedidosPorEstado ?? []).map((item) => item.estado),
+    labels: (data?.pedidosPorEstado ?? []).map((item) => item?.estado || 'Desconocido'),
     datasets: [
       {
         label: 'Pedidos',
-        data: (data?.pedidosPorEstado ?? []).map((item) => item.count),
-        backgroundColor: [
-          '#3B82F6', // Blue
-          '#10B981', // Emerald
-          '#F59E0B', // Amber
-          '#EF4444', // Red
-          '#8B5CF6', // Violet
-        ],
+        data: (data?.pedidosPorEstado ?? []).map((item) => item?.count || 0),
+        backgroundColor: ['#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6'],
         borderRadius: 8,
       },
     ],
@@ -127,13 +107,22 @@ export default function DashboardPage() {
 
   const chartDataMeses = {
     labels: (data?.pedidosPorMes ?? []).map((item) => {
-      const [year, month] = item.mes.split('-');
-      return format(new Date(parseInt(year), parseInt(month) - 1), 'MMM', { locale: es });
+      if (!item?.mes) return 'N/A';
+      try {
+        const parts = item.mes.split('-');
+        if (parts.length === 2) {
+          const date = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1);
+          return isValid(date) ? format(date, 'MMM', { locale: es }) : item.mes;
+        }
+        return item.mes;
+      } catch {
+        return item.mes;
+      }
     }),
     datasets: [
       {
         label: 'Pedidos',
-        data: (data?.pedidosPorMes ?? []).map((item) => item.count),
+        data: (data?.pedidosPorMes ?? []).map((item) => item?.count || 0),
         borderColor: '#3B82F6',
         backgroundColor: '#93C5FD',
         tension: 0.4,
@@ -186,9 +175,9 @@ export default function DashboardPage() {
         <MiniKPI icon={<TrendingUp />} label="Eficiencia" value={`${(data?.stats?.eficienciaHoy ?? 0).toFixed(1)}%`} color="emerald" onClick={() => router.push('/produccion')} />
       </div>
 
-      {/* Summary Tables Row 1 (HIGH PRIORITY) */}
+      {/* Summary Tables Row 1 */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-        <TableContainer title="Materia Prima (Stock)" icon={<Package className="text-amber-500" />}>
+        <TableContainer title="Materia Prima (Resumen Stock)" icon={<Package className="text-amber-500" />}>
           <table className="w-full">
             <thead>
               <tr className="border-b border-slate-100 dark:border-slate-800">
@@ -200,11 +189,13 @@ export default function DashboardPage() {
               {data?.materiaPrimaDetalle?.length ? data.materiaPrimaDetalle.map((item, i) => (
                 <tr key={i} className="group hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors">
                   <td className="px-6 py-4">
-                    <p className="text-sm font-bold text-slate-800 dark:text-slate-200">{item.nombre}</p>
-                    <p className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest leading-none mt-0.5">{item.codigo || 'S/C'}</p>
+                    <div className="flex flex-col">
+                      <p className="text-sm font-bold text-slate-800 dark:text-slate-200">{item?.nombre || 'N/A'}</p>
+                      <p className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest leading-none mt-0.5">{item?.codigo || 'S/C'}</p>
+                    </div>
                   </td>
                   <td className="px-6 py-4 text-right">
-                    <span className="text-sm font-black text-blue-600 dark:text-blue-400">{item.cantidad.toLocaleString()} {item.unidad}</span>
+                    <span className="text-sm font-black text-blue-600 dark:text-blue-400">{(item?.cantidad || 0).toLocaleString()} {item?.unidad || 'kg'}</span>
                   </td>
                 </tr>
               )) : (
@@ -226,10 +217,10 @@ export default function DashboardPage() {
               {data?.pedidosPendientesDetalle?.length ? data.pedidosPendientesDetalle.map((pedido, i) => (
                 <tr key={i} className="group hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors">
                   <td className="px-6 py-4">
-                    <p className="text-sm font-bold text-slate-800 dark:text-slate-200">{pedido.cliente?.nombre}</p>
+                    <p className="text-sm font-bold text-slate-800 dark:text-slate-200">{pedido?.cliente?.nombre || 'Desconocido'}</p>
                   </td>
                   <td className="px-6 py-4 text-right text-xs font-bold text-slate-500">
-                    {format(new Date(pedido.fechaPedido), 'dd/MM/yy', { locale: es })}
+                    {pedido?.fechaPedido ? format(new Date(pedido.fechaPedido), 'dd/MM/yy', { locale: es }) : 'N/A'}
                   </td>
                 </tr>
               )) : (
@@ -254,10 +245,10 @@ export default function DashboardPage() {
               {data?.productoTerminadoDetalle?.length ? data.productoTerminadoDetalle.map((item, i) => (
                 <tr key={i} className="group hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors">
                   <td className="px-6 py-4">
-                    <p className="text-sm font-bold text-slate-800 dark:text-slate-200">{item.nombre}</p>
+                    <p className="text-sm font-bold text-slate-800 dark:text-slate-200">{item?.nombre || 'N/A'}</p>
                   </td>
                   <td className="px-6 py-4 text-right">
-                    <span className="text-sm font-black text-emerald-600 dark:text-emerald-400">{item.cantidad.toLocaleString()} {item.unidad}</span>
+                    <span className="text-sm font-black text-emerald-600 dark:text-emerald-400">{(item?.cantidad || 0).toLocaleString()} {item?.unidad || 'kg'}</span>
                   </td>
                 </tr>
               )) : (
@@ -279,8 +270,8 @@ export default function DashboardPage() {
               {data?.produccionEnProcesoDetalle?.length ? data.produccionEnProcesoDetalle.map((item, i) => (
                 <tr key={i} className="group hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors">
                   <td className="px-6 py-4">
-                    <p className="text-sm font-bold text-slate-800 dark:text-slate-200">{item.maquina?.nombre}</p>
-                    <p className="text-[10px] text-slate-400 dark:text-slate-500 uppercase font-black">{item.pedido?.cliente?.nombre}</p>
+                    <p className="text-sm font-bold text-slate-800 dark:text-slate-200">{item?.maquina?.nombre || 'Máquina'}</p>
+                    <p className="text-[10px] text-slate-400 dark:text-slate-500 uppercase font-black">{item?.pedido?.cliente?.nombre || 'Varios'}</p>
                   </td>
                   <td className="px-6 py-4 text-right">
                     <span className="px-3 py-1 bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 text-[10px] font-black rounded-lg">EN PROCESO</span>
@@ -308,10 +299,10 @@ export default function DashboardPage() {
               {data?.pedidosRecientes?.slice(0, 5).map((pedido) => (
                 <tr key={pedido?.id} className="group hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors">
                   <td className="px-6 py-4">
-                    <p className="text-sm font-bold text-slate-800 dark:text-slate-200">{pedido?.cliente?.nombre}</p>
+                    <p className="text-sm font-bold text-slate-800 dark:text-slate-200">{pedido?.cliente?.nombre || 'N/A'}</p>
                   </td>
                   <td className="px-6 py-4 text-right">
-                    <BadgeEstado estado={pedido?.estado} />
+                    <BadgeEstado estado={pedido?.estado || 'Pendiente'} />
                   </td>
                 </tr>
               ))}
@@ -338,8 +329,8 @@ function MiniKPI({ icon, label, value, color, onClick }: any) {
       onClick={onClick}
       className={`bg-white dark:bg-slate-900 rounded-3xl p-6 shadow-sm border border-slate-100 dark:border-slate-800 flex items-center gap-5 transition-all hover:shadow-xl ${onClick ? 'cursor-pointer active:scale-95' : ''}`}
     >
-      <div className={`h-12 w-12 rounded-2xl flex items-center justify-center ${colorMap[color]}`}>
-        {React.cloneElement(icon, { className: 'w-6 h-6' })}
+      <div className={`h-12 w-12 rounded-2xl flex items-center justify-center ${colorMap[color] || colorMap.blue}`}>
+        {icon && React.cloneElement(icon as React.ReactElement, { className: 'w-6 h-6' })}
       </div>
       <div>
         <p className="text-xl font-black text-slate-900 dark:text-slate-100 leading-none mb-1">{value}</p>
