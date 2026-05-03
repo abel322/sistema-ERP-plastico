@@ -38,9 +38,9 @@ export default function ReportesPage() {
   // Cargar clientes al montar o al cambiar a ficha técnica
   useEffect(() => {
     if (tipoReporte === 'ficha-tecnica' && clientes.length === 0) {
-      fetch('/api/clientes')
+      fetch('/api/clientes?limit=100')
         .then(res => res.json())
-        .then(data => setClientes(Array.isArray(data) ? data : []))
+        .then(data => setClientes(Array.isArray(data.clientes) ? data.clientes : []))
         .catch(err => { console.error(err); setClientes([]); });
     }
   }, [tipoReporte, clientes.length]);
