@@ -11,6 +11,7 @@ const tiposReporte = [
   { value: 'produccion', label: 'Producción', description: 'Reporte detallado de producción por área', icon: BarChart3, color: 'text-indigo-600', bg: 'bg-indigo-50 dark:bg-indigo-950/30' },
   { value: 'ventas', label: 'Ventas', description: 'Reporte de facturación y ventas', icon: TrendingUp, color: 'text-emerald-600', bg: 'bg-emerald-50 dark:bg-emerald-950/30' },
   { value: 'inventario', label: 'Inventario', description: 'Estado actual del inventario', icon: PieChart, color: 'text-orange-600', bg: 'bg-orange-50 dark:bg-orange-950/30' },
+  { value: 'ficha-tecnica', label: 'Ficha Técnica', description: 'Ficha técnica detallada por producto', icon: FileText, color: 'text-blue-600', bg: 'bg-blue-50 dark:bg-blue-950/30' },
 ];
 
 const periodosRapidos = [
@@ -27,6 +28,35 @@ export default function ReportesPage() {
   const [fechaFin, setFechaFin] = useState(format(new Date(), 'yyyy-MM-dd'));
   const [loading, setLoading] = useState(false);
   const [previewData, setPreviewData] = useState<any>(null);
+  
+  // Estados para Ficha Técnica
+  const [clientes, setClientes] = useState<any[]>([]);
+  const [productos, setProductos] = useState<any[]>([]);
+  const [clienteId, setClienteId] = useState('');
+  const [productoId, setProductoId] = useState('');
+
+  // Cargar clientes al montar o al cambiar a ficha técnica
+  useEffect(() => {
+    if (tipoReporte === 'ficha-tecnica' && clientes.length === 0) {
+      fetch('/api/clientes')
+        .then(res => res.json())
+        .then(data => setClientes(data))
+        .catch(err => console.error(err));
+    }
+  }, [tipoReporte, clientes.length]);
+
+  // Cargar productos cuando se selecciona un cliente
+  useEffect(() => {
+    if (clienteId) {
+      fetch(`/api/clientes/${clienteId}/productos`)
+        .then(res => res.json())
+        .then(data => setProductos(data))
+        .catch(err => console.error(err));
+    } else {
+      setProductos([]);
+      setProductoId('');
+    }
+  }, [clienteId]);
 
   const handlePeriodoChange = (value: string) => {
     setPeriodo(value);
@@ -54,6 +84,16 @@ export default function ReportesPage() {
         fechaInicio,
         fechaFin,
       });
+      
+      if (tipoReporte === 'ficha-tecnica') {
+        if (!productoId) {
+          alert('Por favor selecciona un producto');
+          setLoading(false);
+          return;
+        }
+        params.set('productoId', productoId);
+      }
+      
       const res = await fetch(`/api/reportes/${tipoReporte}?${params.toString()}`);
       const data = await res.json();
       setPreviewData(data);
@@ -89,10 +129,21 @@ export default function ReportesPage() {
   const downloadPDF = async () => {
     setLoading(true);
     try {
+      const payload: any = { tipo: tipoReporte, fechaInicio, fechaFin };
+      
+      if (tipoReporte === 'ficha-tecnica') {
+        if (!productoId) {
+          alert('Por favor selecciona un producto');
+          setLoading(false);
+          return;
+        }
+        payload.filtros = { productoId };
+      }
+      
       const res = await fetch('/api/reportes/pdf', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ tipo: tipoReporte, fechaInicio, fechaFin }),
+        body: JSON.stringify(payload),
       });
       if (res.ok) {
         const html = await res.text();
@@ -203,34 +254,71 @@ export default function ReportesPage() {
               </div>
 
               <AnimatePresence>
-                {periodo === 'custom' && (
+                {tipoReporte === 'ficha-tecnica' ? (
                   <motion.div
                     initial={{ height: 0, opacity: 0 }}
                     animate={{ height: 'auto', opacity: 1 }}
                     exit={{ height: 0, opacity: 0 }}
                     className="space-y-4 pt-2 overflow-hidden"
                   >
-                    <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <label className="block text-[9px] font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">Desde</label>
-                        <input
-                          type="date"
-                          value={fechaInicio}
-                          onChange={(e) => setFechaInicio(e.target.value)}
-                          className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2 text-xs font-bold text-slate-700 dark:text-slate-300 focus:ring-2 focus:ring-indigo-500 outline-none"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-[9px] font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">Hasta</label>
-                        <input
-                          type="date"
-                          value={fechaFin}
-                          onChange={(e) => setFechaFin(e.target.value)}
-                          className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2 text-xs font-bold text-slate-700 dark:text-slate-300 focus:ring-2 focus:ring-indigo-500 outline-none"
-                        />
-                      </div>
+                    <div>
+                      <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">Cliente</label>
+                      <select
+                        value={clienteId}
+                        onChange={(e) => setClienteId(e.target.value)}
+                        className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-xs font-bold text-slate-700 dark:text-slate-300 focus:ring-2 focus:ring-indigo-500 outline-none"
+                      >
+                        <option value="">Seleccionar Cliente...</option>
+                        {clientes.map(c => (
+                          <option key={c.id} value={c.id}>{c.nombre}</option>
+                        ))}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">Producto</label>
+                      <select
+                        value={productoId}
+                        onChange={(e) => setProductoId(e.target.value)}
+                        disabled={!clienteId}
+                        className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-xs font-bold text-slate-700 dark:text-slate-300 focus:ring-2 focus:ring-indigo-500 outline-none disabled:opacity-50"
+                      >
+                        <option value="">Seleccionar Producto...</option>
+                        {productos.map(p => (
+                          <option key={p.id} value={p.id}>{p.nombreProducto}</option>
+                        ))}
+                      </select>
                     </div>
                   </motion.div>
+                ) : (
+                  periodo === 'custom' && (
+                    <motion.div
+                      initial={{ height: 0, opacity: 0 }}
+                      animate={{ height: 'auto', opacity: 1 }}
+                      exit={{ height: 0, opacity: 0 }}
+                      className="space-y-4 pt-2 overflow-hidden"
+                    >
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <label className="block text-[9px] font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">Desde</label>
+                          <input
+                            type="date"
+                            value={fechaInicio}
+                            onChange={(e) => setFechaInicio(e.target.value)}
+                            className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2 text-xs font-bold text-slate-700 dark:text-slate-300 focus:ring-2 focus:ring-indigo-500 outline-none"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-[9px] font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">Hasta</label>
+                          <input
+                            type="date"
+                            value={fechaFin}
+                            onChange={(e) => setFechaFin(e.target.value)}
+                            className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2 text-xs font-bold text-slate-700 dark:text-slate-300 focus:ring-2 focus:ring-indigo-500 outline-none"
+                          />
+                        </div>
+                      </div>
+                    </motion.div>
+                  )
                 )}
               </AnimatePresence>
 
@@ -294,7 +382,7 @@ export default function ReportesPage() {
                 className="space-y-8"
               >
                 {/* KPIs */}
-                {previewData.totales && (
+                {tipoReporte !== 'ficha-tecnica' && previewData.totales && (
                   <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
                     {Object.entries(previewData.totales).map(([key, value]: [string, any]) => (
                       <div key={key} className="bg-slate-50 dark:bg-slate-800/50 p-5 rounded-[2rem] border border-slate-100 dark:border-slate-800 transition-colors">
@@ -307,8 +395,68 @@ export default function ReportesPage() {
                   </div>
                 )}
 
+                {/* Ficha Técnica Preview */}
+                {tipoReporte === 'ficha-tecnica' && (
+                  <div className="bg-slate-50 dark:bg-slate-800/50 p-8 rounded-[2rem] border border-slate-100 dark:border-slate-800">
+                    <div className="flex justify-between items-start mb-6">
+                      <div>
+                        <h3 className="text-xl font-black text-slate-900 dark:text-white uppercase tracking-tight">{previewData.nombreProducto}</h3>
+                        <p className="text-xs text-slate-500 font-bold uppercase tracking-widest mt-1">{previewData.cliente?.nombre}</p>
+                      </div>
+                      <div className="text-right">
+                        <span className="px-3 py-1 bg-indigo-600 text-white text-[10px] font-black uppercase tracking-widest rounded-full">Ficha Técnica</span>
+                        <p className="text-[10px] text-slate-400 mt-2 font-bold uppercase">Cod: {previewData.codigoProducto || 'N/A'}</p>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6 text-xs">
+                      <div className="space-y-4">
+                        <div className="bg-white dark:bg-slate-900 p-4 rounded-2xl shadow-sm">
+                          <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-2">Dimensiones</p>
+                          <div className="grid grid-cols-2 gap-2">
+                            <p className="font-bold text-slate-700 dark:text-slate-300">Ancho: <span className="text-slate-900 dark:text-white">{previewData.ancho || '-'} cm</span></p>
+                            <p className="font-bold text-slate-700 dark:text-slate-300">Largo: <span className="text-slate-900 dark:text-white">{previewData.largo || '-'} cm</span></p>
+                            <p className="font-bold text-slate-700 dark:text-slate-300">Calibre: <span className="text-slate-900 dark:text-white">{previewData.calibre || '-'} µ</span></p>
+                            <p className="font-bold text-slate-700 dark:text-slate-300">Peso: <span className="text-slate-900 dark:text-white">{previewData.pesoPorUnidad || '-'} g</span></p>
+                          </div>
+                        </div>
+                        <div className="bg-white dark:bg-slate-900 p-4 rounded-2xl shadow-sm">
+                          <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-2">Material y Color</p>
+                          <div className="grid grid-cols-2 gap-2">
+                            <p className="font-bold text-slate-700 dark:text-slate-300">Material: <span className="text-slate-900 dark:text-white">{previewData.material || '-'}</span></p>
+                            <p className="font-bold text-slate-700 dark:text-slate-300">Color: <span className="text-slate-900 dark:text-white">{previewData.color || '-'}</span></p>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="space-y-4">
+                        <div className="bg-white dark:bg-slate-900 p-4 rounded-2xl shadow-sm">
+                          <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-2">Características</p>
+                          <div className="grid grid-cols-2 gap-2">
+                            <p className="font-bold text-slate-700 dark:text-slate-300">Impresión: <span className={previewData.conImpresion ? 'text-emerald-600' : 'text-rose-600'}>{previewData.conImpresion ? 'SÍ' : 'NO'}</span></p>
+                            <p className="font-bold text-slate-700 dark:text-slate-300">Pigmento: <span className={previewData.conPigmento ? 'text-emerald-600' : 'text-rose-600'}>{previewData.conPigmento ? 'SÍ' : 'NO'}</span></p>
+                            <p className="font-bold text-slate-700 dark:text-slate-300">Bolsa ASA: <span className={previewData.esBolsaASA ? 'text-emerald-600' : 'text-rose-600'}>{previewData.esBolsaASA ? 'SÍ' : 'NO'}</span></p>
+                            <p className="font-bold text-slate-700 dark:text-slate-300">Activo: <span className={previewData.activo ? 'text-emerald-600' : 'text-rose-600'}>{previewData.activo ? 'SÍ' : 'NO'}</span></p>
+                          </div>
+                        </div>
+                        {previewData.conImpresion && (
+                          <div className="bg-white dark:bg-slate-900 p-4 rounded-2xl shadow-sm">
+                            <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-2">Impresión</p>
+                            <p className="font-bold text-slate-700 dark:text-slate-300">Tipo: <span className="text-slate-900 dark:text-white">{previewData.tipoImpresion || '-'}</span></p>
+                            <p className="font-bold text-slate-700 dark:text-slate-300 mt-1">Cilindro: <span className="text-slate-900 dark:text-white">{previewData.cilindro || '-'}</span></p>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                    
+                    <div className="mt-6 flex justify-end">
+                      <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">Generado exitosamente para vista previa</p>
+                    </div>
+                  </div>
+                )}
+
                 {/* Tabla de Resultados */}
-                {(previewData.porArea || previewData.porCliente || previewData.porCategoria) && (
+                {tipoReporte !== 'ficha-tecnica' && (previewData.porArea || previewData.porCliente || previewData.porCategoria) && (
                   <div className="rounded-3xl border border-slate-100 dark:border-slate-800 overflow-hidden">
                     <table className="w-full text-left">
                       <thead className="bg-slate-50 dark:bg-slate-800/50">

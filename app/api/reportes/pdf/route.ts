@@ -119,6 +119,153 @@ const generateHTML = (tipo: string, data: any, periodo: { inicio: string; fin: s
         </body></html>
       `;
 
+    case 'ficha-tecnica':
+      return `
+        <!DOCTYPE html><html><head>
+        <style>
+          * { margin: 0; padding: 0; box-sizing: border-box; }
+          body { font-family: 'Segoe UI', Arial, sans-serif; padding: 30px; color: #1e293b; background: #fff; line-height: 1.4; }
+          .header-table { width: 100%; border-collapse: collapse; margin-bottom: 20px; border: 2px solid #1e40af; }
+          .header-table td { padding: 10px; border: 1px solid #cbd5e1; }
+          .logo-cell { width: 25%; text-align: center; }
+          .title-cell { width: 50%; text-align: center; font-size: 24px; font-weight: 800; color: #1e40af; text-transform: uppercase; }
+          .info-cell { width: 25%; font-size: 10px; color: #64748b; }
+          
+          .section { margin-bottom: 20px; border: 1px solid #e2e8f0; border-radius: 8px; overflow: hidden; }
+          .section-header { background: #1e40af; color: white; padding: 8px 15px; font-size: 14px; font-weight: 700; text-transform: uppercase; display: flex; align-items: center; gap: 10px; }
+          .section-content { padding: 15px; display: grid; grid-template-columns: repeat(2, 1fr); gap: 15px; }
+          
+          .data-item { display: flex; flex-direction: column; }
+          .data-label { font-size: 9px; font-weight: 800; color: #64748b; text-transform: uppercase; margin-bottom: 2px; }
+          .data-value { font-size: 12px; font-weight: 600; color: #1e293b; }
+          
+          .grid-3 { grid-template-columns: repeat(3, 1fr); }
+          .grid-4 { grid-template-columns: repeat(4, 1fr); }
+          .span-2 { grid-column: span 2; }
+          
+          .formulation-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-top: 5px; }
+          .form-tag { background: #f1f5f9; border: 1px solid #e2e8f0; padding: 5px; border-radius: 4px; text-align: center; }
+          .form-label { font-size: 8px; color: #64748b; display: block; }
+          .form-val { font-size: 11px; font-weight: 700; color: #1e40af; }
+          
+          .colors-flex { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 5px; }
+          .color-tag { border: 1px solid #e2e8f0; padding: 4px 10px; border-radius: 4px; font-size: 10px; font-weight: 600; background: #f8fafc; }
+          
+          .footer-info { margin-top: 30px; border-top: 1px solid #e2e8f0; padding-top: 15px; text-align: center; font-size: 9px; color: #94a3b8; }
+          @media print { .no-print { display: none; } }
+        </style>
+        </head><body>
+        
+        <table class="header-table">
+          <tr>
+            <td class="logo-cell"><h2 style="color: #1e40af; font-weight: 900;">ERP</h2><p style="font-size: 8px; font-weight: 700;">INDUSTRIAL</p></td>
+            <td class="title-cell">Ficha Técnica de Producto</td>
+            <td class="info-cell">
+              <strong>Código:</strong> FT-${data.codigoProducto || data.id.slice(0, 8)}<br>
+              <strong>Emisión:</strong> ${format(new Date(), 'dd/MM/yyyy')}<br>
+              <strong>Versión:</strong> 1.0
+            </td>
+          </tr>
+        </table>
+
+        <div class="section">
+          <div class="section-header">Identificación del Producto</div>
+          <div class="section-content grid-3">
+            <div class="data-item span-2"><span class="data-label">Nombre del Producto</span><span class="data-value">${data.nombreProducto}</span></div>
+            <div class="data-item"><span class="data-label">Tipo</span><span class="data-value">${data.tipoProducto}</span></div>
+            <div class="data-item span-2"><span class="data-label">Cliente</span><span class="data-value">${data.cliente?.nombre || 'N/A'}</span></div>
+            <div class="data-item"><span class="data-label">RIF Cliente</span><span class="data-value">${data.cliente?.rif || 'N/A'}</span></div>
+          </div>
+        </div>
+
+        <div class="section">
+          <div class="section-header">Especificaciones Físicas y Dimensiones</div>
+          <div class="section-content grid-4">
+            <div class="data-item"><span class="data-label">Ancho</span><span class="data-value">${data.ancho ? data.ancho + ' cm' : '-'}</span></div>
+            <div class="data-item"><span class="data-label">Largo</span><span class="data-value">${data.largo ? data.largo + ' cm' : '-'}</span></div>
+            <div class="data-item"><span class="data-label">Calibre</span><span class="data-value">${data.calibre ? data.calibre + ' µ' : '-'}</span></div>
+            <div class="data-item"><span class="data-label">Material</span><span class="data-value">${data.material || '-'}</span></div>
+            
+            <div class="data-item"><span class="data-label">Peso x Unidad</span><span class="data-value">${data.pesoPorUnidad ? data.pesoPorUnidad + ' g' : '-'}</span></div>
+            <div class="data-item"><span class="data-label">Unidad Venta</span><span class="data-value">${data.unidadVenta}</span></div>
+            <div class="data-item"><span class="data-label">Impresión</span><span class="data-value">${data.conImpresion ? 'SÍ' : 'NO'}</span></div>
+            <div class="data-item"><span class="data-label">Pigmento</span><span class="data-value">${data.conPigmento ? 'SÍ' : 'NO'}</span></div>
+            
+            ${data.tipoProducto === 'Bobina' ? `
+              <div class="data-item"><span class="data-label">Ancho Bobina</span><span class="data-value">${data.anchoBobina ? data.anchoBobina + ' cm' : '-'}</span></div>
+              <div class="data-item"><span class="data-label">Peso Máx Bobina</span><span class="data-value">${data.pesoMaximoBobina ? data.pesoMaximoBobina + ' kg' : '-'}</span></div>
+              <div class="data-item"><span class="data-label">Tipo Bobina</span><span class="data-value">${data.tipoBobinaCliente || '-'}</span></div>
+              <div class="data-item"><span class="data-label">Muleteado</span><span class="data-value">${data.muleteado ? 'SÍ' : 'NO'}</span></div>
+            ` : `
+              <div class="data-item"><span class="data-label">Tipo Sellado</span><span class="data-value">${data.tipoSellado || '-'}</span></div>
+              <div class="data-item"><span class="data-label">Estructura</span><span class="data-value">${data.tipoSelladoEstructura || '-'}</span></div>
+              <div class="data-item"><span class="data-label">Bolsas x Rollo</span><span class="data-value">${data.bolsasPorRollo || '-'}</span></div>
+              <div class="data-item"><span class="data-label">Rollos x Bulto</span><span class="data-value">${data.rollosPorBulto || '-'}</span></div>
+            `}
+          </div>
+        </div>
+
+        ${data.conImpresion ? `
+          <div class="section">
+            <div class="section-header">Parámetros de Serigrafía e Impresión</div>
+            <div class="section-content grid-3">
+              <div class="data-item"><span class="data-label">Tipo Impresión</span><span class="data-value">${data.tipoImpresion || '-'}</span></div>
+              <div class="data-item"><span class="data-label">Cilindro</span><span class="data-value">${data.cilindro || '-'}</span></div>
+              <div class="data-item"><span class="data-label">Repeticiones</span><span class="data-value">${data.repeticionesImagen || '-'}</span></div>
+              <div class="data-item span-2">
+                <span class="data-label">Colores de Impresión</span>
+                <div class="colors-flex">
+                  ${[1,2,3,4,5,6].map(i => data[`color${i}`] ? `<span class="color-tag">C${i}: ${data[`color${i}`]}</span>` : '').join('')}
+                </div>
+              </div>
+              <div class="data-item"><span class="data-label">Tratador Serigrafía</span><span class="data-value">${data.serigrafiaTratadorIntensidad || '-'}</span></div>
+            </div>
+          </div>
+        ` : ''}
+
+        <div class="section">
+          <div class="section-header">Formulación de Mezcla (%)</div>
+          <div class="section-content">
+            <div class="data-item span-2">
+              <div class="formulation-grid">
+                ${[
+                  {k: 'formFB7000', l: 'FB7000'}, {k: 'form3003', l: '3003'}, {k: 'formLineal', l: 'Lineal'}, {k: 'form0240', l: '0240'},
+                  {k: 'form0348', l: '0348'}, {k: 'form7000F', l: '7000F'}, {k: 'formDeslizante', l: 'Deslizante'}, {k: 'formMasterbachBlanco', l: 'MB Blanco'}
+                ].map(f => data[f.k] ? `
+                  <div class="form-tag"><span class="form-label">${f.l}</span><span class="form-val">${data[f.k]}%</span></div>
+                ` : '').join('')}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="section">
+          <div class="section-header">Parámetros de Extrusión</div>
+          <div class="section-content grid-4">
+            <div class="data-item"><span class="data-label">Máquina</span><span class="data-value">${data.extMaquinaExtrusora || '-'}</span></div>
+            <div class="data-item"><span class="data-label">Motor Principal</span><span class="data-value">${data.extMotorPrincipal || '-'}</span></div>
+            <div class="data-item"><span class="data-label">Tracción</span><span class="data-value">${data.extTraccion || '-'}</span></div>
+            <div class="data-item"><span class="data-label">Tratador</span><span class="data-value">${data.extIntensidadTratador || '-'}</span></div>
+            
+            <div class="data-item"><span class="data-label">Soplador</span><span class="data-value">${data.extSopladorPrincipal || '-'}</span></div>
+            <div class="data-item"><span class="data-label">Abertura Blower</span><span class="data-value">${data.extAberturaBlower || '-'}</span></div>
+            <div class="data-item"><span class="data-label">Cuello Globo</span><span class="data-value">${data.extCuelloGlobo || '-'}</span></div>
+            <div class="data-item"><span class="data-label">Temp. Cuello</span><span class="data-value">${data.extTemperaturaCuelloGlobo || '-'}</span></div>
+          </div>
+          <div style="padding: 10px 15px; border-top: 1px solid #e2e8f0; font-size: 9px; background: #f8fafc;">
+            <strong style="text-transform: uppercase; color: #64748b;">Temperaturas Zonas (°C):</strong> 
+            ${[1,2,3,4,5,6,7,8,9,10].map(i => data[`extTemperaturaZ${i}`] ? `<span style="margin-left: 8px;"><strong>Z${i}:</strong> ${data[`extTemperaturaZ${i}`]}°</span>` : '').join('')}
+          </div>
+        </div>
+
+        <div class="footer-info">
+          Este documento es propiedad de ERP INDUSTRIAL. La información contenida es confidencial y para uso técnico exclusivo.<br>
+          Generado automáticamente por el Sistema de Gestión ERP el ${format(new Date(), 'dd/MM/yyyy HH:mm')}
+        </div>
+        
+        </body></html>
+      `;
+
     default:
       return '<html><body><h1>Tipo de reporte no válido</h1></body></html>';
   }
