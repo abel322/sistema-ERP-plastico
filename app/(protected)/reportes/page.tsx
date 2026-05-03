@@ -40,8 +40,8 @@ export default function ReportesPage() {
     if (tipoReporte === 'ficha-tecnica' && clientes.length === 0) {
       fetch('/api/clientes')
         .then(res => res.json())
-        .then(data => setClientes(data))
-        .catch(err => console.error(err));
+        .then(data => setClientes(Array.isArray(data) ? data : []))
+        .catch(err => { console.error(err); setClientes([]); });
     }
   }, [tipoReporte, clientes.length]);
 
@@ -50,8 +50,8 @@ export default function ReportesPage() {
     if (clienteId) {
       fetch(`/api/clientes/${clienteId}/productos`)
         .then(res => res.json())
-        .then(data => setProductos(data))
-        .catch(err => console.error(err));
+        .then(data => setProductos(Array.isArray(data) ? data : []))
+        .catch(err => { console.error(err); setProductos([]); });
     } else {
       setProductos([]);
       setProductoId('');
@@ -269,7 +269,7 @@ export default function ReportesPage() {
                         className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-xs font-bold text-slate-700 dark:text-slate-300 focus:ring-2 focus:ring-indigo-500 outline-none"
                       >
                         <option value="">Seleccionar Cliente...</option>
-                        {clientes.map(c => (
+                        {Array.isArray(clientes) && clientes.map(c => (
                           <option key={c.id} value={c.id}>{c.nombre}</option>
                         ))}
                       </select>
@@ -283,7 +283,7 @@ export default function ReportesPage() {
                         className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-xs font-bold text-slate-700 dark:text-slate-300 focus:ring-2 focus:ring-indigo-500 outline-none disabled:opacity-50"
                       >
                         <option value="">Seleccionar Producto...</option>
-                        {productos.map(p => (
+                        {Array.isArray(productos) && productos.map(p => (
                           <option key={p.id} value={p.id}>{p.nombreProducto}</option>
                         ))}
                       </select>
