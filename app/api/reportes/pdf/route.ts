@@ -291,6 +291,7 @@ export async function POST(request: Request) {
     if (fechaFin) params.set('fechaFin', fechaFin);
     if (filtros?.area) params.set('area', filtros.area);
     if (filtros?.categoria) params.set('categoria', filtros.categoria);
+    if (filtros?.productoId) params.set('productoId', filtros.productoId);
 
     const res = await fetch(`${baseUrl}/api/reportes/${tipo}?${params.toString()}`, {
       headers: { cookie: request.headers.get('cookie') || '' },
