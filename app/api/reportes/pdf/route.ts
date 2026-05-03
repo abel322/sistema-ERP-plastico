@@ -243,18 +243,36 @@ const generateHTML = (tipo: string, data: any, periodo: { inicio: string; fin: s
           <div class="section-header">Parámetros de Extrusión</div>
           <div class="section-content grid-4">
             <div class="data-item"><span class="data-label">Máquina</span><span class="data-value">${data.extMaquinaExtrusora || '-'}</span></div>
+            <div class="data-item"><span class="data-label">Diám. Cabezal</span><span class="data-value">${data.extDiametroCabezal ? data.extDiametroCabezal + ' mm' : '-'}</span></div>
+            <div class="data-item"><span class="data-label">Temp. Ambiente</span><span class="data-value">${data.extTemperaturaAmbiente ? data.extTemperaturaAmbiente + ' °C' : '-'}</span></div>
             <div class="data-item"><span class="data-label">Motor Principal</span><span class="data-value">${data.extMotorPrincipal || '-'}</span></div>
-            <div class="data-item"><span class="data-label">Tracción</span><span class="data-value">${data.extTraccion || '-'}</span></div>
-            <div class="data-item"><span class="data-label">Tratador</span><span class="data-value">${data.extIntensidadTratador || '-'}</span></div>
             
+            <div class="data-item"><span class="data-label">Tracción</span><span class="data-value">${data.extTraccion || '-'}</span></div>
             <div class="data-item"><span class="data-label">Soplador</span><span class="data-value">${data.extSopladorPrincipal || '-'}</span></div>
             <div class="data-item"><span class="data-label">Abertura Blower</span><span class="data-value">${data.extAberturaBlower || '-'}</span></div>
             <div class="data-item"><span class="data-label">Cuello Globo</span><span class="data-value">${data.extCuelloGlobo || '-'}</span></div>
-            <div class="data-item"><span class="data-label">Temp. Cuello</span><span class="data-value">${data.extTemperaturaCuelloGlobo || '-'}</span></div>
+            
+            <div class="data-item"><span class="data-label">Temp. Cuello</span><span class="data-value">${data.extTemperaturaCuelloGlobo ? data.extTemperaturaCuelloGlobo + ' °C' : '-'}</span></div>
+            <div class="data-item"><span class="data-label">Tracción Rebob.</span><span class="data-value">${data.extTraccionRebobinador || '-'}</span></div>
+            <div class="data-item"><span class="data-label">Winding 1</span><span class="data-value">${data.extRebobinadorWinding1 || '-'}</span></div>
+            <div class="data-item"><span class="data-label">Winding 2</span><span class="data-value">${data.extRebobinadorWinding2 || '-'}</span></div>
+            
+            <div class="data-item"><span class="data-label">Intens. Tratador</span><span class="data-value">${data.extIntensidadTratador || '-'}</span></div>
+            <div class="data-item"><span class="data-label">Flujo Blower</span><span class="data-value">${data.extOrientacionFlujoBlower || '-'}</span></div>
+            <div class="data-item"><span class="data-label">Blower Interno</span><span class="data-value">${data.extOrientacionFlujoBlowerInterno || '-'}</span></div>
+            <div class="data-item"><span class="data-label">Blower Externo</span><span class="data-value">${data.extOrientacionFlujoBlowerExterno || '-'}</span></div>
           </div>
-          <div style="padding: 10px 15px; border-top: 1px solid #e2e8f0; font-size: 9px; background: #f8fafc;">
-            <strong style="text-transform: uppercase; color: #64748b;">Temperaturas Zonas (°C):</strong> 
-            ${[1,2,3,4,5,6,7,8,9,10].map(i => data[`extTemperaturaZ${i}`] ? `<span style="margin-left: 8px;"><strong>Z${i}:</strong> ${data[`extTemperaturaZ${i}`]}°</span>` : '').join('')}
+          
+          <div style="padding: 15px; border-top: 1px solid #e2e8f0; background: #f8fafc;">
+            <p class="data-label" style="margin-bottom: 10px; color: #1e40af;">Control de Temperaturas por Zona (°C)</p>
+            <div style="display: grid; grid-template-columns: repeat(10, 1fr); gap: 5px;">
+              ${Array.from({length: 20}, (_, i) => i + 1).map(i => `
+                <div style="border: 1px solid #e2e8f0; background: #fff; padding: 4px; border-radius: 4px; text-align: center;">
+                  <span style="font-size: 7px; color: #64748b; display: block; font-weight: 800;">Z${i}</span>
+                  <span style="font-size: 10px; font-weight: 700; color: #1e293b;">${data[`extTemperaturaZ${i}`] || '-'}</span>
+                </div>
+              `).join('')}
+            </div>
           </div>
         </div>
 

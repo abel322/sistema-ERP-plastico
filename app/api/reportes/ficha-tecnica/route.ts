@@ -51,6 +51,22 @@ export async function GET(request: Request) {
         ['Lleva Impresión', producto.conImpresion ? 'SÍ' : 'NO'],
         ['Lleva Pigmento', producto.conPigmento ? 'SÍ' : 'NO'],
         ['Máquina Extrusora', producto.extMaquinaExtrusora || 'N/A'],
+        ['Diám. Cabezal (mm)', producto.extDiametroCabezal || '-'],
+        ['Temp. Ambiente (°C)', producto.extTemperaturaAmbiente || '-'],
+        ['Motor Principal', producto.extMotorPrincipal || '-'],
+        ['Tracción', producto.extTraccion || '-'],
+        ['Soplador', producto.extSopladorPrincipal || '-'],
+        ['Abertura Blower', producto.extAberturaBlower || '-'],
+        ['Cuello Globo', producto.extCuelloGlobo || '-'],
+        ['Temp. Cuello (°C)', producto.extTemperaturaCuelloGlobo || '-'],
+        ['Tracción Rebobinador', producto.extTraccionRebobinador || '-'],
+        ['Winding 1', producto.extRebobinadorWinding1 || '-'],
+        ['Winding 2', producto.extRebobinadorWinding2 || '-'],
+        ['Intensidad Tratador', producto.extIntensidadTratador || '-'],
+        ['Flujo Blower', producto.extOrientacionFlujoBlower || '-'],
+        ['Blower Interno', producto.extOrientacionFlujoBlowerInterno || '-'],
+        ['Blower Externo', producto.extOrientacionFlujoBlowerExterno || '-'],
+        ...Array.from({length: 20}, (_, i) => [`Temperatura Zona ${i+1}`, (producto as any)[`extTemperaturaZ${i+1}`] || '-']),
       ];
 
       const csvContent = [
