@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { 
   Package, CheckCircle, XCircle, Settings, Trash2, ShoppingCart, Zap, FileText,
-  ChevronDown, ChevronUp, Ruler, Palette, Layers, Thermometer, Gauge
+  ChevronDown, ChevronUp, Ruler, Palette, Layers, Thermometer, Gauge, Droplets
 } from 'lucide-react';
 
 interface ProductoCliente {
@@ -15,6 +15,7 @@ interface ProductoCliente {
   activo: boolean;
   tipoProducto: string;
   conImpresion: boolean;
+  conPigmento: boolean;
   ancho?: number;
   largo?: number;
   calibre?: number;
@@ -183,6 +184,12 @@ export function ProductoClienteCard({
               <div className="flex items-center gap-1 px-3 py-1 bg-purple-50 dark:bg-purple-950/30 text-purple-700 dark:text-purple-400 rounded-full text-xs font-semibold border border-purple-100 dark:border-purple-900/50">
                 <Palette className="w-3 h-3" />
                 Impresión
+              </div>
+            )}
+            {producto.conPigmento && (
+              <div className="flex items-center gap-1 px-3 py-1 bg-blue-50 dark:bg-blue-950/30 text-blue-700 dark:text-blue-400 rounded-full text-xs font-semibold border border-blue-100 dark:border-blue-900/50">
+                <Droplets className="w-3 h-3" />
+                Pigmento
               </div>
             )}
           </div>

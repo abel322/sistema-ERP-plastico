@@ -266,6 +266,7 @@ model ProductoCliente {
   // Especificaciones básicas del producto
   tipoProducto    TipoProducto
   conImpresion    Boolean       @default(false)
+  conPigmento     Boolean       @default(false)
   ancho           Float?
   largo           Float?
   calibre         Float?

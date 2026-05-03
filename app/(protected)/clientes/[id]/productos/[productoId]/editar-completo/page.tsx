@@ -14,6 +14,7 @@ interface ProductoCliente {
   activo: boolean;
   tipoProducto: string;
   conImpresion: boolean;
+  conPigmento: boolean;
   [key: string]: any;
 }
 
@@ -340,7 +341,7 @@ export default function EditarCompletoPage() {
                   />
                 </div>
 
-                <div className="md:col-span-2">
+                <div className="md:col-span-2 flex gap-6">
                   <label className="flex items-center gap-2">
                     <input
                       type="checkbox"
@@ -349,6 +350,16 @@ export default function EditarCompletoPage() {
                       className="w-4 h-4 text-purple-600 border-gray-300 rounded focus:ring-purple-500"
                     />
                     <span className="text-sm font-medium text-gray-700">¿Lleva Impresión?</span>
+                  </label>
+
+                  <label className="flex items-center gap-2">
+                    <input
+                      type="checkbox"
+                      checked={formData.conPigmento || false}
+                      onChange={(e) => handleChange('conPigmento', e.target.checked)}
+                      className="w-4 h-4 text-purple-600 border-gray-300 rounded focus:ring-purple-500"
+                    />
+                    <span className="text-sm font-medium text-gray-700">¿Lleva Pigmento?</span>
                   </label>
                 </div>
               </div>

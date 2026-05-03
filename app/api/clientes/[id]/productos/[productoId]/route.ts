@@ -84,6 +84,7 @@ export async function PUT(
         activo: body.activo !== undefined ? body.activo : true,
         tipoProducto: body.tipoProducto,
         conImpresion: body.conImpresion || false,
+        conPigmento: body.conPigmento || false,
         material: body.material || null,
         unidadVenta: body.unidadVenta || 'Unidades',
         

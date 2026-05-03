@@ -22,6 +22,7 @@ export default function NuevoProductoPage() {
     activo: true,
     tipoProducto: 'Bolsa',
     conImpresion: false,
+    conPigmento: false,
     unidadVenta: 'Unidades',
     material: '',
     tipoRefilado: ''
@@ -302,7 +303,7 @@ export default function NuevoProductoPage() {
                   />
                 </div>
 
-                <div className="md:col-span-2">
+                <div className="md:col-span-2 flex gap-6">
                   <label className="flex items-center gap-2">
                     <input
                       type="checkbox"
@@ -311,6 +312,16 @@ export default function NuevoProductoPage() {
                       className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
                     />
                     <span className="text-sm font-medium text-gray-700">¿Lleva Impresión?</span>
+                  </label>
+
+                  <label className="flex items-center gap-2">
+                    <input
+                      type="checkbox"
+                      checked={formData.conPigmento || false}
+                      onChange={(e) => handleChange('conPigmento', e.target.checked)}
+                      className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                    />
+                    <span className="text-sm font-medium text-gray-700">¿Lleva Pigmento?</span>
                   </label>
                 </div>
               </div>
