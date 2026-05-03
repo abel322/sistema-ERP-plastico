@@ -112,6 +112,15 @@ export default function ReportesPage() {
         fechaFin,
         formato: 'csv',
       });
+      
+      if (tipoReporte === 'ficha-tecnica') {
+        if (!productoId) {
+          alert('Por favor selecciona un producto');
+          setLoading(false);
+          return;
+        }
+        params.set('productoId', productoId);
+      }
       const res = await fetch(`/api/reportes/${tipoReporte}?${params.toString()}`);
       const blob = await res.blob();
       const url = window.URL.createObjectURL(blob);
