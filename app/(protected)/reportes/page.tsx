@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { FormSelect } from '@/components/forms/form-select';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import { FileText, Download, FileSpreadsheet, Calendar, Filter, BarChart3, PieChart, TrendingUp, ChevronRight } from 'lucide-react';
