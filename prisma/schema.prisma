@@ -459,6 +459,7 @@ model ProductoCliente {
   productosTerminados ProductoTerminado[]
   producciones        Produccion[]
   productosSobrantes  ProductoSobrante[]
+  maquinasCompatibles Maquina[]           @relation("MaquinaProductosCompatibles")
 
   @@index([clienteId])
   @@index([activo])
@@ -492,20 +493,47 @@ model Pedido {
   @@index([fechaEntrega])
 }
 
-model Maquina {
-  id        String          @id @default(cuid())
-  nombre    String
-  area      AreaProduccion
-  activa    Boolean         @default(true)
-  createdAt DateTime        @default(now())
-  updatedAt DateTime        @updatedAt
+enum TipoMaquina {
+  Extrusora
+  Impresora
+  Selladora
+  Peletizadora
+  Refiladora
+}
 
-  producciones      Produccion[]
-  peletizados       Peletizado[]
-  mantenimientos    Mantenimiento[]
-  mejorasContinuas  MejoraContinua[]
+enum EstadoMaquina {
+  Operativa
+  Mantenimiento
+  Detenida
+}
+
+model Maquina {
+  id                  String            @id @default(cuid())
+  nombre              String
+  area                AreaProduccion    @default(Extrusion)
+  tipo                TipoMaquina       @default(Extrusora)
+  marca               String            @default("")
+  modelo              String            @default("")
+  estado              EstadoMaquina     @default(Operativa)
+  capacidadNominal    Float             @default(0)
+  unidadCapacidad     String            @default("kg/hora")
+  anchoMaximoMm       Float             @default(0)
+  horasAcumuladas     Float             @default(0)
+  kgAcumulados        Float             @default(0)
+  limiteMantenimiento Float             @default(0)
+  activa              Boolean           @default(true)
+  createdAt           DateTime          @default(now())
+  updatedAt           DateTime          @updatedAt
+
+  producciones         Produccion[]
+  peletizados          Peletizado[]
+  mantenimientos       Mantenimiento[]
+  mejorasContinuas     MejoraContinua[]
+  productosCompatibles ProductoCliente[] @relation("MaquinaProductosCompatibles")
 
   @@index([area])
+  @@index([tipo])
+  @@index([estado])
 }
 
 model Produccion {

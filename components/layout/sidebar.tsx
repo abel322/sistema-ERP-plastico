@@ -30,6 +30,7 @@ import {
   Workflow,
   AlertTriangle,
   ChevronRight,
+  Cpu,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -48,6 +49,7 @@ export function Sidebar({ userRol, isOpen = false, onClose }: SidebarProps) {
     { name: 'Pedidos', href: '/pedidos', icon: FileText },
     { name: 'Producción', href: '/produccion', icon: Factory },
     { name: 'Flujos', href: '/diagramas', icon: Workflow },
+    { name: 'Máquinas', href: '/dashboard/maquinas', icon: Cpu },
     { name: 'Producto Terminado', href: '/producto-terminado', icon: PackageCheck },
     { name: 'Despachos', href: '/despachos', icon: Truck },
     { name: 'Muestras', href: '/muestras', icon: TestTube2 },
