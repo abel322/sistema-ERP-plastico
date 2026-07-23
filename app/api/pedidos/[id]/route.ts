@@ -22,6 +22,7 @@ export async function GET(
       where: { id: params.id },
       include: {
         cliente: true,
+        productoCliente: true,
       },
     });
 
@@ -75,11 +76,25 @@ export async function PUT(
       }
     }
 
+    const updateData: any = {};
+    if (body.clienteId !== undefined) updateData.clienteId = body.clienteId;
+    if (body.productoId || body.productoClienteId) {
+      updateData.productoClienteId = body.productoId || body.productoClienteId;
+    }
+    if (body.cantidadSolicitada !== undefined) updateData.cantidadSolicitada = body.cantidadSolicitada;
+    if (body.unidad !== undefined) updateData.unidad = body.unidad;
+    if (body.fechaPedido !== undefined) updateData.fechaPedido = new Date(body.fechaPedido);
+    if (body.fechaEntrega !== undefined) updateData.fechaEntrega = new Date(body.fechaEntrega);
+    if (body.estado !== undefined) updateData.estado = body.estado;
+    if (body.prioridad !== undefined) updateData.prioridad = body.prioridad;
+    if (body.observaciones !== undefined) updateData.observaciones = body.observaciones;
+
     const pedido = await prisma.pedido.update({
       where: { id: params.id },
-      data: body,
+      data: updateData,
       include: {
         cliente: true,
+        productoCliente: true,
       },
     });
 

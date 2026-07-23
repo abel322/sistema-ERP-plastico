@@ -10,11 +10,23 @@ import { FormTextarea } from '@/components/forms/form-textarea';
 interface Cliente {
     id: string;
     nombre: string;
+    rif?: string;
+}
+
+interface ProductoCliente {
+    id: string;
+    nombreProducto: string;
+    codigoProducto?: string;
     tipoProducto: string;
+    conImpresion?: boolean;
     ancho?: number;
     largo?: number;
     calibre?: number;
+    anchoBobina?: number;
+    diametroAnchoBolsa?: number;
+    material?: string;
     unidadVenta: string;
+    activo?: boolean;
 }
 
 interface EditarPedidoModalProps {
@@ -27,11 +39,14 @@ interface EditarPedidoModalProps {
 export function EditarPedidoModal({ isOpen, onClose, onSuccess, pedidoId }: EditarPedidoModalProps) {
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
+    const [fetchingProductos, setFetchingProductos] = useState(false);
     const [clientes, setClientes] = useState<Cliente[]>([]);
-    const [clienteSeleccionado, setClienteSeleccionado] = useState<Cliente | null>(null);
+    const [productos, setProductos] = useState<ProductoCliente[]>([]);
+    const [productoSeleccionado, setProductoSeleccionado] = useState<ProductoCliente | null>(null);
 
     const [formData, setFormData] = useState({
         clienteId: '',
+        productoId: '',
         cantidadSolicitada: '',
         unidad: '',
         fechaPedido: '',
@@ -50,18 +65,22 @@ export function EditarPedidoModal({ isOpen, onClose, onSuccess, pedidoId }: Edit
     const fetchData = async () => {
         try {
             setLoading(true);
-            // Cargar clientes
+            // 1. Cargar clientes
             const resClientes = await fetch('/api/clientes?limit=1000');
             const dataClientes = await resClientes.json();
             setClientes(dataClientes?.clientes || []);
 
-            // Cargar pedido
+            // 2. Cargar pedido
             const resPedido = await fetch(`/api/pedidos/${pedidoId}`);
             const dataPedido = await resPedido.json();
 
             if (dataPedido) {
+                const clienteId = dataPedido.clienteId || '';
+                const productoId = dataPedido.productoClienteId || dataPedido.productoId || '';
+
                 setFormData({
-                    clienteId: dataPedido.clienteId || '',
+                    clienteId,
+                    productoId,
                     cantidadSolicitada: dataPedido.cantidadSolicitada?.toString() || '',
                     unidad: dataPedido.unidad || '',
                     fechaPedido: dataPedido.fechaPedido
@@ -75,10 +94,28 @@ export function EditarPedidoModal({ isOpen, onClose, onSuccess, pedidoId }: Edit
                     observaciones: dataPedido.observaciones || '',
                 });
 
-                // Cargar información del cliente seleccionado
-                const resCliente = await fetch(`/api/clientes/${dataPedido.clienteId}`);
-                const dataCliente = await resCliente.json();
-                setClienteSeleccionado(dataCliente);
+                // Cargar productos del cliente
+                let selectedProd: ProductoCliente | null = dataPedido.productoCliente || null;
+
+                if (clienteId) {
+                    try {
+                        setFetchingProductos(true);
+                        const resProductos = await fetch(`/api/clientes/${clienteId}/productos`);
+                        const dataProductos = await resProductos.json();
+                        const listaProductos = Array.isArray(dataProductos) ? dataProductos : [];
+                        setProductos(listaProductos);
+
+                        if (!selectedProd && productoId) {
+                            selectedProd = listaProductos.find((p: ProductoCliente) => p.id === productoId) || null;
+                        }
+                    } catch (e) {
+                        console.error('Error al cargar productos del cliente:', e);
+                    } finally {
+                        setFetchingProductos(false);
+                    }
+                }
+
+                setProductoSeleccionado(selectedProd);
             }
         } catch (error) {
             console.error('Error al cargar datos:', error);
@@ -88,23 +125,38 @@ export function EditarPedidoModal({ isOpen, onClose, onSuccess, pedidoId }: Edit
     };
 
     const handleClienteChange = async (clienteId: string) => {
-        const cliente = clientes.find((c) => c?.id === clienteId);
-        if (!cliente) {
-            try {
-                const res = await fetch(`/api/clientes/${clienteId}`);
-                const fetchedCliente = await res.json();
-                setClienteSeleccionado(fetchedCliente);
-            } catch (e) {
-                setClienteSeleccionado(null);
-            }
-        } else {
-            setClienteSeleccionado(cliente);
-        }
-        setFormData({
-            ...formData,
+        setProductoSeleccionado(null);
+        setProductos([]);
+        setFormData((prev) => ({
+            ...prev,
             clienteId,
-            unidad: cliente?.unidadVenta || formData.unidad,
-        });
+            productoId: '',
+            unidad: '',
+        }));
+
+        if (clienteId) {
+            try {
+                setFetchingProductos(true);
+                const res = await fetch(`/api/clientes/${clienteId}/productos`);
+                const data = await res.json();
+                const listaProductos = Array.isArray(data) ? data : [];
+                setProductos(listaProductos);
+            } catch (e) {
+                console.error('Error al cargar productos:', e);
+            } finally {
+                setFetchingProductos(false);
+            }
+        }
+    };
+
+    const handleProductoChange = (productoId: string) => {
+        const prod = productos.find((p) => p.id === productoId) || null;
+        setProductoSeleccionado(prod);
+        setFormData((prev) => ({
+            ...prev,
+            productoId,
+            unidad: prod?.unidadVenta || prev.unidad,
+        }));
     };
 
     const handleSubmit = async (e: FormEvent) => {
@@ -114,6 +166,7 @@ export function EditarPedidoModal({ isOpen, onClose, onSuccess, pedidoId }: Edit
         try {
             const payload = {
                 clienteId: formData.clienteId,
+                productoId: formData.productoId,
                 cantidadSolicitada: parseFloat(formData.cantidadSolicitada),
                 unidad: formData.unidad,
                 fechaPedido: new Date(formData.fechaPedido).toISOString(),
@@ -183,14 +236,14 @@ export function EditarPedidoModal({ isOpen, onClose, onSuccess, pedidoId }: Edit
                             </div>
                         ) : (
                             <form id="editarPedidoForm" onSubmit={handleSubmit} className="space-y-8">
-                                {/* Selección de Cliente */}
+                                {/* Selección de Cliente y Producto */}
                                 <div className="space-y-4">
                                     <div className="flex items-center gap-2 border-b border-gray-100 pb-2">
                                         <div className="w-1 h-5 bg-blue-600 rounded-full" />
-                                        <h3 className="text-md font-bold text-gray-800 uppercase tracking-wider">Información del Cliente</h3>
+                                        <h3 className="text-md font-bold text-gray-800 uppercase tracking-wider">Información del Cliente y Producto</h3>
                                     </div>
 
-                                    <div className="grid grid-cols-1 gap-4">
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                         <FormSelect
                                             label="Cliente"
                                             required
@@ -202,37 +255,53 @@ export function EditarPedidoModal({ isOpen, onClose, onSuccess, pedidoId }: Edit
                                             }))}
                                         />
 
-                                        {clienteSeleccionado && (
-                                            <motion.div
-                                                initial={{ opacity: 0, y: -10 }}
-                                                animate={{ opacity: 1, y: 0 }}
-                                                className="rounded-xl border border-blue-100 bg-blue-50/50 p-4 shadow-sm"
-                                            >
-                                                <div className="flex items-center gap-2 mb-3 text-blue-900">
-                                                    <Info className="w-4 h-4" />
-                                                    <h4 className="text-sm font-bold uppercase tracking-tight">Información Técnica del Producto</h4>
-                                                </div>
-                                                <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 text-sm">
-                                                    <div className="flex flex-col">
-                                                        <span className="text-blue-600 text-[10px] font-bold uppercase">Tipo</span>
-                                                        <span className="text-blue-900 font-semibold">{clienteSeleccionado.tipoProducto || 'N/A'}</span>
-                                                    </div>
-                                                    <div className="flex flex-col">
-                                                        <span className="text-blue-600 text-[10px] font-bold uppercase">Unidad Venta</span>
-                                                        <span className="text-blue-900 font-semibold">{clienteSeleccionado.unidadVenta || 'N/A'}</span>
-                                                    </div>
-                                                    {clienteSeleccionado?.ancho && (
-                                                        <div className="flex flex-col">
-                                                            <span className="text-blue-600 text-[10px] font-bold uppercase">Medidas (AxLxC)</span>
-                                                            <span className="text-blue-900 font-semibold">
-                                                                {clienteSeleccionado.ancho}x{clienteSeleccionado.largo}x{clienteSeleccionado.calibre}
-                                                            </span>
-                                                        </div>
-                                                    )}
-                                                </div>
-                                            </motion.div>
-                                        )}
+                                        <FormSelect
+                                            label="Producto"
+                                            required
+                                            disabled={!formData.clienteId || fetchingProductos}
+                                            value={formData.productoId}
+                                            onChange={(e) => handleProductoChange(e.target.value)}
+                                            options={productos.map((p) => ({
+                                                value: p?.id || '',
+                                                label: p ? `${p.nombreProducto}${p.codigoProducto ? ` (${p.codigoProducto})` : ''}` : '',
+                                            }))}
+                                        />
                                     </div>
+
+                                    {productoSeleccionado && (
+                                        <motion.div
+                                            initial={{ opacity: 0, y: -10 }}
+                                            animate={{ opacity: 1, y: 0 }}
+                                            className="rounded-xl border border-blue-100 bg-blue-50/50 p-4 shadow-sm"
+                                        >
+                                            <div className="flex items-center gap-2 mb-3 text-blue-900">
+                                                <Info className="w-4 h-4" />
+                                                <h4 className="text-sm font-bold uppercase tracking-tight">Información Técnica del Producto</h4>
+                                            </div>
+                                            <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 text-sm">
+                                                <div className="flex flex-col">
+                                                    <span className="text-blue-600 text-[10px] font-bold uppercase">Producto</span>
+                                                    <span className="text-blue-900 font-semibold">{productoSeleccionado.nombreProducto || 'N/A'}</span>
+                                                </div>
+                                                <div className="flex flex-col">
+                                                    <span className="text-blue-600 text-[10px] font-bold uppercase">Tipo</span>
+                                                    <span className="text-blue-900 font-semibold">{productoSeleccionado.tipoProducto || 'N/A'}</span>
+                                                </div>
+                                                <div className="flex flex-col">
+                                                    <span className="text-blue-600 text-[10px] font-bold uppercase">Unidad Venta</span>
+                                                    <span className="text-blue-900 font-semibold">{productoSeleccionado.unidadVenta || 'N/A'}</span>
+                                                </div>
+                                                {productoSeleccionado?.ancho ? (
+                                                    <div className="flex flex-col">
+                                                        <span className="text-blue-600 text-[10px] font-bold uppercase">Medidas (AxLxC)</span>
+                                                        <span className="text-blue-900 font-semibold">
+                                                            {productoSeleccionado.ancho}x{productoSeleccionado.largo || 0}x{productoSeleccionado.calibre || 0}
+                                                        </span>
+                                                    </div>
+                                                ) : null}
+                                            </div>
+                                        </motion.div>
+                                    )}
                                 </div>
 
                                 {/* Detalles de la Orden */}
@@ -313,7 +382,7 @@ export function EditarPedidoModal({ isOpen, onClose, onSuccess, pedidoId }: Edit
                         )}
                     </div>
 
-                    {/* Footer Footer */}
+                    {/* Footer */}
                     <div className="p-5 border-t border-gray-100 bg-gray-50 flex justify-end gap-3">
                         <button
                             type="button"
