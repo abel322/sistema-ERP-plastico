@@ -90,6 +90,7 @@ enum EstadoProductoTerminado {
 
 model ProductoSobrante {
   id              String        @id @default(cuid())
+  userId          String?
   tipo            String        // 'Bobina Impresa', 'Bobina Sin Impresion', 'Bobina Refilada', 'Bolsa Impresa', 'Bolsa No Impresa', 'Bobinas de empaque', 'Bolsa de empaque'
   cantidad        Float
   unidad          UnidadVenta   @default(Kilogramos)
@@ -105,11 +106,14 @@ model ProductoSobrante {
   clienteId       String?
   productoId      String?
   
+  user            User?         @relation(fields: [userId], references: [id], onDelete: Cascade)
   cliente         Cliente?      @relation(fields: [clienteId], references: [id])
   producto        ProductoCliente? @relation(fields: [productoId], references: [id])
   
   createdAt       DateTime      @default(now())
   updatedAt       DateTime      @updatedAt
+
+  @@index([userId])
 }
 
 
@@ -193,6 +197,25 @@ model User {
   notificaciones             Notificacion[]
   configuracionNotificacion  ConfiguracionNotificacion?
   sesionesUsuario            SesionUsuario[]
+
+  clientes                   Cliente[]
+  productosClientes          ProductoCliente[]
+  pedidos                    Pedido[]
+  maquinas                   Maquina[]
+  producciones               Produccion[]
+  despachos                  Despacho[]
+  productosTerminados        ProductoTerminado[]
+  muestras                   Muestra[]
+  peletizados                Peletizado[]
+  inventarios                Inventario[]
+  facturas                   Factura[]
+  mantenimientos             Mantenimiento[]
+  mejorasContinuas           MejoraContinua[]
+  proveedores                Proveedor[]
+  ordenesCompra              OrdenCompra[]
+  parametrosCalidad          ParametroCalidad[]
+  inspeccionesCalidad        InspeccionCalidad[]
+  productosSobrantes         ProductoSobrante[]
 }
 
 model Account {
@@ -232,8 +255,9 @@ model VerificationToken {
 
 model Cliente {
   id              String        @id @default(cuid())
+  userId          String?
   nombre          String
-  rif             String        @unique
+  rif             String
   contacto        String?
   telefono        String?
   email           String?
@@ -244,6 +268,7 @@ model Cliente {
   updatedAt       DateTime      @updatedAt
 
   // Relaciones
+  user                User?             @relation(fields: [userId], references: [id], onDelete: Cascade)
   productos           ProductoCliente[]
   pedidos             Pedido[]
   despachos           Despacho[]
@@ -251,10 +276,14 @@ model Cliente {
   facturas            Factura[]
   productosTerminados ProductoTerminado[]
   productosSobrantes  ProductoSobrante[]
+
+  @@index([userId])
+  @@index([rif])
 }
 
 model ProductoCliente {
   id              String        @id @default(cuid())
+  userId          String?
   clienteId       String
   cliente         Cliente       @relation(fields: [clienteId], references: [id], onDelete: Cascade)
   
@@ -453,6 +482,7 @@ model ProductoCliente {
   updatedAt       DateTime      @updatedAt
 
   // Relaciones con otros módulos
+  user                User?               @relation(fields: [userId], references: [id], onDelete: Cascade)
   pedidos             Pedido[]
   despachos           Despacho[]
   muestras            Muestra[]
@@ -461,12 +491,14 @@ model ProductoCliente {
   productosSobrantes  ProductoSobrante[]
   maquinasCompatibles Maquina[]           @relation("MaquinaProductosCompatibles")
 
+  @@index([userId])
   @@index([clienteId])
   @@index([activo])
 }
 
 model Pedido {
   id                   String        @id @default(cuid())
+  userId               String?
   clienteId            String
   productoClienteId    String
   cantidadSolicitada   Float
@@ -481,12 +513,14 @@ model Pedido {
   createdAt            DateTime      @default(now())
   updatedAt            DateTime      @updatedAt
 
+  user            User?           @relation(fields: [userId], references: [id], onDelete: Cascade)
   cliente         Cliente         @relation(fields: [clienteId], references: [id], onDelete: Cascade)
   productoCliente ProductoCliente @relation(fields: [productoClienteId], references: [id], onDelete: Cascade)
   producciones    Produccion[]
   despachos       Despacho[]
   muestras        Muestra[]
 
+  @@index([userId])
   @@index([clienteId])
   @@index([productoClienteId])
   @@index([estado])
@@ -509,6 +543,7 @@ enum EstadoMaquina {
 
 model Maquina {
   id                  String            @id @default(cuid())
+  userId              String?
   nombre              String
   area                AreaProduccion    @default(Extrusion)
   tipo                TipoMaquina       @default(Extrusora)
@@ -525,12 +560,14 @@ model Maquina {
   createdAt           DateTime          @default(now())
   updatedAt           DateTime          @updatedAt
 
+  user                 User?             @relation(fields: [userId], references: [id], onDelete: Cascade)
   producciones         Produccion[]
   peletizados          Peletizado[]
   mantenimientos       Mantenimiento[]
   mejorasContinuas     MejoraContinua[]
   productosCompatibles ProductoCliente[] @relation("MaquinaProductosCompatibles")
 
+  @@index([userId])
   @@index([area])
   @@index([tipo])
   @@index([estado])
@@ -538,6 +575,7 @@ model Maquina {
 
 model Produccion {
   id                String            @id @default(cuid())
+  userId            String?
   fecha             DateTime          @default(now())
   turno             Turno
   area              AreaProduccion
@@ -556,6 +594,7 @@ model Produccion {
   createdAt         DateTime          @default(now())
   updatedAt         DateTime          @updatedAt
 
+  user                User?               @relation(fields: [userId], references: [id], onDelete: Cascade)
   maquina             Maquina             @relation(fields: [maquinaId], references: [id])
   pedido              Pedido?             @relation(fields: [pedidoId], references: [id])
   productoCliente     ProductoCliente?    @relation(fields: [productoClienteId], references: [id])
@@ -563,6 +602,7 @@ model Produccion {
   productoTerminado   ProductoTerminado?
   registros           RegistroProduccion[]
 
+  @@index([userId])
   @@index([fecha])
   @@index([area])
   @@index([maquinaId])
@@ -593,6 +633,7 @@ model RegistroProduccion {
 
 model Despacho {
   id                    String          @id @default(cuid())
+  userId                String?
   fecha                 DateTime        @default(now())
   pedidoId              String?
   productoTerminadoId   String?
@@ -613,12 +654,14 @@ model Despacho {
   createdAt             DateTime        @default(now())
   updatedAt             DateTime        @updatedAt
 
+  user               User?            @relation(fields: [userId], references: [id], onDelete: Cascade)
   pedido             Pedido?            @relation(fields: [pedidoId], references: [id])
   productoTerminado  ProductoTerminado? @relation(fields: [productoTerminadoId], references: [id])
   cliente            Cliente            @relation(fields: [clienteId], references: [id])
   productoCliente    ProductoCliente?   @relation(fields: [productoClienteId], references: [id])
   detallesFactura    DetalleFactura[]
 
+  @@index([userId])
   @@index([fecha])
   @@index([pedidoId])
   @@index([productoTerminadoId])
@@ -631,6 +674,7 @@ model Despacho {
 
 model ProductoTerminado {
   id                  String                   @id @default(cuid())
+  userId              String?
   produccionId        String?                  @unique
   pedidoId            String?
   clienteId           String
@@ -649,11 +693,13 @@ model ProductoTerminado {
   createdAt           DateTime                 @default(now())
   updatedAt           DateTime                 @updatedAt
 
+  user            User?            @relation(fields: [userId], references: [id], onDelete: Cascade)
   produccion      Produccion?      @relation(fields: [produccionId], references: [id])
   cliente         Cliente          @relation(fields: [clienteId], references: [id])
   productoCliente ProductoCliente? @relation(fields: [productoClienteId], references: [id])
   despachos       Despacho[]
 
+  @@index([userId])
   @@index([estado])
   @@index([siguienteArea])
   @@index([areaOrigen])
@@ -664,6 +710,7 @@ model ProductoTerminado {
 
 model Muestra {
   id                String         @id @default(cuid())
+  userId            String?
   fecha             DateTime       @default(now())
   clienteId         String
   productoClienteId String?
@@ -679,10 +726,12 @@ model Muestra {
   createdAt     DateTime       @default(now())
   updatedAt     DateTime       @updatedAt
 
+  user            User?            @relation(fields: [userId], references: [id], onDelete: Cascade)
   cliente         Cliente          @relation(fields: [clienteId], references: [id])
   productoCliente ProductoCliente? @relation(fields: [productoClienteId], references: [id])
   pedido          Pedido?          @relation(fields: [pedidoId], references: [id])
 
+  @@index([userId])
   @@index([fecha])
   @@index([clienteId])
   @@index([productoClienteId])
@@ -693,6 +742,7 @@ model Muestra {
 
 model Peletizado {
   id              String   @id @default(cuid())
+  userId          String?
   fecha           DateTime @default(now())
   turno           Turno
   maquinaId       String
@@ -706,8 +756,10 @@ model Peletizado {
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 
+  user    User?   @relation(fields: [userId], references: [id], onDelete: Cascade)
   maquina Maquina @relation(fields: [maquinaId], references: [id])
 
+  @@index([userId])
   @@index([fecha])
   @@index([maquinaId])
 }
@@ -715,8 +767,9 @@ model Peletizado {
 // Fase 4: Inventario
 model Inventario {
   id            String               @id @default(cuid())
+  userId        String?
   nombre        String
-  codigo        String               @unique
+  codigo        String
   categoria     CategoriaInventario
   cantidad      Float                @default(0)
   unidad        String
@@ -729,8 +782,10 @@ model Inventario {
   createdAt     DateTime             @default(now())
   updatedAt     DateTime             @updatedAt
 
+  user        User?                  @relation(fields: [userId], references: [id], onDelete: Cascade)
   movimientos MovimientoInventario[]
 
+  @@index([userId])
   @@index([categoria])
   @@index([codigo])
 }
@@ -757,7 +812,8 @@ model MovimientoInventario {
 // Fase 4: Facturación
 model Factura {
   id               String        @id @default(cuid())
-  numero           String        @unique
+  userId           String?
+  numero           String
   clienteId        String
   fecha            DateTime      @default(now())
   fechaVencimiento DateTime?
@@ -771,9 +827,11 @@ model Factura {
   createdAt        DateTime      @default(now())
   updatedAt        DateTime      @updatedAt
 
+  user     User?            @relation(fields: [userId], references: [id], onDelete: Cascade)
   cliente  Cliente          @relation(fields: [clienteId], references: [id])
   detalles DetalleFactura[]
 
+  @@index([userId])
   @@index([clienteId])
   @@index([fecha])
   @@index([estado])
@@ -803,6 +861,7 @@ model DetalleFactura {
 // Fase 4: Mantenimiento
 model Mantenimiento {
   id               String              @id @default(cuid())
+  userId           String?
   maquinaId        String
   tipo             TipoMantenimiento
   descripcion      String
@@ -815,8 +874,10 @@ model Mantenimiento {
   createdAt        DateTime            @default(now())
   updatedAt        DateTime            @updatedAt
 
+  user    User?   @relation(fields: [userId], references: [id], onDelete: Cascade)
   maquina Maquina @relation(fields: [maquinaId], references: [id])
 
+  @@index([userId])
   @@index([maquinaId])
   @@index([fechaProgramada])
   @@index([estado])
@@ -882,6 +943,7 @@ enum EstadoMejora {
 
 model MejoraContinua {
   id                    String       @id @default(cuid())
+  userId                String?
   maquinaId             String
   fecha                 DateTime     @default(now())
   titulo                String
@@ -900,8 +962,10 @@ model MejoraContinua {
   createdAt             DateTime     @default(now())
   updatedAt             DateTime     @updatedAt
 
+  user    User?   @relation(fields: [userId], references: [id], onDelete: Cascade)
   maquina Maquina @relation(fields: [maquinaId], references: [id])
 
+  @@index([userId])
   @@index([maquinaId])
   @@index([estado])
   @@index([fecha])
@@ -919,8 +983,9 @@ enum EstadoOrdenCompra {
 
 model Proveedor {
   id               String   @id @default(cuid())
+  userId           String?
   nombre           String
-  rif              String   @unique
+  rif              String
   direccion        String?
   telefono         String?
   email            String?
@@ -931,15 +996,18 @@ model Proveedor {
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
 
+  user          User?         @relation(fields: [userId], references: [id], onDelete: Cascade)
   ordenesCompra OrdenCompra[]
 
+  @@index([userId])
   @@index([rif])
   @@index([activo])
 }
 
 model OrdenCompra {
   id            String             @id @default(cuid())
-  numero        String             @unique
+  userId        String?
+  numero        String
   proveedorId   String
   fecha         DateTime           @default(now())
   fechaEntrega  DateTime?
@@ -952,9 +1020,11 @@ model OrdenCompra {
   createdAt     DateTime           @default(now())
   updatedAt     DateTime           @updatedAt
 
+  user      User?              @relation(fields: [userId], references: [id], onDelete: Cascade)
   proveedor Proveedor            @relation(fields: [proveedorId], references: [id])
   detalles  DetalleOrdenCompra[]
 
+  @@index([userId])
   @@index([proveedorId])
   @@index([fecha])
   @@index([estado])
@@ -993,7 +1063,8 @@ enum EstadoNoConformidad {
 
 model ParametroCalidad {
   id           String  @id @default(cuid())
-  nombre       String  @unique
+  userId       String?
+  nombre       String
   descripcion  String?
   valorMinimo  Float?
   valorMaximo  Float?
@@ -1002,13 +1073,16 @@ model ParametroCalidad {
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
+  user       User?               @relation(fields: [userId], references: [id], onDelete: Cascade)
   resultados ResultadoParametro[]
 
+  @@index([userId])
   @@index([activo])
 }
 
 model InspeccionCalidad {
   id            String              @id @default(cuid())
+  userId        String?
   produccionId  String?
   lote          String?
   fecha         DateTime            @default(now())
@@ -1018,10 +1092,12 @@ model InspeccionCalidad {
   createdAt     DateTime            @default(now())
   updatedAt     DateTime            @updatedAt
 
+  user              User?               @relation(fields: [userId], references: [id], onDelete: Cascade)
   produccion        Produccion?         @relation(fields: [produccionId], references: [id])
   resultadosParams  ResultadoParametro[]
   noConformidades   NoConformidad[]
 
+  @@index([userId])
   @@index([produccionId])
   @@index([fecha])
   @@index([resultado])

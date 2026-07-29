@@ -4,17 +4,17 @@ import { authOptions } from '@/lib/auth-options';
 import { prisma } from '@/lib/db';
 
 export const dynamic = 'force-dynamic';
+export const revalidate = 0;
 export const runtime = 'nodejs';
-// Tipos de prisma omitidos para el SSR build limpio
-
-
 
 export async function GET() {
   try {
     const session = await getServerSession(authOptions);
-    if (!session) {
+    if (!session || !session.user) {
       return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
     }
+
+    const userId = (session.user as any).id;
 
     const hoy = new Date();
     const inicioHoy = new Date(hoy.getFullYear(), hoy.getMonth(), hoy.getDate());
@@ -22,7 +22,7 @@ export async function GET() {
     const enSieteDias = new Date(hoy.getTime() + 7 * 24 * 60 * 60 * 1000);
     const seisMesesAtras = new Date(hoy.getFullYear(), hoy.getMonth() - 5, 1);
 
-    // Obtener estadísticas básicas
+    // Obtener estadísticas básicas filtradas por el usuario
     const [
       totalClientes,
       pedidosActivos,
@@ -35,78 +35,84 @@ export async function GET() {
       totalMateriaPrima,
       pedidosPendientesCount,
     ] = await Promise.all([
-      prisma.cliente.count(),
+      prisma.cliente.count({ where: { userId } }),
       prisma.pedido.count({
         where: {
+          userId,
           estado: { in: ['Pendiente', 'EnProceso'] },
         },
       }),
       prisma.pedido.count({
         where: {
+          userId,
           estado: 'Completado',
           fechaPedido: { gte: inicioMes },
         },
       }),
       prisma.pedido.count({
         where: {
+          userId,
           estado: { not: 'Completado' },
           fechaEntrega: { lte: enSieteDias, gte: hoy },
         },
       }),
       prisma.despacho.count({
-        where: { fecha: { gte: inicioHoy } },
+        where: { userId, fecha: { gte: inicioHoy } },
       }),
       prisma.despacho.count({
-        where: { estado: { in: ['Pendiente', 'EnTransito'] } },
+        where: { userId, estado: { in: ['Pendiente', 'EnTransito'] } },
       }),
       prisma.muestra.count({
-        where: { estado: 'Pendiente' },
+        where: { userId, estado: 'Pendiente' },
       }),
       prisma.peletizado.aggregate({
-        where: { fecha: { gte: inicioHoy } },
+        where: { userId, fecha: { gte: inicioHoy } },
         _sum: { materialSalida: true, merma: true },
         _count: true,
       }),
       prisma.inventario.aggregate({
-        where: { categoria: 'MateriaPrima' },
+        where: { userId, categoria: 'MateriaPrima' },
         _sum: { cantidad: true }
       }),
       prisma.pedido.count({
-        where: { estado: 'Pendiente' }
+        where: { userId, estado: 'Pendiente' }
       }),
     ]);
 
-    // Nuevas métricas Fase 4
+    // Métricas adicionales filtradas por usuario
     const [
       facturasPendientes,
       mantenimientosProgramados,
       inventarioStockBajo,
     ] = await Promise.all([
       prisma.factura.count({
-        where: { estado: 'Emitida' },
+        where: { userId, estado: 'Emitida' },
       }),
       prisma.mantenimiento.count({
         where: {
+          userId,
           estado: 'Programado',
           fechaProgramada: { lte: enSieteDias }
         },
       }),
       prisma.inventario.count({
         where: {
+          userId,
           cantidad: { lte: 0 }
         }
       }),
     ]);
 
-    // Contar items con stock bajo manualmente (cantidad <= stockMinimo)
+    // Contar items con stock bajo del usuario (cantidad <= stockMinimo)
     const allInventario = await prisma.inventario.findMany({
+      where: { userId },
       select: { cantidad: true, stockMinimo: true }
     });
     const stockBajoCount = allInventario.filter((i: any) => i.cantidad <= i.stockMinimo).length;
 
     // Estadísticas de producción del día
     const produccionHoy = await prisma.produccion.aggregate({
-      where: { fecha: { gte: inicioHoy } },
+      where: { userId, fecha: { gte: inicioHoy } },
       _sum: { cantidadProducida: true, merma: true },
       _count: true,
     });
@@ -114,7 +120,7 @@ export async function GET() {
     // Producción por área del día
     const produccionPorArea = await prisma.produccion.groupBy({
       by: ['area'],
-      where: { fecha: { gte: inicioHoy } },
+      where: { userId, fecha: { gte: inicioHoy } },
       _sum: { cantidadProducida: true, merma: true },
       _count: true,
     });
@@ -122,6 +128,7 @@ export async function GET() {
     // Producciones recientes
     const produccionesRecientes = await prisma.produccion.findMany({
       take: 5,
+      where: { userId },
       include: { maquina: true, pedido: { include: { cliente: true } } },
       orderBy: { createdAt: 'desc' },
     });
@@ -129,6 +136,7 @@ export async function GET() {
     // Pedidos recientes
     const pedidosRecientes = await prisma.pedido.findMany({
       take: 10,
+      where: { userId },
       include: { cliente: true },
       orderBy: { fechaPedido: 'desc' },
     });
@@ -136,6 +144,7 @@ export async function GET() {
     // Pedidos urgentes detallados
     const pedidosUrgentesDetalle = await prisma.pedido.findMany({
       where: {
+        userId,
         estado: { not: 'Completado' },
         fechaEntrega: { lte: enSieteDias, gte: hoy },
       },
@@ -146,19 +155,21 @@ export async function GET() {
     // Pedidos por estado
     const pedidosPorEstado = await prisma.pedido.groupBy({
       by: ['estado'],
+      where: { userId },
       _count: true,
     });
 
     // Despachos recientes
     const despachosRecientes = await prisma.despacho.findMany({
       take: 5,
+      where: { userId },
       include: { cliente: true, pedido: true },
       orderBy: { fecha: 'desc' },
     });
 
     // Detalle de Materia Prima (Resumen)
     const materiaPrimaDetalle = await prisma.inventario.findMany({
-      where: { categoria: 'MateriaPrima' },
+      where: { userId, categoria: 'MateriaPrima' },
       select: { nombre: true, codigo: true, cantidad: true, unidad: true },
       take: 5,
       orderBy: { cantidad: 'desc' }
@@ -166,7 +177,7 @@ export async function GET() {
 
     // Detalle de Pedidos Pendientes (Resumen)
     const pedidosPendientesDetalle = await prisma.pedido.findMany({
-      where: { estado: 'Pendiente' },
+      where: { userId, estado: 'Pendiente' },
       include: { cliente: true },
       take: 5,
       orderBy: { fechaPedido: 'desc' }
@@ -174,7 +185,7 @@ export async function GET() {
 
     // Detalle de Producto Terminado
     const productoTerminadoDetalle = await prisma.inventario.findMany({
-      where: { categoria: 'ProductoTerminado' },
+      where: { userId, categoria: 'ProductoTerminado' },
       select: { nombre: true, cantidad: true, unidad: true },
       take: 5,
       orderBy: { cantidad: 'desc' }
@@ -183,6 +194,7 @@ export async function GET() {
     // Producción en Proceso
     const produccionEnProcesoDetalle = await prisma.produccion.findMany({
       where: { 
+        userId,
         pedido: {
           estado: 'EnProceso'
         }
@@ -198,6 +210,7 @@ export async function GET() {
     // Próximas Entregas (48 horas)
     const proximasEntregas = await prisma.pedido.findMany({
       where: {
+        userId,
         estado: { in: ['Pendiente', 'EnProceso'] },
         fechaEntrega: { lte: new Date(hoy.getTime() + 48 * 60 * 60 * 1000), gte: hoy }
       },
@@ -215,6 +228,7 @@ export async function GET() {
         COUNT(*)::int as count
       FROM "Pedido"
       WHERE "fechaPedido" >= ${seisMesesAtras}
+        AND "userId" = ${userId}
       GROUP BY TO_CHAR("fechaPedido", 'YYYY-MM')
       ORDER BY mes ASC
     `;
@@ -275,7 +289,5 @@ export async function GET() {
       { error: 'Error al obtener datos del dashboard' },
       { status: 500 }
     );
-  } finally {
-    await prisma.$disconnect();
   }
 }

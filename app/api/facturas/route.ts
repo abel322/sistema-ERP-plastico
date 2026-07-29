@@ -5,15 +5,13 @@ import { EstadoFactura } from '@prisma/client';
 import { authOptions } from '@/lib/auth-options';
 
 export const dynamic = 'force-dynamic';
+export const revalidate = 0;
 export const runtime = 'nodejs';
 
-
-
-// Generar número de factura automático
-async function generarNumeroFactura(): Promise<string> {
+async function generarNumeroFactura(userId: string): Promise<string> {
   const year = new Date().getFullYear();
   const lastFactura = await prisma.factura.findFirst({
-    where: { numero: { startsWith: `F-${year}` } },
+    where: { userId, numero: { startsWith: `F-${year}` } },
     orderBy: { numero: 'desc' }
   });
   
@@ -27,9 +25,10 @@ async function generarNumeroFactura(): Promise<string> {
 export async function GET(request: Request) {
   try {
     const session = await getServerSession(authOptions);
-    if (!session) {
+    if (!session || !session.user) {
       return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
     }
+    const userId = (session.user as any).id;
 
     const { searchParams } = new URL(request.url);
     const estado = searchParams.get('estado') as EstadoFactura | null;
@@ -39,7 +38,7 @@ export async function GET(request: Request) {
     const page = parseInt(searchParams.get('page') || '1');
     const limit = parseInt(searchParams.get('limit') || '20');
 
-    const where: Record<string, unknown> = {};
+    const where: Record<string, unknown> = { userId };
     
     if (estado) where.estado = estado;
     if (clienteId) where.clienteId = clienteId;
@@ -81,9 +80,10 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   try {
     const session = await getServerSession(authOptions);
-    if (!session) {
+    if (!session || !session.user) {
       return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
     }
+    const userId = (session.user as any).id;
 
     const body = await request.json();
     const { clienteId, fechaVencimiento, detalles, metodoPago, observaciones, iva: ivaRate = 16 } = body;
@@ -92,16 +92,16 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Cliente y al menos un detalle son requeridos' }, { status: 400 });
     }
 
-    // Calcular totales
     const subtotal = detalles.reduce((acc: number, d: { cantidad: number; precioUnitario: number }) => 
       acc + (d.cantidad * d.precioUnitario), 0);
     const iva = subtotal * (ivaRate / 100);
     const total = subtotal + iva;
 
-    const numero = await generarNumeroFactura();
+    const numero = await generarNumeroFactura(userId);
 
     const factura = await prisma.factura.create({
       data: {
+        userId,
         numero,
         clienteId,
         fechaVencimiento: fechaVencimiento ? new Date(fechaVencimiento) : null,
@@ -127,14 +127,13 @@ export async function POST(request: Request) {
       }
     });
 
-    // Marcar despachos como facturados
     const despachoIds = detalles
       .filter((d: { despachoId?: string }) => d.despachoId)
       .map((d: { despachoId: string }) => d.despachoId);
     
     if (despachoIds.length > 0) {
       await prisma.despacho.updateMany({
-        where: { id: { in: despachoIds } },
+        where: { id: { in: despachoIds }, userId },
         data: { facturado: true }
       });
     }

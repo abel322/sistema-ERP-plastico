@@ -6,30 +6,20 @@ import { prisma } from '@/lib/db';
 import { authOptions } from '@/lib/auth-options';
 import { TipoMaquina, EstadoMaquina, AreaProduccion } from '@prisma/client';
 
-// Helper to check user authorization
 async function requireAuth() {
   const session = await getServerSession(authOptions);
-  if (!session) {
+  if (!session || !session.user) {
     throw new Error('No autorizado. Por favor inicie sesión.');
   }
   return session;
 }
 
-// Helper to check admin authorization
-async function requireAdmin() {
-  const session = await requireAuth();
-  const userRole = (session.user as any)?.rol;
-  if (userRole !== 'admin') {
-    throw new Error('No autorizado. Se requieren permisos de administrador.');
-  }
-  return session;
-}
-
-// 1. Get all machines
 export async function getMaquinas() {
-  await requireAuth();
+  const session = await requireAuth();
+  const userId = (session.user as any).id;
   try {
     const maquinas = await prisma.maquina.findMany({
+      where: { userId },
       orderBy: [{ tipo: 'asc' }, { nombre: 'asc' }],
       include: {
         productosCompatibles: true,
@@ -42,19 +32,21 @@ export async function getMaquinas() {
   }
 }
 
-// 2. Get machine by ID
 export async function getMaquinaById(id: string) {
-  await requireAuth();
+  const session = await requireAuth();
+  const userId = (session.user as any).id;
   try {
-    const maquina = await prisma.maquina.findUnique({
-      where: { id },
+    const maquina = await prisma.maquina.findFirst({
+      where: { id, userId },
       include: {
         productosCompatibles: true,
         mantenimientos: {
+          where: { userId },
           orderBy: { fechaProgramada: 'desc' },
           take: 5,
         },
         mejorasContinuas: {
+          where: { userId },
           orderBy: { fecha: 'desc' },
           take: 5,
         },
@@ -67,7 +59,6 @@ export async function getMaquinaById(id: string) {
   }
 }
 
-// 3. Create a machine
 export async function createMaquina(formData: {
   nombre: string;
   tipo: TipoMaquina;
@@ -82,10 +73,13 @@ export async function createMaquina(formData: {
   limiteMantenimiento: number;
   area: AreaProduccion;
 }) {
-  await requireAdmin();
+  const session = await requireAuth();
+  const userId = (session.user as any).id;
+
   try {
     const maquina = await prisma.maquina.create({
       data: {
+        userId,
         nombre: formData.nombre,
         tipo: formData.tipo,
         marca: formData.marca,
@@ -108,7 +102,6 @@ export async function createMaquina(formData: {
   }
 }
 
-// 4. Update a machine
 export async function updateMaquina(
   id: string,
   formData: {
@@ -127,10 +120,11 @@ export async function updateMaquina(
     activa?: boolean;
   }
 ) {
-  await requireAdmin();
+  const session = await requireAuth();
+  const userId = (session.user as any).id;
   try {
-    const maquina = await prisma.maquina.update({
-      where: { id },
+    const maquina = await prisma.maquina.updateMany({
+      where: { id, userId },
       data: {
         ...formData,
       },
@@ -143,36 +137,36 @@ export async function updateMaquina(
   }
 }
 
-// 5. Delete a machine
 export async function deleteMaquina(id: string) {
-  await requireAdmin();
+  const session = await requireAuth();
+  const userId = (session.user as any).id;
   try {
-    const maquina = await prisma.maquina.delete({
-      where: { id },
+    const maquina = await prisma.maquina.deleteMany({
+      where: { id, userId },
     });
     revalidatePath('/dashboard/maquinas');
     return maquina;
   } catch (error: any) {
     console.error(`Error al eliminar máquina ${id}:`, error);
-    throw new Error('Error al eliminar máquina. Verifique si tiene dependencias asociadas (producciones, mantenimientos): ' + error.message);
+    throw new Error('Error al eliminar máquina: ' + error.message);
   }
 }
 
-// 6. Get compatible products and active production orders for a machine
 export async function getCompatibleProductsAndOrders(maquinaId: string) {
-  await requireAuth();
+  const session = await requireAuth();
+  const userId = (session.user as any).id;
   try {
-    const maquina = await prisma.maquina.findUnique({
-      where: { id: maquinaId },
+    const maquina = await prisma.maquina.findFirst({
+      where: { id: maquinaId, userId },
     });
 
     if (!maquina) throw new Error('Máquina no encontrada');
 
     const query: any = {
+      userId,
       activo: true,
     };
 
-    // Filter products based on technical limitations of the machine
     if (maquina.tipo === 'Extrusora') {
       query.tipoProducto = 'Bobina';
       if (maquina.anchoMaximoMm > 0) {
@@ -212,6 +206,7 @@ export async function getCompatibleProductsAndOrders(maquinaId: string) {
 
     const compatibleOrders = await prisma.pedido.findMany({
       where: {
+        userId,
         estado: { in: ['Pendiente', 'EnProceso'] },
         productoCliente: query,
       },
@@ -232,14 +227,15 @@ export async function getCompatibleProductsAndOrders(maquinaId: string) {
   }
 }
 
-// 7. Get OEE, efficiency, and waste analytics for a machine
 export async function getMaquinaStats(maquinaId: string) {
-  await requireAuth();
+  const session = await requireAuth();
+  const userId = (session.user as any).id;
   try {
-    const maquina = await prisma.maquina.findUnique({
-      where: { id: maquinaId },
+    const maquina = await prisma.maquina.findFirst({
+      where: { id: maquinaId, userId },
       include: {
         producciones: {
+          where: { userId },
           include: {
             pedido: { include: { cliente: true } },
             productoCliente: true,

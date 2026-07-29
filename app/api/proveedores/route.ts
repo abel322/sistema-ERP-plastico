@@ -4,17 +4,17 @@ import { prisma } from '@/lib/db';
 import { authOptions } from '@/lib/auth-options';
 
 export const dynamic = 'force-dynamic';
+export const revalidate = 0;
 export const runtime = 'nodejs';
-
-
 
 // GET: Listar proveedores
 export async function GET(request: Request) {
   try {
     const session = await getServerSession(authOptions);
-    if (!session) {
+    if (!session || !session.user) {
       return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
     }
+    const userId = (session.user as any).id;
 
     const { searchParams } = new URL(request.url);
     const page = parseInt(searchParams.get('page') || '1');
@@ -22,7 +22,7 @@ export async function GET(request: Request) {
     const search = searchParams.get('search');
     const activo = searchParams.get('activo');
 
-    const where: Record<string, unknown> = {};
+    const where: Record<string, unknown> = { userId };
 
     if (search) {
       where.OR = [
@@ -69,9 +69,10 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   try {
     const session = await getServerSession(authOptions);
-    if (!session) {
+    if (!session || !session.user) {
       return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
     }
+    const userId = (session.user as any).id;
 
     const data = await request.json();
     const { nombre, rif, direccion, telefono, email, contacto, condicionesPago, observaciones } = data;
@@ -83,17 +84,17 @@ export async function POST(request: Request) {
       );
     }
 
-    // Verificar RIF único
-    const existente = await prisma.proveedor.findUnique({ where: { rif } });
+    const existente = await prisma.proveedor.findFirst({ where: { userId, rif } });
     if (existente) {
       return NextResponse.json(
-        { error: 'Ya existe un proveedor con ese RIF' },
+        { error: 'Ya existe un proveedor con ese RIF para su usuario' },
         { status: 400 }
       );
     }
 
     const proveedor = await prisma.proveedor.create({
       data: {
+        userId,
         nombre,
         rif,
         direccion,

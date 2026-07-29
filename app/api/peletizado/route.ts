@@ -1,20 +1,20 @@
 import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { prisma } from '@/lib/db';
-import { Turno, CategoriaInventario, TipoMovimiento } from '@prisma/client';
+import { Turno, TipoMovimiento } from '@prisma/client';
 import { authOptions } from '@/lib/auth-options';
 
 export const dynamic = 'force-dynamic';
+export const revalidate = 0;
 export const runtime = 'nodejs';
-
-
 
 export async function GET(request: Request) {
   try {
     const session = await getServerSession(authOptions);
-    if (!session) {
+    if (!session || !session.user) {
       return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
     }
+    const userId = (session.user as any).id;
 
     const { searchParams } = new URL(request.url);
     const page = parseInt(searchParams.get('page') || '1');
@@ -23,7 +23,7 @@ export async function GET(request: Request) {
     const fechaInicio = searchParams.get('fechaInicio');
     const fechaFin = searchParams.get('fechaFin');
 
-    const where: any = {};
+    const where: any = { userId };
 
     if (maquinaId) {
       where.maquinaId = maquinaId;
@@ -62,9 +62,10 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   try {
     const session = await getServerSession(authOptions);
-    if (!session) {
+    if (!session || !session.user) {
       return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
     }
+    const userId = (session.user as any).id;
 
     const body = await request.json();
     const {
@@ -89,13 +90,12 @@ export async function POST(request: Request) {
     const entrada = parseFloat(materialEntrada);
     const salida = parseFloat(materialSalida);
     const merma = entrada - salida;
-
     const parsedFecha = fecha ? new Date(fecha) : new Date();
 
     const registro = await prisma.$transaction(async (tx) => {
-      // 1. Crear el registro de peletizado
       const pelet = await tx.peletizado.create({
         data: {
+          userId,
           fecha: parsedFecha,
           turno: turno as Turno,
           maquinaId,
@@ -112,30 +112,28 @@ export async function POST(request: Request) {
         },
       });
 
-      // 2. Lógica de Inventario
       const tipo = tipoMaterial || 'GEN';
       const color = colorPelet || 'SD';
       const codigoInventario = `PEL-${tipo}-${color}`.toUpperCase().replace(/\s+/g, '-');
       const nombreInventario = `Peletizado ${tipo} ${color}`.trim();
 
-      // Buscar si existe en inventario
-      let invItem = await tx.inventario.findUnique({
-        where: { codigo: codigoInventario }
+      let invItem = await tx.inventario.findFirst({
+        where: { userId, codigo: codigoInventario }
       });
 
       if (!invItem) {
         invItem = await tx.inventario.create({
           data: {
+            userId,
             codigo: codigoInventario,
             nombre: nombreInventario,
             categoria: 'Peletizado' as any,
             unidad: 'Kg',
-            cantidad: 0 // Se incrementará abajo
+            cantidad: 0
           }
         });
       }
 
-      // 3. Registrar movimiento de entrada
       await tx.movimientoInventario.create({
         data: {
           inventarioId: invItem.id,
@@ -148,7 +146,6 @@ export async function POST(request: Request) {
         }
       });
 
-      // 4. Actualizar stock
       await tx.inventario.update({
         where: { id: invItem.id },
         data: {

@@ -5,15 +5,16 @@ import { AreaProduccion, EstadoPedido } from '@prisma/client';
 import { authOptions } from '@/lib/auth-options';
 
 export const dynamic = 'force-dynamic';
+export const revalidate = 0;
 export const runtime = 'nodejs';
-
 
 export async function GET(request: Request) {
   try {
     const session = await getServerSession(authOptions);
-    if (!session) {
+    if (!session || !session.user) {
       return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
     }
+    const userId = (session.user as any).id;
 
     const { searchParams } = new URL(request.url);
     const area = searchParams.get('area') as AreaProduccion | null;
@@ -24,7 +25,7 @@ export async function GET(request: Request) {
     const page = parseInt(searchParams.get('page') || '1');
     const limit = parseInt(searchParams.get('limit') || '10');
 
-    const where: any = {};
+    const where: any = { userId };
     if (area) where.area = area;
     if (estado) where.estado = estado;
     if (maquinaId) where.maquinaId = maquinaId;
@@ -53,13 +54,12 @@ export async function GET(request: Request) {
       prisma.produccion.count({ where }),
     ]);
 
-    // Attach stock previo
     const produccionesConStockPrevio = await Promise.all(
       producciones.map(async (prod) => {
         if (prod.pedidoId && prod.area !== 'Extrusion') {
-          // Buscamos el stock anterior (de un área distinta) asociado al pedido
           const previo = await prisma.productoTerminado.findFirst({
             where: {
+              userId,
               pedidoId: prod.pedidoId,
               produccionId: { not: prod.id },
               areaOrigen: { not: prod.area },
@@ -102,9 +102,10 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   try {
     const session = await getServerSession(authOptions);
-    if (!session) {
+    if (!session || !session.user) {
       return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
     }
+    const userId = (session.user as any).id;
 
     const body = await request.json();
     const {
@@ -126,9 +127,9 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Campos requeridos faltantes (área y máquina)' }, { status: 400 });
     }
 
-    // Crear registro de producción
     const produccion = await prisma.produccion.create({
       data: {
+        userId,
         fecha: fecha ? new Date(fecha) : new Date(),
         turno,
         area,
@@ -148,9 +149,8 @@ export async function POST(request: Request) {
       },
     });
 
-    // Si está asociado a un pedido, actualizar cantidad producida
     if (pedidoId) {
-      const pedido = await prisma.pedido.findUnique({ where: { id: pedidoId } });
+      const pedido = await prisma.pedido.findFirst({ where: { id: pedidoId, userId } });
       if (pedido) {
         const nuevaCantidad = pedido.cantidadProducida + parseFloat(cantidadProducida);
         let nuevoEstado = pedido.estado;

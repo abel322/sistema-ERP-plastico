@@ -5,16 +5,16 @@ import { EstadoDespacho } from '@prisma/client';
 import { authOptions } from '@/lib/auth-options';
 
 export const dynamic = 'force-dynamic';
+export const revalidate = 0;
 export const runtime = 'nodejs';
-
-
 
 export async function GET(request: Request) {
   try {
     const session = await getServerSession(authOptions);
-    if (!session) {
+    if (!session || !session.user) {
       return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
     }
+    const userId = (session.user as any).id;
 
     const { searchParams } = new URL(request.url);
     const page = parseInt(searchParams.get('page') || '1');
@@ -28,7 +28,7 @@ export async function GET(request: Request) {
     const tipoProducto = searchParams.get('tipoProducto');
     const excludeEstado = searchParams.get('excludeEstado');
 
-    const where: Record<string, unknown> = {};
+    const where: Record<string, unknown> = { userId };
 
     if (estado) {
       where.estado = estado as EstadoDespacho;
@@ -85,7 +85,6 @@ export async function GET(request: Request) {
       })
     ]);
 
-    // Calcular totales por tipo si no se ha filtrado por tipo, o usar el total general si sí
     const [bolsasRes, bobinasRes] = await Promise.all([
       prisma.despacho.aggregate({
         where: { ...where, productoTerminado: { tipoProducto: 'Bolsa' } },
@@ -117,9 +116,10 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   try {
     const session = await getServerSession(authOptions);
-    if (!session) {
+    if (!session || !session.user) {
       return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
     }
+    const userId = (session.user as any).id;
 
     const body = await request.json();
     const {
@@ -137,8 +137,6 @@ export async function POST(request: Request) {
       fecha,
     } = body;
 
-
-    // Validar que se proporcione producto terminado
     if (!productoTerminadoId || !cantidadDespachada || !unidad) {
       return NextResponse.json(
         { error: 'Faltan campos requeridos (productoTerminadoId, cantidadDespachada, unidad)' },
@@ -146,9 +144,8 @@ export async function POST(request: Request) {
       );
     }
 
-    // Obtener producto terminado
-    const productoTerminado = await prisma.productoTerminado.findUnique({
-      where: { id: productoTerminadoId },
+    const productoTerminado = await prisma.productoTerminado.findFirst({
+      where: { id: productoTerminadoId, userId },
       include: { cliente: true }
     });
 
@@ -175,9 +172,9 @@ export async function POST(request: Request) {
       );
     }
 
-    // Crear despacho
     const despacho = await prisma.despacho.create({
       data: {
+        userId,
         productoTerminadoId,
         pedidoId: pedidoId || productoTerminado.pedidoId,
         clienteId: clienteId || productoTerminado.clienteId,
@@ -199,7 +196,6 @@ export async function POST(request: Request) {
       },
     });
 
-    // Actualizar cantidad disponible en producto terminado
     const nuevaCantidadDisponible = productoTerminado.cantidadDisponible - cantidadFloat;
 
     await prisma.productoTerminado.update({
@@ -211,7 +207,6 @@ export async function POST(request: Request) {
       }
     });
 
-    // Si tiene pedido asociado, actualizar cantidad despachada
     if (despacho.pedidoId) {
       await prisma.pedido.update({
         where: { id: despacho.pedidoId },

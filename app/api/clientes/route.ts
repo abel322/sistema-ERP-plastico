@@ -4,16 +4,17 @@ import { authOptions } from '@/lib/auth-options';
 import { prisma } from '@/lib/db';
 
 export const dynamic = 'force-dynamic';
+export const revalidate = 0;
 export const runtime = 'nodejs';
 
-
-// GET - Obtener todos los clientes o buscar
+// GET - Obtener clientes del usuario activo
 export async function GET(request: Request) {
   try {
     const session = await getServerSession(authOptions);
-    if (!session) {
+    if (!session || !session.user) {
       return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
     }
+    const userId = (session.user as any).id;
 
     const { searchParams } = new URL(request.url);
     const busqueda = searchParams.get('busqueda');
@@ -22,10 +23,11 @@ export async function GET(request: Request) {
     const limit = parseInt(searchParams.get('limit') ?? '50');
     const skip = (page - 1) * limit;
 
-    let whereClause: any = {};
+    let whereClause: any = { userId };
 
     if (busqueda) {
       whereClause = {
+        userId,
         OR: [
           { nombre: { contains: busqueda, mode: 'insensitive' } },
           { rif: { contains: busqueda, mode: 'insensitive' } },
@@ -64,36 +66,36 @@ export async function GET(request: Request) {
   }
 }
 
-// POST - Crear nuevo cliente (solo admin)
+// POST - Crear nuevo cliente para el usuario activo
 export async function POST(request: Request) {
   try {
     const session = await getServerSession(authOptions);
-    if (!session) {
+    if (!session || !session.user) {
       return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
     }
 
-    const userRol = (session.user as { rol?: string })?.rol;
-    if (userRol !== 'admin') {
-      return NextResponse.json({ error: 'No tiene permisos' }, { status: 403 });
-    }
-
+    const userId = (session.user as any).id;
     const body = await request.json();
 
-    // Verificar si el RIF ya existe
-    const existingCliente = await prisma.cliente.findUnique({
-      where: { rif: body.rif },
+    if (!body.nombre || !body.rif) {
+      return NextResponse.json({ error: 'Nombre y RIF son requeridos' }, { status: 400 });
+    }
+
+    // Verificar si el RIF ya existe para ESTE usuario
+    const existingCliente = await prisma.cliente.findFirst({
+      where: { userId, rif: body.rif },
     });
 
     if (existingCliente) {
       return NextResponse.json(
-        { error: 'El RIF ya está registrado' },
+        { error: 'El RIF ya está registrado para su usuario' },
         { status: 400 }
       );
     }
 
-    // Crear cliente solo con datos generales
     const cliente = await prisma.cliente.create({
       data: {
+        userId,
         nombre: body.nombre,
         rif: body.rif,
         contacto: body.contacto || null,

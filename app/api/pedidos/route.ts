@@ -2,19 +2,20 @@ import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth-options';
 import { prisma } from '@/lib/db';
-import { EstadoPedido, Prioridad } from '@prisma/client';
+import { EstadoPedido } from '@prisma/client';
 
 export const dynamic = 'force-dynamic';
+export const revalidate = 0;
 export const runtime = 'nodejs';
 
-
-// GET - Obtener todos los pedidos con filtros
+// GET - Obtener todos los pedidos con filtros para el usuario activo
 export async function GET(request: Request) {
   try {
     const session = await getServerSession(authOptions);
-    if (!session) {
+    if (!session || !session.user) {
       return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
     }
+    const userId = (session.user as any).id;
 
     const { searchParams } = new URL(request.url);
     const busqueda = searchParams.get('busqueda');
@@ -27,7 +28,7 @@ export async function GET(request: Request) {
     const limit = parseInt(searchParams.get('limit') ?? '10');
     const skip = (page - 1) * limit;
 
-    let whereClause: any = {};
+    let whereClause: any = { userId };
 
     if (busqueda) {
       whereClause.cliente = {
@@ -36,7 +37,6 @@ export async function GET(request: Request) {
     }
 
     if (estadoParam && estadoParam !== 'Todos') {
-      // Soportar múltiples estados separados por coma
       if (estadoParam.includes(',')) {
         const estados = estadoParam.split(',').filter(e => Object.values(EstadoPedido).includes(e as EstadoPedido));
         if (estados.length > 0) {
@@ -46,7 +46,6 @@ export async function GET(request: Request) {
         whereClause.estado = estadoParam;
       }
     } else {
-      // Por defecto (Todos), no mostrar los pedidos completados en la tabla principal
       whereClause.estado = { not: 'Completado' };
     }
 
@@ -92,27 +91,20 @@ export async function GET(request: Request) {
       { error: 'Error al obtener pedidos' },
       { status: 500 }
     );
-  } finally {
-    await prisma.$disconnect();
   }
 }
 
-// POST - Crear nuevo pedido (solo admin)
+// POST - Crear nuevo pedido
 export async function POST(request: Request) {
   try {
     const session = await getServerSession(authOptions);
-    if (!session) {
+    if (!session || !session.user) {
       return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
     }
-
-    const userRol = (session.user as any)?.rol;
-    if (userRol !== 'admin') {
-      return NextResponse.json({ error: 'No tiene permisos' }, { status: 403 });
-    }
+    const userId = (session.user as any).id;
 
     const body = await request.json();
 
-    // Validar que la fecha de entrega no sea anterior a la fecha de pedido
     const fechaPedido = new Date(body.fechaPedido);
     const fechaEntrega = new Date(body.fechaEntrega);
 
@@ -125,6 +117,7 @@ export async function POST(request: Request) {
 
     const pedido = await prisma.pedido.create({
       data: {
+        userId,
         clienteId: body.clienteId,
         productoClienteId: body.productoId,
         cantidadSolicitada: body.cantidadSolicitada,
@@ -148,7 +141,5 @@ export async function POST(request: Request) {
       { error: 'Error al crear pedido' },
       { status: 500 }
     );
-  } finally {
-    await prisma.$disconnect();
   }
 }

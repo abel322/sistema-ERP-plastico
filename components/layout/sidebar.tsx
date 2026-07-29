@@ -72,7 +72,8 @@ export function Sidebar({ userRol, isOpen = false, onClose }: SidebarProps) {
   });
 
   const handleLogout = async () => {
-    await signOut({ callbackUrl: '/login' });
+    await signOut({ callbackUrl: '/login', redirect: false });
+    window.location.href = '/login';
   };
 
   const NavItem = ({ item, isActive }: { item: any, isActive: boolean }) => {

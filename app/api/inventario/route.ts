@@ -5,16 +5,16 @@ import { CategoriaInventario, TipoMovimiento } from '@prisma/client';
 import { authOptions } from '@/lib/auth-options';
 
 export const dynamic = 'force-dynamic';
+export const revalidate = 0;
 export const runtime = 'nodejs';
-
-
 
 export async function GET(request: Request) {
   try {
     const session = await getServerSession(authOptions);
-    if (!session) {
+    if (!session || !session.user) {
       return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
     }
+    const userId = (session.user as any).id;
 
     const { searchParams } = new URL(request.url);
     const categoria = searchParams.get('categoria') as CategoriaInventario | null;
@@ -23,7 +23,7 @@ export async function GET(request: Request) {
     const page = parseInt(searchParams.get('page') || '1');
     const limit = parseInt(searchParams.get('limit') || '20');
 
-    const where: Record<string, unknown> = {};
+    const where: Record<string, unknown> = { userId };
     
     if (categoria) {
       where.categoria = categoria;
@@ -35,17 +35,10 @@ export async function GET(request: Request) {
         { codigo: { contains: busqueda, mode: 'insensitive' } }
       ];
     }
-    
-    if (stockBajo) {
-      where.cantidad = { lte: prisma.inventario.fields.stockMinimo };
-    }
 
     const [inventarios, total] = await Promise.all([
       prisma.inventario.findMany({
-        where: stockBajo ? {
-          ...where,
-          cantidad: undefined
-        } : where,
+        where,
         include: {
           movimientos: {
             take: 5,
@@ -56,17 +49,16 @@ export async function GET(request: Request) {
         skip: (page - 1) * limit,
         take: limit
       }),
-      prisma.inventario.count({ where: stockBajo ? { ...where, cantidad: undefined } : where })
+      prisma.inventario.count({ where })
     ]);
 
-    // Filtrar stock bajo manualmente
     const resultado = stockBajo 
       ? inventarios.filter(i => i.cantidad <= i.stockMinimo)
       : inventarios;
 
-    // Obtener totales por categoría para el resumen
     const totalsByCategory = await prisma.inventario.groupBy({
       by: ['categoria'],
+      where: { userId },
       _sum: {
         cantidad: true
       }
@@ -94,9 +86,10 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   try {
     const session = await getServerSession(authOptions);
-    if (!session) {
+    if (!session || !session.user) {
       return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
     }
+    const userId = (session.user as any).id;
 
     const body = await request.json();
     const { nombre, codigo, categoria, cantidad, unidad, stockMinimo, stockMaximo, ubicacion, costo, proveedor, observaciones } = body;
@@ -105,14 +98,14 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Nombre, código, categoría y unidad son requeridos' }, { status: 400 });
     }
 
-    // Verificar código único
-    const existente = await prisma.inventario.findUnique({ where: { codigo } });
+    const existente = await prisma.inventario.findFirst({ where: { userId, codigo } });
     if (existente) {
-      return NextResponse.json({ error: 'Ya existe un item con ese código' }, { status: 400 });
+      return NextResponse.json({ error: 'Ya existe un item con ese código para su usuario' }, { status: 400 });
     }
 
     const inventario = await prisma.inventario.create({
       data: {
+        userId,
         nombre,
         codigo,
         categoria,
@@ -127,7 +120,6 @@ export async function POST(request: Request) {
       }
     });
 
-    // Si hay cantidad inicial, crear movimiento de entrada
     if (cantidad && cantidad > 0) {
       await prisma.movimientoInventario.create({
         data: {

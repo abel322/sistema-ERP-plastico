@@ -4,15 +4,18 @@ import { authOptions } from '@/lib/auth-options';
 import { prisma } from '@/lib/db';
 import { EstadoProductoTerminado, SiguienteArea, AreaProduccion, TipoProducto } from '@prisma/client';
 import { determinarDestinoProducto } from '@/lib/producto-terminado-logic';
+
 export const dynamic = 'force-dynamic';
+export const revalidate = 0;
 export const runtime = 'nodejs';
 
 export async function GET(request: Request) {
   try {
     const session = await getServerSession(authOptions);
-    if (!session) {
+    if (!session || !session.user) {
       return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
     }
+    const userId = (session.user as any).id;
 
     const { searchParams } = new URL(request.url);
     const estado = searchParams.get('estado') as EstadoProductoTerminado | null;
@@ -24,6 +27,7 @@ export async function GET(request: Request) {
     const skip = (page - 1) * limit;
 
     const where: Record<string, unknown> = {
+      userId,
       cantidadDisponible: { gt: 0 }
     };
 
@@ -41,8 +45,6 @@ export async function GET(request: Request) {
               id: true,
               nombre: true,
               rif: true,
-              tipoProducto: true,
-              conImpresion: true
             }
           },
           produccion: {
@@ -67,19 +69,17 @@ export async function GET(request: Request) {
       prisma.productoTerminado.count({ where })
     ]);
 
-    // Agrupar por estado para las secciones
     const listosDespacho = await prisma.productoTerminado.count({
-      where: { estado: 'ListoDespacho', cantidadDisponible: { gt: 0 } }
+      where: { userId, estado: 'ListoDespacho', cantidadDisponible: { gt: 0 } }
     });
 
     const pendientesArea = await prisma.productoTerminado.count({
-      where: { estado: 'PendienteArea', cantidadDisponible: { gt: 0 } }
+      where: { userId, estado: 'PendienteArea', cantidadDisponible: { gt: 0 } }
     });
 
-    // Agrupar pendientes por siguiente área
     const pendientesPorArea = await prisma.productoTerminado.groupBy({
       by: ['siguienteArea'],
-      where: { estado: 'PendienteArea', cantidadDisponible: { gt: 0 } },
+      where: { userId, estado: 'PendienteArea', cantidadDisponible: { gt: 0 } },
       _count: { id: true }
     });
 
@@ -109,13 +109,13 @@ export async function GET(request: Request) {
   }
 }
 
-// POST: Crear manualmente un producto terminado (sin producción asociada o manual)
 export async function POST(request: Request) {
   try {
     const session = await getServerSession(authOptions);
-    if (!session) {
+    if (!session || !session.user) {
       return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
     }
+    const userId = (session.user as any).id;
 
     const body = await request.json();
     const {
@@ -128,12 +128,10 @@ export async function POST(request: Request) {
       tipoProducto,
       conImpresion,
       pedidoId,
-      // Manual state overrides
       estado,
       siguienteArea
     } = body;
 
-    // produccionId is now optional for manual entry
     if (!clienteId || !areaOrigen || !cantidadTotal || !unidad || !tipoProducto) {
       return NextResponse.json(
         { error: 'Faltan campos requeridos' },
@@ -142,9 +140,8 @@ export async function POST(request: Request) {
     }
 
     if (produccionId) {
-      // Verificar que la producción existe y no tiene ya un producto terminado
-      const produccionExistente = await prisma.produccion.findUnique({
-        where: { id: produccionId },
+      const produccionExistente = await prisma.produccion.findFirst({
+        where: { id: produccionId, userId },
         include: { productoTerminado: true }
       });
 
@@ -163,7 +160,6 @@ export async function POST(request: Request) {
       }
     }
 
-    // Determinar destino del producto si no viene especificado manualmente
     const destino = (estado && siguienteArea)
       ? { estado, siguienteArea, descripcionDestino: `Ingresado desde ${areaOrigen} para ${estado === 'ListoDespacho' ? 'Despacho' : siguienteArea}` }
       : determinarDestinoProducto(
@@ -174,6 +170,7 @@ export async function POST(request: Request) {
 
     const productoTerminado = await prisma.productoTerminado.create({
       data: {
+        userId,
         produccionId,
         pedidoId,
         clienteId,

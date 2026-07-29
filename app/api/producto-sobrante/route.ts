@@ -4,16 +4,19 @@ import { authOptions } from '@/lib/auth-options';
 import { prisma } from '@/lib/db';
 
 export const dynamic = 'force-dynamic';
+export const revalidate = 0;
 export const runtime = 'nodejs';
 
 export async function GET() {
   try {
     const session = await getServerSession(authOptions);
-    if (!session) {
+    if (!session || !session.user) {
       return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
     }
+    const userId = (session.user as any).id;
 
     const sobrantes = await prisma.productoSobrante.findMany({
+      where: { userId },
       include: {
         cliente: {
           select: { id: true, nombre: true }
@@ -38,9 +41,10 @@ export async function GET() {
 export async function POST(request: Request) {
   try {
     const session = await getServerSession(authOptions);
-    if (!session) {
+    if (!session || !session.user) {
       return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
     }
+    const userId = (session.user as any).id;
 
     const body = await request.json();
     const { tipo, cantidad, unidad, descripcion, fecha, clienteId, productoId, ancho, largo, calibre, fuelles, anchoTroquel, largoTroquel } = body;
@@ -54,6 +58,7 @@ export async function POST(request: Request) {
 
     const sobrante = await prisma.productoSobrante.create({
       data: {
+        userId,
         tipo,
         cantidad: parseFloat(cantidad),
         unidad,
@@ -79,4 +84,3 @@ export async function POST(request: Request) {
     );
   }
 }
-

@@ -5,16 +5,16 @@ import { TipoMantenimiento, EstadoMantenimiento } from '@prisma/client';
 import { authOptions } from '@/lib/auth-options';
 
 export const dynamic = 'force-dynamic';
+export const revalidate = 0;
 export const runtime = 'nodejs';
-
-
 
 export async function GET(request: Request) {
   try {
     const session = await getServerSession(authOptions);
-    if (!session) {
+    if (!session || !session.user) {
       return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
     }
+    const userId = (session.user as any).id;
 
     const { searchParams } = new URL(request.url);
     const maquinaId = searchParams.get('maquinaId');
@@ -25,7 +25,7 @@ export async function GET(request: Request) {
     const page = parseInt(searchParams.get('page') || '1');
     const limit = parseInt(searchParams.get('limit') || '20');
 
-    const where: Record<string, unknown> = {};
+    const where: Record<string, unknown> = { userId };
     
     if (maquinaId) where.maquinaId = maquinaId;
     if (tipo) where.tipo = tipo;
@@ -67,9 +67,10 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   try {
     const session = await getServerSession(authOptions);
-    if (!session) {
+    if (!session || !session.user) {
       return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
     }
+    const userId = (session.user as any).id;
 
     const body = await request.json();
     const { maquinaId, tipo, descripcion, fechaProgramada, responsable, costo, observaciones } = body;
@@ -78,14 +79,14 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Máquina, tipo, descripción, fecha y responsable son requeridos' }, { status: 400 });
     }
 
-    // Verificar que la máquina existe
-    const maquina = await prisma.maquina.findUnique({ where: { id: maquinaId } });
+    const maquina = await prisma.maquina.findFirst({ where: { id: maquinaId, userId } });
     if (!maquina) {
       return NextResponse.json({ error: 'Máquina no encontrada' }, { status: 404 });
     }
 
     const mantenimiento = await prisma.mantenimiento.create({
       data: {
+        userId,
         maquinaId,
         tipo,
         descripcion,

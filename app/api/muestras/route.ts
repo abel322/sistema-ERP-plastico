@@ -5,16 +5,16 @@ import { TipoMuestra, EstadoMuestra } from '@prisma/client';
 import { authOptions } from '@/lib/auth-options';
 
 export const dynamic = 'force-dynamic';
+export const revalidate = 0;
 export const runtime = 'nodejs';
-
-
 
 export async function GET(request: Request) {
   try {
     const session = await getServerSession(authOptions);
-    if (!session) {
+    if (!session || !session.user) {
       return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
     }
+    const userId = (session.user as any).id;
 
     const { searchParams } = new URL(request.url);
     const page = parseInt(searchParams.get('page') || '1');
@@ -25,7 +25,7 @@ export async function GET(request: Request) {
     const fechaInicio = searchParams.get('fechaInicio');
     const fechaFin = searchParams.get('fechaFin');
 
-    const where: any = {};
+    const where: any = { userId };
 
     if (tipo) {
       where.tipo = tipo as TipoMuestra;
@@ -71,9 +71,10 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   try {
     const session = await getServerSession(authOptions);
-    if (!session) {
+    if (!session || !session.user) {
       return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
     }
+    const userId = (session.user as any).id;
 
     const body = await request.json();
     const {
@@ -97,6 +98,7 @@ export async function POST(request: Request) {
 
     const muestra = await prisma.muestra.create({
       data: {
+        userId,
         clienteId,
         pedidoId: pedidoId || null,
         tipo: tipo as TipoMuestra,
