@@ -6,6 +6,7 @@ import { FormInput } from '@/components/forms/form-input';
 import { FormSelect } from '@/components/forms/form-select';
 import { FormTextarea } from '@/components/forms/form-textarea';
 import { Save, X, Loader2, Settings, Package } from 'lucide-react';
+import { calculateBagWeight, getPlasticDensity, TipoBolsa } from '@/lib/utils/bag-weight';
 
 export default function NuevoClientePage() {
   const router = useRouter();
@@ -20,10 +21,15 @@ export default function NuevoClientePage() {
     email: '',
     direccion: '',
     producto: '',
-    tipoProducto: '',
+    tipoProducto: 'Bolsa',
+    tipoBolsa: 'sencilla',
     ancho: '',
     largo: '',
     calibre: '',
+    fuelle: '',
+    solapa: '',
+    anchoTroquel: '',
+    largoTroquel: '',
     pesoPorUnidad: '',
     color: '',
     material: '',
@@ -67,17 +73,51 @@ export default function NuevoClientePage() {
   });
 
   useEffect(() => {
-    const ancho = parseFloat(formData.ancho) || 0;
-    const largo = parseFloat(formData.largo) || 0;
+    let peso = 0;
     const calibre = parseFloat(formData.calibre) || 0;
 
-    if (ancho && largo && calibre) {
-      const peso = (ancho * largo * calibre) / 1000;
-      setFormData(prev => ({ ...prev, pesoPorUnidad: peso.toFixed(3) }));
-    } else {
-      setFormData(prev => ({ ...prev, pesoPorUnidad: '' }));
+    if (formData.tipoProducto === 'Bolsa' || !formData.tipoProducto) {
+      const ancho = parseFloat(formData.ancho) || 0;
+      const largo = parseFloat(formData.largo) || 0;
+      const fuelle = parseFloat(formData.fuelle) || 0;
+      const solapa = parseFloat(formData.solapa) || 0;
+      const anchoTroquel = parseFloat(formData.anchoTroquel) || 0;
+      const largoTroquel = parseFloat(formData.largoTroquel) || 0;
+      const tipoBolsa = (formData.tipoBolsa || 'sencilla') as TipoBolsa;
+      const densidad = getPlasticDensity(formData.material);
+
+      peso = calculateBagWeight({
+        tipoBolsa,
+        ancho,
+        largo,
+        calibre,
+        fuelle,
+        solapa,
+        anchoTroquel,
+        largoTroquel,
+        densidad,
+      });
+    } else if (formData.tipoProducto === 'Bobina') {
+      const anchoBobina = parseFloat(formData.anchoBobina) || 0;
+      if (anchoBobina && calibre) {
+        peso = (anchoBobina * calibre) / 100;
+      }
     }
-  }, [formData.ancho, formData.largo, formData.calibre]);
+
+    setFormData(prev => ({ ...prev, pesoPorUnidad: peso > 0 ? peso.toFixed(3) : '' }));
+  }, [
+    formData.tipoProducto,
+    formData.tipoBolsa,
+    formData.ancho,
+    formData.largo,
+    formData.calibre,
+    formData.fuelle,
+    formData.solapa,
+    formData.anchoTroquel,
+    formData.largoTroquel,
+    formData.anchoBobina,
+    formData.material,
+  ]);
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
@@ -286,6 +326,22 @@ export default function NuevoClientePage() {
                         { value: 'Metros', label: 'Metros' },
                       ]}
                     />
+                    {formData.tipoProducto === 'Bolsa' && (
+                      <FormSelect
+                        label="Tipo de Bolsa"
+                        required
+                        value={formData.tipoBolsa || 'sencilla'}
+                        onChange={(e) =>
+                          setFormData({ ...formData, tipoBolsa: e.target.value })
+                        }
+                        options={[
+                          { value: 'sencilla', label: 'Bolsa Sencilla' },
+                          { value: 'fuelle', label: 'Bolsa con Fuelle' },
+                          { value: 'valvula', label: 'Bolsa Válvula / Pego' },
+                          { value: 'asa', label: 'Bolsa ASA' },
+                        ]}
+                      />
+                    )}
                     {formData.tipoProducto === 'Bobina' ? (
                       <FormInput
                         label="Ancho de Bobina (cm)"
@@ -313,6 +369,46 @@ export default function NuevoClientePage() {
                           value={formData.largo}
                           onChange={(e) => setFormData({ ...formData, largo: e.target.value })}
                         />
+                        {(formData.tipoBolsa === 'fuelle' || formData.tipoBolsa === 'valvula' || formData.tipoBolsa === 'asa') && (
+                          <FormInput
+                            label="Fuelle (cm)"
+                            type="number"
+                            step="0.01"
+                            min="0"
+                            value={formData.fuelle}
+                            onChange={(e) => setFormData({ ...formData, fuelle: e.target.value })}
+                          />
+                        )}
+                        {formData.tipoBolsa === 'valvula' && (
+                          <FormInput
+                            label="Solapa (cm)"
+                            type="number"
+                            step="0.01"
+                            min="0"
+                            value={formData.solapa}
+                            onChange={(e) => setFormData({ ...formData, solapa: e.target.value })}
+                          />
+                        )}
+                        {formData.tipoBolsa === 'asa' && (
+                          <>
+                            <FormInput
+                              label="Ancho Troquel (cm)"
+                              type="number"
+                              step="0.01"
+                              min="0"
+                              value={formData.anchoTroquel}
+                              onChange={(e) => setFormData({ ...formData, anchoTroquel: e.target.value })}
+                            />
+                            <FormInput
+                              label="Largo Troquel (cm)"
+                              type="number"
+                              step="0.01"
+                              min="0"
+                              value={formData.largoTroquel}
+                              onChange={(e) => setFormData({ ...formData, largoTroquel: e.target.value })}
+                            />
+                          </>
+                        )}
                       </>
                     )}
                     <FormInput

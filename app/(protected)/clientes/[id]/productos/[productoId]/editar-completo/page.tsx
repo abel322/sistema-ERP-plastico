@@ -5,6 +5,7 @@ import { useSession } from 'next-auth/react';
 import { useRouter, useParams } from 'next/navigation';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import { ArrowLeft, Save, Settings, Package, Droplets, Palette, Cog } from 'lucide-react';
+import { calculateBagWeight, getPlasticDensity, TipoBolsa } from '@/lib/utils/bag-weight';
 
 interface ProductoCliente {
   id: string;
@@ -48,9 +49,19 @@ export default function EditarCompletoPage() {
         const data = await response.json();
         setProducto(data);
         
+        let inferredTipoBolsa: TipoBolsa = 'sencilla';
+        if (data.esBolsaASA || data.anchoTroquelASA || data.fuelleASA) {
+          inferredTipoBolsa = 'asa';
+        } else if (data.anchoValvula || data.anchoSolapa) {
+          inferredTipoBolsa = 'valvula';
+        } else if (data.anchoFuelle) {
+          inferredTipoBolsa = 'fuelle';
+        }
+
         // Calcular campos virtuales a partir de los datos guardados
         const formDataWithVirtuals = {
           ...data,
+          tipoBolsa: data.tipoBolsa || inferredTipoBolsa,
           // Calcular esBolsaPego si tiene anchoValvula
           esBolsaPego: !!(data.anchoValvula),
           // Calcular esBolsaFuelle si tiene anchoFuelle pero no anchoValvula
@@ -109,7 +120,7 @@ export default function EditarCompletoPage() {
     });
   };
 
-  // Auto-calcular pesoPorUnidad a partir de dimensiones y calibre
+  // Auto-calcular pesoPorUnidad a partir de dimensiones y calibre usando calculateBagWeight
   useEffect(() => {
     let peso = 0;
     const calibre = parseFloat(formData.calibre) || 0;
@@ -117,21 +128,56 @@ export default function EditarCompletoPage() {
     if (formData.tipoProducto === 'Bolsa') {
       const ancho = parseFloat(formData.ancho) || 0;
       const largo = parseFloat(formData.largo) || 0;
-      if (ancho && largo && calibre) {
-        peso = (ancho * largo * calibre) / 1000;
+      const fuelle = parseFloat(formData.anchoFuelle || formData.fuelleASA) || 0;
+      const solapa = parseFloat(formData.anchoSolapa) || 0;
+      const anchoTroquel = parseFloat(formData.anchoTroquelASA) || 0;
+      const largoTroquel = parseFloat(formData.largoTroquelASA) || 0;
+
+      let tipo: TipoBolsa = formData.tipoBolsa || 'sencilla';
+      if (!formData.tipoBolsa) {
+        if (formData.esBolsaASA) tipo = 'asa';
+        else if (formData.esBolsaPego) tipo = 'valvula';
+        else if (formData.esBolsaFuelle) tipo = 'fuelle';
       }
+
+      const densidad = getPlasticDensity(formData.material);
+
+      peso = calculateBagWeight({
+        tipoBolsa: tipo,
+        ancho,
+        largo,
+        calibre,
+        fuelle,
+        solapa,
+        anchoTroquel,
+        largoTroquel,
+        densidad
+      });
     } else if (formData.tipoProducto === 'Bobina') {
       const anchoBobina = parseFloat(formData.anchoBobina) || 0;
       if (anchoBobina && calibre) {
-        // Para bobina, usamos ancho bobina en lugar de ancho * largo
-        peso = (anchoBobina * calibre) / 100; // Ajuste de fórmula para bobinas
+        peso = (anchoBobina * calibre) / 100;
       }
     }
     
-    if (peso > 0) {
-      setFormData((prev: any) => ({ ...prev, pesoPorUnidad: parseFloat(peso.toFixed(3)) }));
-    }
-  }, [formData.tipoProducto, formData.ancho, formData.largo, formData.anchoBobina, formData.calibre]);
+    setFormData((prev: any) => ({ ...prev, pesoPorUnidad: peso > 0 ? parseFloat(peso.toFixed(3)) : '' }));
+  }, [
+    formData.tipoProducto,
+    formData.tipoBolsa,
+    formData.ancho,
+    formData.largo,
+    formData.calibre,
+    formData.anchoFuelle,
+    formData.fuelleASA,
+    formData.anchoSolapa,
+    formData.anchoTroquelASA,
+    formData.largoTroquelASA,
+    formData.anchoBobina,
+    formData.material,
+    formData.esBolsaASA,
+    formData.esBolsaPego,
+    formData.esBolsaFuelle
+  ]);
 
   // Auto-calcular cilindro según tipo de producto y sellado
   useEffect(() => {
@@ -368,31 +414,33 @@ export default function EditarCompletoPage() {
               <div className="border-t pt-6">
                 <h3 className="text-lg font-semibold text-gray-900 mb-4">Tipo de Bolsa</h3>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <div>
-                    <label className="flex items-center gap-2">
-                      <input
-                        type="checkbox"
-                        checked={formData.esBolsaPego || false}
-                        onChange={(e) => handleChange('esBolsaPego', e.target.checked)}
-                        className="w-4 h-4 text-purple-600 border-gray-300 rounded focus:ring-purple-500"
-                      />
-                      <span className="text-sm font-medium text-gray-700">Bolsa de Pego/Válvula</span>
-                    </label>
-                  </div>
-                  <div>
-                    <label className="flex items-center gap-2">
-                      <input
-                        type="checkbox"
-                        checked={formData.esBolsaFuelle || false}
-                        onChange={(e) => handleChange('esBolsaFuelle', e.target.checked)}
-                        className="w-4 h-4 text-purple-600 border-gray-300 rounded focus:ring-purple-500"
-                      />
-                      <span className="text-sm font-medium text-gray-700">Con Fuelle</span>
-                    </label>
-                  </div>
+                  {formData.tipoProducto === 'Bolsa' && (
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Tipo de Bolsa
+                      </label>
+                      <select
+                        value={formData.tipoBolsa || 'sencilla'}
+                        onChange={(e) => {
+                          const val = e.target.value as TipoBolsa;
+                          handleChange('tipoBolsa', val);
+                          handleChange('esBolsaFuelle', val === 'fuelle' || val === 'valvula' || val === 'asa');
+                          handleChange('esBolsaPego', val === 'valvula');
+                          handleChange('esBolsaASA', val === 'asa');
+                        }}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent font-medium"
+                      >
+                        <option value="sencilla">Bolsa Sencilla</option>
+                        <option value="fuelle">Bolsa con Fuelle</option>
+                        <option value="valvula">Bolsa Válvula / Pego</option>
+                        <option value="asa">Bolsa ASA</option>
+                      </select>
+                    </div>
+                  )}
+
                   {formData.tipoProducto === 'Bobina' && (
                     <div>
-                      <label className="flex items-center gap-2">
+                      <label className="flex items-center gap-2 mt-6">
                         <input
                           type="checkbox"
                           checked={formData.esTermoencogible || false}
@@ -400,19 +448,6 @@ export default function EditarCompletoPage() {
                           className="w-4 h-4 text-purple-600 border-gray-300 rounded focus:ring-purple-500"
                         />
                         <span className="text-sm font-medium text-gray-700">Termoencogible</span>
-                      </label>
-                    </div>
-                  )}
-                  {formData.tipoProducto === 'Bolsa' && (
-                    <div>
-                      <label className="flex items-center gap-2">
-                        <input
-                          type="checkbox"
-                          checked={formData.esBolsaASA || false}
-                          onChange={(e) => handleChange('esBolsaASA', e.target.checked)}
-                          className="w-4 h-4 text-purple-600 border-gray-300 rounded focus:ring-purple-500"
-                        />
-                        <span className="text-sm font-medium text-gray-700">Bolsa ASA</span>
                       </label>
                     </div>
                   )}
@@ -453,7 +488,7 @@ export default function EditarCompletoPage() {
                       )}
                     </>
                   ) : (
-                    /* Dimensiones para Bolsa */
+                    /* Dimensiones para Bolsa segun tipoBolsa */
                     <>
                       <div>
                         <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -481,8 +516,27 @@ export default function EditarCompletoPage() {
                         />
                       </div>
 
-                      {/* Campos adicionales para bolsa de pego */}
-                      {formData.esBolsaPego && (
+                      {/* Campos dinámicos según tipoBolsa */}
+                      {(formData.tipoBolsa === 'fuelle' || formData.tipoBolsa === 'valvula' || formData.tipoBolsa === 'asa' || formData.esBolsaFuelle || formData.esBolsaPego || formData.esBolsaASA) && (
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">
+                            Fuelle (cm)
+                          </label>
+                          <input
+                            type="number"
+                            step="0.01"
+                            value={formData.anchoFuelle || formData.fuelleASA || ''}
+                            onChange={(e) => {
+                              const val = e.target.value ? parseFloat(e.target.value) : null;
+                              handleChange('anchoFuelle', val);
+                              handleChange('fuelleASA', val);
+                            }}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                          />
+                        </div>
+                      )}
+
+                      {(formData.tipoBolsa === 'valvula' || formData.esBolsaPego) && (
                         <>
                           <div>
                             <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -498,7 +552,7 @@ export default function EditarCompletoPage() {
                           </div>
                           <div>
                             <label className="block text-sm font-medium text-gray-700 mb-1">
-                              Ancho Solapa (cm)
+                              Solapa (cm)
                             </label>
                             <input
                               type="number"
@@ -511,37 +565,36 @@ export default function EditarCompletoPage() {
                         </>
                       )}
 
-                      {/* Campo adicional para bolsa con fuelle */}
-                      {(formData.esBolsaPego || formData.esBolsaFuelle) && (
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-1">
-                            Ancho Fuelle (cm)
-                          </label>
-                          <input
-                            type="number"
-                            step="0.01"
-                            value={formData.anchoFuelle || ''}
-                            onChange={(e) => handleChange('anchoFuelle', e.target.value ? parseFloat(e.target.value) : null)}
-                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                          />
-                        </div>
-                      )}
-
-                      {/* Campos para Bolsa ASA */}
-                      {formData.esBolsaASA && (
+                      {(formData.tipoBolsa === 'asa' || formData.esBolsaASA) && (
                         <>
                           <div>
                             <label className="block text-sm font-medium text-gray-700 mb-1">
-                              Fuelle (cm)
+                              Ancho Troquel (cm)
                             </label>
                             <input
                               type="number"
                               step="0.01"
-                              value={formData.fuelleASA || ''}
-                              onChange={(e) => handleChange('fuelleASA', e.target.value ? parseFloat(e.target.value) : null)}
+                              value={formData.anchoTroquelASA || ''}
+                              onChange={(e) => handleChange('anchoTroquelASA', e.target.value ? parseFloat(e.target.value) : null)}
                               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
                             />
                           </div>
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">
+                              Largo Troquel (cm)
+                            </label>
+                            <input
+                              type="number"
+                              step="0.01"
+                              value={formData.largoTroquelASA || ''}
+                              onChange={(e) => handleChange('largoTroquelASA', e.target.value ? parseFloat(e.target.value) : null)}
+                              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                            />
+                          </div>
+                        </>
+                      )}
+                    </>
+                  )}
                           <div>
                             <label className="block text-sm font-medium text-gray-700 mb-1">
                               Ancho Troquel (cm)
