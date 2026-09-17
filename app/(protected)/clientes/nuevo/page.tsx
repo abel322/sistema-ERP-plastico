@@ -422,7 +422,7 @@ export default function NuevoClientePage() {
                       }
                     />
                     <FormInput
-                      label="Peso por Unidad (kg)"
+                      label="Peso por Unidad (g)"
                       type="number"
                       step="0.001"
                       min="0"

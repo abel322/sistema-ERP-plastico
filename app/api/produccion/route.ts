@@ -41,7 +41,7 @@ export async function GET(request: Request) {
         include: {
           maquina: true,
           pedido: {
-            include: { cliente: true },
+            include: { cliente: true, productoCliente: true },
           },
           registros: {
             orderBy: { fecha: 'desc' },
@@ -145,7 +145,7 @@ export async function POST(request: Request) {
       },
       include: {
         maquina: true,
-        pedido: { include: { cliente: true } },
+        pedido: { include: { cliente: true, productoCliente: true } },
       },
     });
 

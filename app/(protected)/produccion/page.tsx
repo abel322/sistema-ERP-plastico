@@ -83,6 +83,9 @@ interface Produccion {
       anchoFuelle?: number;
       material?: string;
     };
+    productoCliente?: {
+      pesoPorUnidad?: number;
+    };
   };
   registros: RegistroProduccion[];
   stockPrevio?: {
@@ -403,21 +406,28 @@ export default function ProduccionPage() {
   const getDisplayValues = (prod: Produccion, totalProducido: number) => {
     const cliente = prod.pedido?.cliente;
     const unidadPedido = prod.pedido?.unidad;
-    const peso = cliente?.pesoPorUnidad || 0;
+    const peso = prod.pedido?.productoCliente?.pesoPorUnidad || cliente?.pesoPorUnidad || 0;
     let targetAmount = prod.pedido?.cantidadSolicitada || 0;
-    let displayUnit = unidadPedido || prod.unidad || '';
+    let originalTargetAmount = targetAmount;
+    let originalDisplayUnit = unidadPedido || prod.unidad || '';
+    let displayUnit = originalDisplayUnit;
 
     if (prod.area !== 'Sellado') {
       if (cliente?.tipoProducto === 'Bolsa' && unidadPedido === 'Unidades') {
-        const materialStr = cliente?.material?.toLowerCase() || '';
-        const densidad = materialStr.includes('alta') ? 0.96 : 0.922;
-        targetAmount = (peso * targetAmount * densidad) / 1000;
+        if (peso > 0) {
+           targetAmount = (targetAmount * peso) / 1000;
+        } else {
+           // Fallback to old behavior if no exact weight
+           const materialStr = cliente?.material?.toLowerCase() || '';
+           const densidad = materialStr.includes('alta') ? 0.96 : 0.922;
+           targetAmount = (peso * targetAmount * densidad) / 1000;
+        }
       }
       displayUnit = 'kg';
     } else {
       displayUnit = 'und';
     }
-    return { targetAmount, displayTotal: totalProducido, displayUnit, isCompleted: targetAmount > 0 && totalProducido >= targetAmount };
+    return { targetAmount, displayTotal: totalProducido, displayUnit, isCompleted: targetAmount > 0 && totalProducido >= targetAmount, originalTargetAmount, originalDisplayUnit };
   };
 
   if (loading) {
@@ -591,6 +601,11 @@ export default function ProduccionPage() {
                                     <span className="text-xs font-bold text-slate-600 dark:text-slate-400 leading-none">
                                       {dv.targetAmount.toLocaleString(undefined, { minimumFractionDigits: 2 })} {dv.displayUnit}
                                     </span>
+                                    {dv.originalTargetAmount && dv.originalDisplayUnit && dv.displayUnit !== dv.originalDisplayUnit && dv.originalDisplayUnit.toLowerCase().startsWith('unid') && (
+                                      <span className="text-[9px] text-gray-400 mt-1 leading-none">
+                                        ({dv.originalTargetAmount.toLocaleString(undefined, { maximumFractionDigits: 0 })} uds)
+                                      </span>
+                                    )}
                                   </div>
                                 </div>
                                 
