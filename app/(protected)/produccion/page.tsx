@@ -275,14 +275,19 @@ export default function ProduccionPage() {
       }
       if (res.ok) {
         setShowRegistroModal(false);
-        resetRegistroForm();
-        fetchProducciones();
-        router.refresh();
         setShowRegistrosListModal(false);
+        resetRegistroForm();
         toast({
           title: "Éxito",
           description: "Registro guardado correctamente",
         });
+
+        try {
+          await fetchProducciones();
+          router.refresh();
+        } catch (err) {
+          console.error("Error al actualizar la lista de producciones tras guardar el registro:", err);
+        }
       } else {
         const data = await res.json().catch(() => ({ error: 'Error desconocido' }));
         toast({
