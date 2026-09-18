@@ -3,6 +3,8 @@
 import { useState, useEffect, FormEvent } from 'react';
 import { useSession } from 'next-auth/react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
+import { useToast } from '@/hooks/use-toast';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Factory,
@@ -113,6 +115,8 @@ interface Pedido {
 
 export default function ProduccionPage() {
   const { data: session } = useSession() || {};
+  const router = useRouter();
+  const { toast } = useToast();
   const [producciones, setProducciones] = useState<Produccion[]>([]);
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(1);
@@ -273,10 +277,27 @@ export default function ProduccionPage() {
         setShowRegistroModal(false);
         resetRegistroForm();
         fetchProducciones();
+        router.refresh();
         setShowRegistrosListModal(false);
+        toast({
+          title: "Éxito",
+          description: "Registro guardado correctamente",
+        });
+      } else {
+        const data = await res.json().catch(() => ({ error: 'Error desconocido' }));
+        toast({
+          title: "Error",
+          description: data.error || "Ocurrió un error al guardar el registro",
+          variant: "destructive",
+        });
       }
     } catch (error) {
       console.error('Error:', error);
+      toast({
+        title: "Error",
+        description: "Error de conexión al guardar el registro",
+        variant: "destructive",
+      });
     } finally {
       setSaving(false);
     }
@@ -291,8 +312,18 @@ export default function ProduccionPage() {
         body: JSON.stringify({ estado: 'Finalizado', completarPedido: true }),
       });
       fetchProducciones();
+      router.refresh();
+      toast({
+        title: "Éxito",
+        description: "Pedido finalizado correctamente",
+      });
     } catch (error) {
       console.error('Error:', error);
+      toast({
+        title: "Error",
+        description: "Error al finalizar el pedido",
+        variant: "destructive",
+      });
     }
   };
 
@@ -301,8 +332,18 @@ export default function ProduccionPage() {
     try {
       await fetch(`/api/produccion/${id}`, { method: 'DELETE' });
       fetchProducciones();
+      router.refresh();
+      toast({
+        title: "Éxito",
+        description: "Registro eliminado correctamente",
+      });
     } catch (error) {
       console.error('Error:', error);
+      toast({
+        title: "Error",
+        description: "Error al eliminar el registro",
+        variant: "destructive",
+      });
     }
   };
 
@@ -372,8 +413,18 @@ export default function ProduccionPage() {
       });
       setShowCrearModal(true);
       fetchProducciones();
+      router.refresh();
+      toast({
+        title: "Éxito",
+        description: `Avanzado a ${getAreaLabel(nextArea)}`,
+      });
     } catch (err) {
       console.error(err);
+      toast({
+        title: "Error",
+        description: "Error al avanzar fase",
+        variant: "destructive",
+      });
     }
   };
 
@@ -985,9 +1036,30 @@ export default function ProduccionPage() {
                               <button
                                 onClick={async () => {
                                   if (confirm('¿Eliminar este registro?')) {
-                                    await fetch(`/api/produccion/${selectedProduccion.id}/registros/${reg.id}`, { method: 'DELETE' });
-                                    fetchProducciones();
-                                    setShowRegistrosListModal(false);
+                                    try {
+                                      const res = await fetch(`/api/produccion/${selectedProduccion.id}/registros/${reg.id}`, { method: 'DELETE' });
+                                      if (res.ok) {
+                                        fetchProducciones();
+                                        router.refresh();
+                                        setShowRegistrosListModal(false);
+                                        toast({
+                                          title: "Éxito",
+                                          description: "Registro eliminado correctamente"
+                                        });
+                                      } else {
+                                        toast({
+                                          title: "Error",
+                                          description: "Error al eliminar registro",
+                                          variant: "destructive"
+                                        });
+                                      }
+                                    } catch (err) {
+                                      toast({
+                                        title: "Error",
+                                        description: "Error de conexión al eliminar registro",
+                                        variant: "destructive"
+                                      });
+                                    }
                                   }
                                 }}
                                 className="p-2 text-red-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/30 rounded-xl transition-all"
