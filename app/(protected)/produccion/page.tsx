@@ -384,8 +384,8 @@ export default function ProduccionPage() {
   const calcularTotalMerma = (registros: RegistroProduccion[]) => registros.reduce((sum, r) => sum + r.merma + (r.mermaSinImpresion || 0) + (r.mermaImpreso || 0), 0);
 
   const getNextArea = (prod: Produccion): string | null => {
-    if (!prod.pedido || !prod.pedido.cliente) return null;
-    const { tipoProducto, conImpresion } = prod.pedido.cliente as any;
+    if (!prod.pedido || !prod.pedido.productoCliente) return null;
+    const { tipoProducto, conImpresion } = prod.pedido.productoCliente as any;
     if (prod.area === 'Extrusion') {
       if (conImpresion) return 'Serigrafia';
       if (tipoProducto === 'Bolsa') return 'Sellado';
@@ -404,26 +404,25 @@ export default function ProduccionPage() {
   };
 
   const getDisplayValues = (prod: Produccion, totalProducido: number) => {
-    const cliente = prod.pedido?.cliente;
+    const productoCliente = prod.pedido?.productoCliente;
     const unidadPedido = prod.pedido?.unidad;
-    const peso = prod.pedido?.productoCliente?.pesoPorUnidad || cliente?.pesoPorUnidad || 0;
+    const peso = productoCliente?.pesoPorUnidad || 0;
     let targetAmount = prod.pedido?.cantidadSolicitada || 0;
     let originalTargetAmount = targetAmount;
     let originalDisplayUnit = unidadPedido || prod.unidad || '';
     let displayUnit = originalDisplayUnit;
 
     if (prod.area !== 'Sellado') {
-      if (cliente?.tipoProducto === 'Bolsa' && unidadPedido === 'Unidades') {
+      if (productoCliente?.tipoProducto === 'Bolsa' && unidadPedido === 'Unidades') {
         if (peso > 0) {
            targetAmount = (targetAmount * peso) / 1000;
+           displayUnit = 'kg';
         } else {
-           // Fallback to old behavior if no exact weight
-           const materialStr = cliente?.material?.toLowerCase() || '';
-           const densidad = materialStr.includes('alta') ? 0.96 : 0.922;
-           targetAmount = (peso * targetAmount * densidad) / 1000;
+           displayUnit = 'uds';
         }
+      } else {
+        displayUnit = 'kg';
       }
-      displayUnit = 'kg';
     } else {
       displayUnit = 'und';
     }
@@ -601,7 +600,7 @@ export default function ProduccionPage() {
                                     <span className="text-xs font-bold text-slate-600 dark:text-slate-400 leading-none">
                                       {dv.targetAmount.toLocaleString(undefined, { minimumFractionDigits: 2 })} {dv.displayUnit}
                                     </span>
-                                    {dv.originalTargetAmount && dv.originalDisplayUnit && dv.displayUnit !== dv.originalDisplayUnit && dv.originalDisplayUnit.toLowerCase().startsWith('unid') && (
+                                    {dv.originalTargetAmount && dv.originalDisplayUnit && dv.displayUnit !== dv.originalDisplayUnit && (dv.originalDisplayUnit.toLowerCase().startsWith('unid') || dv.originalDisplayUnit.toLowerCase().startsWith('uds')) && (
                                       <span className="text-[9px] text-gray-400 mt-1 leading-none">
                                         ({dv.originalTargetAmount.toLocaleString(undefined, { maximumFractionDigits: 0 })} uds)
                                       </span>
