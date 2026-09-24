@@ -68,14 +68,29 @@ export async function GET(request: Request) {
 
           if (prod.pedidoId) {
             whereClause.pedidoId = prod.pedidoId;
+          } else if (prod.productoClienteId) {
+             // For internal/free orders that have a product assigned, search specifically by product
+             whereClause.productoClienteId = prod.productoClienteId;
+          } else {
+             // Ultimate fallback: if no order and no product, pick stock that hasn't been linked to a specific pedido
+             whereClause.pedidoId = null;
           }
+
+          console.log(`[Producción ${prod.id}] Buscando stockPrevio con criteria:`, whereClause);
 
           const previo = await prisma.productoTerminado.findFirst({
             where: whereClause,
             orderBy: [
-              { fechaFinalizacion: 'desc' }
+              { fechaFinalizacion: 'desc' },
+              { createdAt: 'desc' }
             ],
           });
+
+          if (previo) {
+             console.log(`[Producción ${prod.id}] Stock previo encontrado:`, previo.id, 'Cantidad:', previo.cantidadDisponible);
+          } else {
+             console.log(`[Producción ${prod.id}] NO se encontró stock previo para el área anterior.`);
+          }
 
           if (previo) {
             return {

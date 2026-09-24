@@ -109,8 +109,21 @@ export async function PUT(
           });
         }
         clienteId = genericClient.id;
-        tipoProducto = genericClient.tipoProducto || 'Bolsa';
-        conImpresion = genericClient.conImpresion || false;
+
+        // As per requirements: Default to 'Bobina' and conImpresion: false for free orders
+        tipoProducto = 'Bobina';
+        conImpresion = false;
+
+        // If the production has product info attached (e.g. via productoClienteId), use it
+        if (produccion.productoClienteId) {
+          const prodCli = await prisma.productoCliente.findUnique({
+             where: { id: produccion.productoClienteId }
+          });
+          if (prodCli) {
+             tipoProducto = prodCli.tipoProducto;
+             conImpresion = prodCli.conImpresion || false;
+          }
+        }
       }
 
       if (clienteId) {
@@ -123,6 +136,7 @@ export async function PUT(
 
         if (produccionActual.productoTerminado) {
           // Si ya existía dinámica (porque fuimos añadiendo registros) => lo actualizamos a su estado FINAL
+          console.log(`[Producción ${produccion.id}] Actualizando ProductoTerminado existente:`, produccionActual.productoTerminado.id);
           await prisma.productoTerminado.update({
             where: { id: produccionActual.productoTerminado.id },
             data: {
@@ -131,15 +145,17 @@ export async function PUT(
               descripcion: destino.descripcionDestino, // Quitar el "(En Proceso)"
               fechaFinalizacion: new Date(),
               cantidadTotal: produccion.cantidadProducida,
-              cantidadDisponible: produccion.cantidadProducida
+              cantidadDisponible: produccion.cantidadProducida,
+              productoClienteId: produccion.productoClienteId, // Ensure it's explicitly set if it was missing
             }
           });
+          console.log(`[Producción ${produccion.id}] ProductoTerminado actualizado correctamente.`);
         } else {
           // Si finalizó sin tener producto aún, lo creamos de cero
-          await prisma.productoTerminado.create({
-            data: {
+          const payloadPT = {
               produccionId: produccion.id,
               pedidoId: produccion.pedidoId,
+              productoClienteId: produccion.productoClienteId, // Explicitly linking the product
               clienteId: clienteId,
               areaOrigen: produccion.area,
               descripcion: destino.descripcionDestino,
@@ -151,8 +167,18 @@ export async function PUT(
               estado: destino.estado,
               siguienteArea: destino.siguienteArea,
               fechaFinalizacion: new Date()
-            }
-          });
+          };
+          console.log(`[Producción ${produccion.id}] Creando nuevo ProductoTerminado con payload:`, payloadPT);
+          try {
+            const nuevoPT = await prisma.productoTerminado.create({
+              data: payloadPT
+            });
+            console.log(`[Producción ${produccion.id}] ProductoTerminado creado exitosamente con ID:`, nuevoPT.id);
+          } catch (ptError) {
+             console.error(`[Producción ${produccion.id}] Error FATAL al crear ProductoTerminado:`, ptError);
+             // Re-throw to avoid silent failures hiding the root cause
+             throw ptError;
+          }
         }
 
         // Recargar producción con producto terminado
