@@ -141,6 +141,7 @@ export default function ProduccionPage() {
   const [showPedidoWarning, setShowPedidoWarning] = useState(false);
   const [isAvance, setIsAvance] = useState(false);
   const [isEditProduccion, setIsEditProduccion] = useState(false);
+  const [isAvanzandoId, setIsAvanzandoId] = useState<string | null>(null);
   const [editProduccionId, setEditProduccionId] = useState<string | null>(null);
 
   const today = new Date().toISOString().split('T')[0];
@@ -403,12 +404,19 @@ export default function ProduccionPage() {
     const nextArea = getNextArea(prod);
     if (!nextArea) return;
     if (!confirm(`¿Avanzar a ${getAreaLabel(nextArea)}?`)) return;
+
+    setIsAvanzandoId(prod.id);
     try {
-      await fetch(`/api/produccion/${prod.id}`, {
+      const res = await fetch(`/api/produccion/${prod.id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ estado: 'Finalizado', completarPedido: false }),
       });
+
+      if (!res.ok) {
+         throw new Error("Error en la respuesta del servidor al intentar avanzar");
+      }
+
       setIsAvance(true);
       setFormData({
         ...formData,
@@ -417,8 +425,10 @@ export default function ProduccionPage() {
         unidad: prod.unidad,
       });
       setShowCrearModal(true);
-      fetchProducciones();
+
+      await fetchProducciones();
       router.refresh();
+
       toast({
         title: "Éxito",
         description: `Avanzado a ${getAreaLabel(nextArea)}`,
@@ -427,9 +437,11 @@ export default function ProduccionPage() {
       console.error(err);
       toast({
         title: "Error",
-        description: "Error al avanzar fase",
+        description: "Error al avanzar fase. Por favor, intente de nuevo.",
         variant: "destructive",
       });
+    } finally {
+      setIsAvanzandoId(null);
     }
   };
 
@@ -721,9 +733,10 @@ export default function ProduccionPage() {
                                 {nextArea ? (
                                   <button
                                     onClick={() => handleAvanzarFase(prod)}
+                      disabled={isAvanzandoId === prod.id}
                                     className="w-full flex items-center justify-center gap-2 rounded-xl bg-slate-900 dark:bg-white text-white dark:text-slate-900 py-2.5 text-[10px] font-black uppercase tracking-widest hover:opacity-90 transition-all shadow-xl"
                                   >
-                                    AVANZAR A {getAreaLabel(nextArea).toUpperCase()} <ChevronRight className="h-3 w-3" />
+                                    {isAvanzandoId === prod.id ? "AVANZANDO..." : `AVANZAR A ${getAreaLabel(nextArea).toUpperCase()}`} {isAvanzandoId !== prod.id && <ChevronRight className="h-3 w-3" />}
                                   </button>
                                 ) : (
                                   <button
