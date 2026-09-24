@@ -651,6 +651,15 @@ export default function ProduccionPage() {
                                       {dv.displayTotal.toLocaleString(undefined, { minimumFractionDigits: 2 })} <span className="text-[10px] text-slate-400 uppercase">{dv.displayUnit}</span>
                                     </span>
                                   </div>
+                                  <div className="flex flex-col items-center">
+                                    <span className="text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-1 leading-none">DESPERDICIO</span>
+                                    <span className="text-xs font-bold text-rose-500 leading-none">
+                                      {prod.merma.toLocaleString(undefined, { minimumFractionDigits: 2 })} <span className="text-[10px] uppercase">KG</span>
+                                      <span className="text-[9px] text-rose-400 ml-1">
+                                        ({dv.displayTotal > 0 ? ((prod.merma / dv.displayTotal) * 100).toFixed(1) : '0.0'}%)
+                                      </span>
+                                    </span>
+                                  </div>
                                   <div className="flex flex-col text-right">
                                     <span className="text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-1 leading-none">META</span>
                                     <span className="text-xs font-bold text-slate-600 dark:text-slate-400 leading-none">
@@ -954,19 +963,36 @@ export default function ProduccionPage() {
                   />
                 </div>
 
-                <div>
-                  <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">Cantidad Producida</label>
-                  <div className="relative">
-                    <input
-                      type="number"
-                      required
-                      min="0"
-                      step="0.01"
-                      value={registroForm.cantidad}
-                      onChange={(e) => setRegistroForm({ ...registroForm, cantidad: e.target.value })}
-                      className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl px-5 py-3 text-sm font-black text-slate-900 dark:text-white focus:ring-2 focus:ring-indigo-500 outline-none transition-all"
-                    />
-                    <span className="absolute right-5 top-1/2 -translate-y-1/2 text-[10px] font-black text-slate-400 uppercase">{selectedProduccion.unidad === 'Kilogramos' ? 'KG' : 'UND'}</span>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">Cantidad Producida</label>
+                    <div className="relative">
+                      <input
+                        type="number"
+                        required
+                        min="0"
+                        step="0.01"
+                        value={registroForm.cantidad}
+                        onChange={(e) => setRegistroForm({ ...registroForm, cantidad: e.target.value })}
+                        className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl px-5 py-3 text-sm font-black text-slate-900 dark:text-white focus:ring-2 focus:ring-indigo-500 outline-none transition-all"
+                      />
+                      <span className="absolute right-5 top-1/2 -translate-y-1/2 text-[10px] font-black text-slate-400 uppercase">{selectedProduccion.unidad === 'Kilogramos' ? 'KG' : 'UND'}</span>
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">Desperdicio (Merma)</label>
+                    <div className="relative">
+                      <input
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        value={registroForm.merma}
+                        onChange={(e) => setRegistroForm({ ...registroForm, merma: e.target.value })}
+                        className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl px-5 py-3 text-sm font-black text-slate-900 dark:text-white focus:ring-2 focus:ring-indigo-500 outline-none transition-all"
+                      />
+                      <span className="absolute right-5 top-1/2 -translate-y-1/2 text-[10px] font-black text-slate-400 uppercase">KG</span>
+                    </div>
                   </div>
                 </div>
 
@@ -1025,6 +1051,7 @@ export default function ProduccionPage() {
                       <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-500">Turno</th>
                       <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-500">Operario</th>
                       <th className="px-6 py-4 text-right text-[10px] font-black uppercase tracking-widest text-slate-500">Cantidad</th>
+                      <th className="px-6 py-4 text-right text-[10px] font-black uppercase tracking-widest text-slate-500">Desperdicio</th>
                       <th className="px-6 py-4 text-center text-[10px] font-black uppercase tracking-widest text-slate-500">Acción</th>
                     </tr>
                   </thead>
@@ -1035,8 +1062,31 @@ export default function ProduccionPage() {
                         <td className="px-6 py-4 text-xs font-bold text-slate-500 dark:text-slate-400">{getTurnoLabel(reg.turno)}</td>
                         <td className="px-6 py-4 text-xs font-bold text-slate-900 dark:text-slate-200">{reg.operario}</td>
                         <td className="px-6 py-4 text-right text-xs font-black text-slate-900 dark:text-white">{reg.cantidad}</td>
+                        <td className="px-6 py-4 text-right text-xs font-black text-slate-900 dark:text-white">{reg.merma} <span className="text-[10px] opacity-60">KG</span></td>
                         <td className="px-6 py-4">
                           <div className="flex justify-center gap-2">
+                            <button
+                              onClick={() => {
+                                setIsEditRegistro(true);
+                                setEditRegistroId(reg.id);
+                                setRegistroForm({
+                                  turno: reg.turno,
+                                  fecha: reg.fecha ? reg.fecha.split('T')[0] : today,
+                                  operario: reg.operario,
+                                  cantidad: reg.cantidad.toString(),
+                                  reporte: reg.reporte || '',
+                                  merma: reg.merma.toString(),
+                                  mermaSinImpresion: reg.mermaSinImpresion?.toString() || '0',
+                                  mermaImpreso: reg.mermaImpreso?.toString() || '0',
+                                });
+                                setShowRegistrosListModal(false);
+                                setShowRegistroModal(true);
+                              }}
+                              className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-900/30 rounded-xl transition-all"
+                              title="Editar Registro"
+                            >
+                              <Pencil className="h-4 w-4" />
+                            </button>
                             {isAdmin && (
                               <button
                                 onClick={async () => {
