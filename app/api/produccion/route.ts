@@ -68,12 +68,16 @@ export async function GET(request: Request) {
 
           if (prod.pedidoId) {
             whereClause.pedidoId = prod.pedidoId;
+          } else {
+             // For internal/free orders, do not filter by pedidoId but ensure we only pick stock that hasn't been linked to a specific pedido
+             whereClause.pedidoId = null;
           }
 
           const previo = await prisma.productoTerminado.findFirst({
             where: whereClause,
             orderBy: [
-              { fechaFinalizacion: 'desc' }
+              { fechaFinalizacion: 'desc' },
+              { createdAt: 'desc' }
             ],
           });
 

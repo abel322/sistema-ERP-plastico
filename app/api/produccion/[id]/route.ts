@@ -109,8 +109,21 @@ export async function PUT(
           });
         }
         clienteId = genericClient.id;
-        tipoProducto = genericClient.tipoProducto || 'Bolsa';
-        conImpresion = genericClient.conImpresion || false;
+
+        // As per requirements: Default to 'Bobina' and conImpresion: false for free orders
+        tipoProducto = 'Bobina';
+        conImpresion = false;
+
+        // If the production has product info attached (e.g. via productoClienteId), use it
+        if (produccion.productoClienteId) {
+          const prodCli = await prisma.productoCliente.findUnique({
+             where: { id: produccion.productoClienteId }
+          });
+          if (prodCli) {
+             tipoProducto = prodCli.tipoProducto;
+             conImpresion = prodCli.conImpresion || false;
+          }
+        }
       }
 
       if (clienteId) {
