@@ -94,6 +94,23 @@ export async function PUT(
         clienteId = produccion.pedido.cliente.id;
         tipoProducto = produccion.pedido.cliente.tipoProducto;
         conImpresion = produccion.pedido.cliente.conImpresion || false;
+      } else {
+        // Fallback for internal orders without a specific client
+        let genericClient = await prisma.cliente.findFirst({
+          where: { nombre: 'Cliente Interno Genérico' }
+        });
+        if (!genericClient) {
+          genericClient = await prisma.cliente.create({
+            data: {
+              userId: (session.user as any).id,
+              nombre: 'Cliente Interno Genérico',
+              rif: 'J-00000000-0',
+            }
+          });
+        }
+        clienteId = genericClient.id;
+        tipoProducto = genericClient.tipoProducto || 'Bolsa';
+        conImpresion = genericClient.conImpresion || false;
       }
 
       if (clienteId) {

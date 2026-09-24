@@ -56,17 +56,24 @@ export async function GET(request: Request) {
 
     const produccionesConStockPrevio = await Promise.all(
       producciones.map(async (prod) => {
-        if (prod.pedidoId && prod.area !== 'Extrusion') {
+        if (prod.area !== 'Extrusion') {
+          // Si tiene pedidoId buscamos por pedidoId, sino buscamos el último ProductoTerminado
+          // que tenga cantidad disponible y que venga de un área anterior, para asociarlo si es orden libre.
+          const whereClause: any = {
+            userId,
+            produccionId: { not: prod.id },
+            areaOrigen: { not: prod.area },
+            cantidadDisponible: { gt: 0 } // Sólo traer si tiene stock > 0
+          };
+
+          if (prod.pedidoId) {
+            whereClause.pedidoId = prod.pedidoId;
+          }
+
           const previo = await prisma.productoTerminado.findFirst({
-            where: {
-              userId,
-              pedidoId: prod.pedidoId,
-              produccionId: { not: prod.id },
-              areaOrigen: { not: prod.area },
-            },
+            where: whereClause,
             orderBy: [
-              { cantidadDisponible: 'desc' },
-              { fechaFinalizacion: 'asc' }
+              { fechaFinalizacion: 'desc' }
             ],
           });
 
