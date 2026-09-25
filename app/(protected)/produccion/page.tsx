@@ -626,11 +626,11 @@ export default function ProduccionPage() {
       </div>
 
       {/* Tablero Kanban */}
-      <div className="grid grid-cols-1 gap-8 md:grid-cols-4 overflow-x-auto pb-8 -mx-8 px-8">
+      <div className="flex gap-6 overflow-x-auto pb-8 -mx-4 sm:-mx-8 px-4 sm:px-8">
         {AREAS.map((areaCol) => {
           const prodEnArea = producciones.filter(p => p.area === areaCol.value);
           return (
-            <div key={areaCol.value} className="flex min-w-[320px] flex-col gap-6 rounded-[2.5rem] bg-slate-100 dark:bg-slate-800/40 p-5 border border-slate-200 dark:border-slate-800 transition-colors">
+            <div key={areaCol.value} className="flex min-w-[320px] w-[340px] lg:w-auto lg:flex-1 shrink-0 flex-col gap-6 rounded-[2.5rem] bg-slate-100 dark:bg-slate-800/40 p-5 border border-slate-200 dark:border-slate-800 transition-colors">
               <div className="flex items-center justify-between px-3">
                 <h2 className="text-xs font-black text-slate-800 dark:text-slate-200 uppercase tracking-[0.2em]">{areaCol.label}</h2>
                 <span className="flex h-6 w-8 items-center justify-center rounded-lg bg-white dark:bg-slate-800 text-[10px] font-black text-slate-600 dark:text-slate-400 shadow-sm border border-slate-200 dark:border-slate-700 transition-colors">
@@ -693,29 +693,22 @@ export default function ProduccionPage() {
                               </div>
 
                               <div className="bg-slate-50 dark:bg-slate-800/50 rounded-2xl p-4 border border-slate-100 dark:border-slate-800/50 transition-colors">
-                                <div className="flex justify-between items-end mb-3">
+                                <div className="flex justify-between items-end mb-2.5">
                                   <div className="flex flex-col">
                                     <span className="text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-1 leading-none text-left">PRODUCIDO</span>
                                     <span className="text-lg font-black text-slate-900 dark:text-white leading-none">
-                                      {dv.displayTotal.toLocaleString(undefined, { minimumFractionDigits: 2 })} <span className="text-[10px] text-slate-400 uppercase">{dv.displayUnit}</span>
-                                    </span>
-                                  </div>
-                                  <div className="flex flex-col items-center">
-                                    <span className="text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-1 leading-none">DESPERDICIO</span>
-                                    <span className="text-xs font-bold text-rose-500 leading-none">
-                                      {prod.merma.toLocaleString(undefined, { minimumFractionDigits: 2 })} <span className="text-[10px] uppercase">KG</span>
-                                      <span className="text-[9px] text-rose-400 ml-1">
-                                        ({dv.displayTotal > 0 ? ((prod.merma / dv.displayTotal) * 100).toFixed(1) : '0.0'}%)
-                                      </span>
+                                      {dv.displayTotal.toLocaleString(undefined, { minimumFractionDigits: 2 })}{' '}
+                                      <span className="text-[10px] text-slate-400 uppercase">{dv.displayUnit}</span>
                                     </span>
                                   </div>
                                   <div className="flex flex-col text-right">
                                     <span className="text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-1 leading-none">META</span>
-                                    <span className="text-xs font-bold text-slate-600 dark:text-slate-400 leading-none">
-                                      {dv.targetAmount.toLocaleString(undefined, { minimumFractionDigits: 2 })} {dv.displayUnit}
+                                    <span className="text-sm font-black text-slate-600 dark:text-slate-300 leading-none">
+                                      {dv.targetAmount.toLocaleString(undefined, { minimumFractionDigits: 2 })}{' '}
+                                      <span className="text-[10px] text-slate-400 uppercase">{dv.displayUnit}</span>
                                     </span>
                                     {dv.originalTargetAmount && dv.originalDisplayUnit && dv.displayUnit !== dv.originalDisplayUnit && (dv.originalDisplayUnit.toLowerCase().startsWith('unid') || dv.originalDisplayUnit.toLowerCase().startsWith('uds')) && (
-                                      <span className="text-[9px] text-gray-400 mt-1 leading-none">
+                                      <span className="text-[9px] text-slate-400 mt-1 leading-none">
                                         ({dv.originalTargetAmount.toLocaleString(undefined, { maximumFractionDigits: 0 })} uds)
                                       </span>
                                     )}
@@ -728,6 +721,18 @@ export default function ProduccionPage() {
                                     animate={{ width: `${Math.min(100, (dv.displayTotal / (dv.targetAmount || 1)) * 100)}%` }}
                                     className={`h-full shadow-[0_0_10px_rgba(0,0,0,0.1)] ${dv.isCompleted ? 'bg-emerald-500' : 'bg-indigo-600'}`}
                                   />
+                                </div>
+
+                                <div className="flex justify-between items-center mt-2.5 pt-2 border-t border-slate-200/60 dark:border-slate-700/60">
+                                  <span className="text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest">
+                                    DESPERDICIO
+                                  </span>
+                                  <span className="text-xs font-bold text-rose-500 dark:text-rose-400 leading-none">
+                                    {prod.merma.toLocaleString(undefined, { minimumFractionDigits: 2 })} <span className="text-[10px] uppercase">KG</span>
+                                    <span className="text-[10px] text-rose-400/90 ml-1 font-medium">
+                                      ({dv.displayTotal > 0 ? ((prod.merma / dv.displayTotal) * 100).toFixed(1) : '0.0'}%)
+                                    </span>
+                                  </span>
                                 </div>
                               </div>
 

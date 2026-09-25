@@ -30,6 +30,7 @@ import { NuevoDespachoModal } from '@/components/modals/nuevo-despacho-modal';
 import { EditProductModal } from '@/components/modals/EditProductModal';
 import { SobranteProductModal } from '@/components/modals/SobranteProductModal';
 import { SobranteCard } from '@/components/cards/SobranteCard';
+import { ProductoTerminadoCard } from '@/components/cards/ProductoTerminadoCard';
 
 interface ProductoTerminado {
   id: string;
