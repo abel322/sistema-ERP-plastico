@@ -3,6 +3,7 @@
 import { useRouter } from 'next/navigation';
 import { Truck, Factory, ArrowRight, ArrowDown, CheckCircle, Pencil, Trash2, ShoppingCart, Package } from 'lucide-react';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
+import { formatNumber } from '@/lib/utils';
 
 interface ProductoTerminado {
   id: string;
@@ -107,7 +108,10 @@ export function ProductoTerminadoCard({
             
             <div className="flex items-end gap-1.5 mb-4">
               <p className="text-2xl font-black text-slate-900 dark:text-white">
-                {producto.cantidadDisponible.toLocaleString(undefined, { minimumFractionDigits: 1 })}
+                {formatNumber(producto.cantidadDisponible, {
+                  minDecimals: unidadDisplay.toLowerCase() === 'und' ? 0 : 2,
+                  maxDecimals: 2,
+                })}
               </p>
               <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-1">{unidadDisplay}</p>
             </div>

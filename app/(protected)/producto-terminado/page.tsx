@@ -31,6 +31,7 @@ import { EditProductModal } from '@/components/modals/EditProductModal';
 import { SobranteProductModal } from '@/components/modals/SobranteProductModal';
 import { SobranteCard } from '@/components/cards/SobranteCard';
 import { ProductoTerminadoCard } from '@/components/cards/ProductoTerminadoCard';
+import { formatNumber } from '@/lib/utils';
 
 interface ProductoTerminado {
   id: string;
@@ -597,17 +598,19 @@ export default function ProductoTerminadoPage() {
                     <div className="flex items-center gap-3 mt-1.5">
                       <span className="px-2 py-0.5 bg-emerald-50 dark:bg-emerald-900/30 text-[9px] font-black text-emerald-600 dark:text-emerald-400 uppercase tracking-widest rounded-full border border-emerald-100 dark:border-emerald-800/50">
                         {
-                          sobrantes
-                            .filter(s => [
-                              'Bobina con impresión', 
-                              'Bobina sin impresión', 
-                              'Bobina refilada', 
-                              'Bobinas de empaque',
-                              'Bobina de ASA S/I 15Kg',
-                              'Bobina de ASA S/I 10Kg'
-                            ].includes(s.tipo) && s.unidad === 'Kilogramos')
-                            .reduce((acc, s) => acc + s.cantidad, 0)
-                            .toLocaleString(undefined, { minimumFractionDigits: 2 })
+                          formatNumber(
+                            sobrantes
+                              .filter(s => [
+                                'Bobina con impresión', 
+                                'Bobina sin impresión', 
+                                'Bobina refilada', 
+                                'Bobinas de empaque',
+                                'Bobina de ASA S/I 15Kg',
+                                'Bobina de ASA S/I 10Kg'
+                              ].includes(s.tipo) && s.unidad === 'Kilogramos')
+                              .reduce((acc, s) => acc + s.cantidad, 0),
+                            { minDecimals: 2, maxDecimals: 2 }
+                          )
                         } Kg Total
                       </span>
                     </div>
@@ -700,7 +703,10 @@ export default function ProductoTerminadoPage() {
                               <div className="flex flex-col items-end">
                                 <div className="flex items-baseline gap-1">
                                   <span className="text-lg font-black text-slate-900 dark:text-white leading-none group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors">
-                                    {s.cantidad.toLocaleString(undefined, { minimumFractionDigits: 1 })}
+                                    {formatNumber(s.cantidad, {
+                                      minDecimals: s.unidad === 'Kilogramos' ? 2 : 0,
+                                      maxDecimals: 2,
+                                    })}
                                   </span>
                                   <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{s.unidad === 'Kilogramos' ? 'Kg' : s.unidad}</span>
                                 </div>

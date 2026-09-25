@@ -2,6 +2,7 @@
 
 import { motion } from 'framer-motion';
 import { Package, Trash2, Pencil, Calendar, Info, User, MoveHorizontal, MoveVertical, Ruler } from 'lucide-react';
+import { formatNumber } from '@/lib/utils';
 
 interface ProductoSobrante {
   id: string;
@@ -111,7 +112,10 @@ export function SobranteCard({ sobrante, onEdit, onDelete, eliminando }: Sobrant
         <div className="flex items-center justify-between">
           <div className="flex flex-col">
             <span className="text-3xl font-black text-slate-900 dark:text-white tracking-tighter">
-              {sobrante.cantidad.toLocaleString(undefined, { minimumFractionDigits: 1 })}
+              {formatNumber(sobrante.cantidad, {
+                minDecimals: sobrante.unidad === 'Kilogramos' ? 2 : 0,
+                maxDecimals: 2,
+              })}
               <span className="text-xs font-bold text-slate-400 dark:text-slate-500 ml-1.5 uppercase tracking-widest">{sobrante.unidad === 'Kilogramos' ? 'Kg' : sobrante.unidad}</span>
             </span>
             <span className="text-[10px] font-black text-emerald-600 dark:text-emerald-400 uppercase tracking-widest flex items-center gap-1.5 mt-1">

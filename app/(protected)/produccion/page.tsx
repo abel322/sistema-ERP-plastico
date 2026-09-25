@@ -23,6 +23,8 @@ import {
   ClipboardList,
   ChevronRight,
 } from 'lucide-react';
+import { formatNumber } from '@/lib/utils';
+import { calculateBagWeight, getPlasticDensity } from '@/lib/utils/bag-weight';
 
 const AREAS = [
   { value: 'Extrusion', label: 'Extrusión' },
@@ -100,6 +102,14 @@ interface Produccion {
     tipoProducto?: string;
     conImpresion?: boolean;
     pesoPorUnidad?: number;
+    ancho?: number;
+    largo?: number;
+    calibre?: number;
+    tipoBobinaCliente?: string;
+    anchoValvula?: number;
+    anchoSolapa?: number;
+    anchoFuelle?: number;
+    material?: string;
   };
   registros: RegistroProduccion[];
   stockPrevio?: {
@@ -506,7 +516,25 @@ export default function ProduccionPage() {
   const getDisplayValues = (prod: Produccion, totalProducido: number) => {
     const productoCliente = prod.pedido?.productoCliente || prod.productoCliente;
     const unidadPedido = prod.pedido?.unidad;
-    const peso = productoCliente?.pesoPorUnidad || 0;
+    let peso = productoCliente?.pesoPorUnidad || 0;
+    if (!peso && productoCliente?.ancho && productoCliente?.largo && productoCliente?.calibre) {
+      const densidad = getPlasticDensity(productoCliente.material);
+      peso = calculateBagWeight({
+        tipoBolsa:
+          productoCliente.anchoValvula && productoCliente.anchoValvula > 0
+            ? 'valvula'
+            : productoCliente.anchoFuelle && productoCliente.anchoFuelle > 0
+            ? 'fuelle'
+            : 'sencilla',
+        ancho: productoCliente.ancho,
+        largo: productoCliente.largo,
+        calibre: productoCliente.calibre,
+        fuelle: productoCliente.anchoFuelle,
+        solapa: productoCliente.anchoSolapa,
+        densidad,
+      });
+    }
+
     let targetAmount = prod.pedido?.cantidadSolicitada || 0;
     let originalTargetAmount = targetAmount;
     let originalDisplayUnit = unidadPedido || prod.unidad || '';
@@ -527,6 +555,83 @@ export default function ProduccionPage() {
       displayUnit = 'und';
     }
     return { targetAmount, displayTotal: totalProducido, displayUnit, isCompleted: targetAmount > 0 && totalProducido >= targetAmount, originalTargetAmount, originalDisplayUnit };
+  };
+
+  const calcularDesperdicioInfo = (
+    prod: Produccion,
+    dv: { displayTotal: number; displayUnit: string }
+  ) => {
+    const isUnidades =
+      dv.displayUnit.toLowerCase().startsWith('un') ||
+      dv.displayUnit.toLowerCase().startsWith('ud') ||
+      prod.area === 'Sellado';
+    const pc = prod.pedido?.productoCliente || prod.productoCliente;
+
+    if (isUnidades) {
+      let pesoUnitarioKg = 0;
+      if (pc?.pesoPorUnidad && pc.pesoPorUnidad > 0) {
+        pesoUnitarioKg = pc.pesoPorUnidad / 1000;
+      } else if (pc?.ancho && pc?.largo && pc?.calibre) {
+        const densidad = getPlasticDensity(pc.material);
+        const pesoGramos = calculateBagWeight({
+          tipoBolsa:
+            pc.anchoValvula && pc.anchoValvula > 0
+              ? 'valvula'
+              : pc.anchoFuelle && pc.anchoFuelle > 0
+              ? 'fuelle'
+              : 'sencilla',
+          ancho: pc.ancho,
+          largo: pc.largo,
+          calibre: pc.calibre,
+          fuelle: pc.anchoFuelle,
+          solapa: pc.anchoSolapa,
+          densidad,
+        });
+        if (pesoGramos > 0) {
+          pesoUnitarioKg = pesoGramos / 1000;
+        }
+      }
+
+      if (pesoUnitarioKg > 0) {
+        const kilosEquivalentesProducidos = dv.displayTotal * pesoUnitarioKg;
+        const masaTotalConsumida = kilosEquivalentesProducidos + (prod.merma || 0);
+        if (masaTotalConsumida > 0) {
+          const porcentaje = ((prod.merma || 0) / masaTotalConsumida) * 100;
+          return {
+            tienePorcentaje: true,
+            porcentaje,
+            kilosEquivalentesProducidos,
+            isUnidades: true,
+          };
+        }
+        return {
+          tienePorcentaje: true,
+          porcentaje: 0,
+          kilosEquivalentesProducidos: 0,
+          isUnidades: true,
+        };
+      }
+
+      // Si la unidad es UND pero no se tiene registro de peso unitario para convertir piezas a kg,
+      // se omite el porcentaje erróneo para evitar confusiones al operario.
+      return {
+        tienePorcentaje: false,
+        porcentaje: null,
+        kilosEquivalentesProducidos: null,
+        isUnidades: true,
+      };
+    } else {
+      // Área que produce en KG (Extrusión, etc.)
+      const masaTotal = dv.displayTotal + (prod.merma || 0);
+      const porcentaje =
+        masaTotal > 0 ? ((prod.merma || 0) / masaTotal) * 100 : 0;
+      return {
+        tienePorcentaje: true,
+        porcentaje,
+        kilosEquivalentesProducidos: dv.displayTotal,
+        isUnidades: false,
+      };
+    }
   };
 
   if (loading) {
@@ -660,6 +765,8 @@ export default function ProduccionPage() {
                       >
                         {(() => {
                           const dv = getDisplayValues(prod, totalProducido);
+                          const desperdicioInfo = calcularDesperdicioInfo(prod, dv);
+                          const isUnidades = dv.displayUnit.toLowerCase().startsWith('un') || dv.displayUnit.toLowerCase().startsWith('ud') || prod.area === 'Sellado';
                           return (
                             <>
                               <div className="flex items-start justify-between">
@@ -697,19 +804,19 @@ export default function ProduccionPage() {
                                   <div className="flex flex-col">
                                     <span className="text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-1 leading-none text-left">PRODUCIDO</span>
                                     <span className="text-lg font-black text-slate-900 dark:text-white leading-none">
-                                      {dv.displayTotal.toLocaleString(undefined, { minimumFractionDigits: 2 })}{' '}
+                                      {formatNumber(dv.displayTotal, { minDecimals: isUnidades ? 0 : 2, maxDecimals: 2 })}{' '}
                                       <span className="text-[10px] text-slate-400 uppercase">{dv.displayUnit}</span>
                                     </span>
                                   </div>
                                   <div className="flex flex-col text-right">
                                     <span className="text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-1 leading-none">META</span>
                                     <span className="text-sm font-black text-slate-600 dark:text-slate-300 leading-none">
-                                      {dv.targetAmount.toLocaleString(undefined, { minimumFractionDigits: 2 })}{' '}
+                                      {formatNumber(dv.targetAmount, { minDecimals: isUnidades ? 0 : 2, maxDecimals: 2 })}{' '}
                                       <span className="text-[10px] text-slate-400 uppercase">{dv.displayUnit}</span>
                                     </span>
                                     {dv.originalTargetAmount && dv.originalDisplayUnit && dv.displayUnit !== dv.originalDisplayUnit && (dv.originalDisplayUnit.toLowerCase().startsWith('unid') || dv.originalDisplayUnit.toLowerCase().startsWith('uds')) && (
                                       <span className="text-[9px] text-slate-400 mt-1 leading-none">
-                                        ({dv.originalTargetAmount.toLocaleString(undefined, { maximumFractionDigits: 0 })} uds)
+                                        ({formatNumber(dv.originalTargetAmount, { minDecimals: 0, maxDecimals: 0 })} uds)
                                       </span>
                                     )}
                                   </div>
@@ -728,10 +835,13 @@ export default function ProduccionPage() {
                                     DESPERDICIO
                                   </span>
                                   <span className="text-xs font-bold text-rose-500 dark:text-rose-400 leading-none">
-                                    {prod.merma.toLocaleString(undefined, { minimumFractionDigits: 2 })} <span className="text-[10px] uppercase">KG</span>
-                                    <span className="text-[10px] text-rose-400/90 ml-1 font-medium">
-                                      ({dv.displayTotal > 0 ? ((prod.merma / dv.displayTotal) * 100).toFixed(1) : '0.0'}%)
-                                    </span>
+                                    {formatNumber(prod.merma, { minDecimals: 2, maxDecimals: 2 })}{' '}
+                                    <span className="text-[10px] uppercase">KG</span>
+                                    {desperdicioInfo.tienePorcentaje && desperdicioInfo.porcentaje !== null && (
+                                      <span className="text-[10px] text-rose-400/90 ml-1 font-medium">
+                                        ({formatNumber(desperdicioInfo.porcentaje, { minDecimals: 1, maxDecimals: 1 })}%)
+                                      </span>
+                                    )}
                                   </span>
                                 </div>
                               </div>
@@ -745,7 +855,7 @@ export default function ProduccionPage() {
                                   <div className="flex justify-between items-center">
                                     <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">STOCK PREVIO</span>
                                     <span className={`text-[10px] font-black uppercase tracking-widest ${sinStock ? 'text-red-600 animate-pulse' : 'text-emerald-600'}`}>
-                                      {sinStock ? '! SIN STOCK' : `${prod.stockPrevio?.cantidad.toFixed(2)} ${prod.stockPrevio?.unidad === 'Kilogramos' ? 'kg' : 'und'}`}
+                                      {sinStock ? '! SIN STOCK' : `${formatNumber(prod.stockPrevio?.cantidad, { minDecimals: prod.stockPrevio?.unidad === 'Kilogramos' ? 2 : 0, maxDecimals: 2 })} ${prod.stockPrevio?.unidad === 'Kilogramos' ? 'kg' : 'und'}`}
                                     </span>
                                   </div>
                                 </div>
@@ -1116,8 +1226,13 @@ export default function ProduccionPage() {
                         <td className="px-6 py-4 text-xs font-bold text-slate-900 dark:text-slate-200">{formatDateShort(reg.fecha)}</td>
                         <td className="px-6 py-4 text-xs font-bold text-slate-500 dark:text-slate-400">{getTurnoLabel(reg.turno)}</td>
                         <td className="px-6 py-4 text-xs font-bold text-slate-900 dark:text-slate-200">{reg.operario}</td>
-                        <td className="px-6 py-4 text-right text-xs font-black text-slate-900 dark:text-white">{reg.cantidad}</td>
-                        <td className="px-6 py-4 text-right text-xs font-black text-slate-900 dark:text-white">{reg.merma} <span className="text-[10px] opacity-60">KG</span></td>
+                        <td className="px-6 py-4 text-right text-xs font-black text-slate-900 dark:text-white">
+                          {formatNumber(reg.cantidad, { minDecimals: selectedProduccion.unidad === 'Kilogramos' ? 2 : 0, maxDecimals: 2 })}
+                        </td>
+                        <td className="px-6 py-4 text-right text-xs font-black text-slate-900 dark:text-white">
+                          {formatNumber(reg.merma, { minDecimals: 2, maxDecimals: 2 })}{' '}
+                          <span className="text-[10px] opacity-60">KG</span>
+                        </td>
                         <td className="px-6 py-4">
                           <div className="flex justify-center gap-2">
                             <button
