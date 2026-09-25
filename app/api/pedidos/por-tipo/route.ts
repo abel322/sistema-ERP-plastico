@@ -27,14 +27,22 @@ export async function GET(request: Request) {
         estado: {
           in: ['Pendiente', 'EnProceso'],
         },
-        cliente: {
+        productoCliente: {
           tipoProducto: tipoProducto as 'Bolsa' | 'Bobina',
         },
       },
       include: {
         cliente: {
           select: {
+            id: true,
             nombre: true,
+            rif: true,
+          },
+        },
+        productoCliente: {
+          select: {
+            id: true,
+            nombreProducto: true,
             tipoProducto: true,
           },
         },

@@ -3,7 +3,7 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth-options';
 import { prisma } from '@/lib/db';
 import { EstadoPedido } from '@prisma/client';
-import { startOfWeek, startOfMonth, subDays } from 'date-fns';
+import { startOfWeek, startOfMonth } from 'date-fns';
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
@@ -15,6 +15,7 @@ export async function GET(request: Request) {
             return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
         }
 
+        const userId = (session.user as any)?.id;
         const { searchParams } = new URL(request.url);
         const busqueda = searchParams.get('busqueda');
         const periodo = searchParams.get('periodo'); // 'semana', 'mes', 'todos'
@@ -22,25 +23,47 @@ export async function GET(request: Request) {
         const limit = parseInt(searchParams.get('limit') ?? '10');
         const skip = (page - 1) * limit;
 
-        let whereClause: any = {
-            estado: EstadoPedido.Completado,
-        };
+        const andConditions: any[] = [
+            {
+                estado: EstadoPedido.Completado,
+            }
+        ];
 
-        if (busqueda) {
-            whereClause.cliente = {
-                nombre: { contains: busqueda, mode: 'insensitive' },
-            };
+        if (userId) {
+            andConditions.push({
+                OR: [
+                    { userId },
+                    { userId: null },
+                ]
+            });
+        }
+
+        if (busqueda && busqueda.trim()) {
+            const query = busqueda.trim();
+            andConditions.push({
+                OR: [
+                    { cliente: { nombre: { contains: query, mode: 'insensitive' } } },
+                    { productoCliente: { nombreProducto: { contains: query, mode: 'insensitive' } } },
+                    { id: { contains: query, mode: 'insensitive' } },
+                ]
+            });
         }
 
         if (periodo === 'semana') {
-            whereClause.updatedAt = {
-                gte: startOfWeek(new Date(), { weekStartsOn: 1 }),
-            };
+            andConditions.push({
+                updatedAt: {
+                    gte: startOfWeek(new Date(), { weekStartsOn: 1 }),
+                }
+            });
         } else if (periodo === 'mes') {
-            whereClause.updatedAt = {
-                gte: startOfMonth(new Date()),
-            };
+            andConditions.push({
+                updatedAt: {
+                    gte: startOfMonth(new Date()),
+                }
+            });
         }
+
+        const whereClause = andConditions.length === 1 ? andConditions[0] : { AND: andConditions };
 
         const [pedidos, total] = await Promise.all([
             prisma.pedido.findMany({
@@ -48,8 +71,27 @@ export async function GET(request: Request) {
                 include: {
                     cliente: {
                         select: {
+                            id: true,
                             nombre: true,
+                            rif: true,
+                            telefono: true,
+                            contacto: true,
+                        }
+                    },
+                    productoCliente: {
+                        select: {
+                            id: true,
+                            nombreProducto: true,
+                            codigoProducto: true,
                             tipoProducto: true,
+                            conImpresion: true,
+                            conPigmento: true,
+                            material: true,
+                            color: true,
+                            ancho: true,
+                            largo: true,
+                            calibre: true,
+                            unidadVenta: true,
                         }
                     },
                 },
@@ -60,9 +102,19 @@ export async function GET(request: Request) {
             prisma.pedido.count({ where: whereClause }),
         ]);
 
-        // Calcular estadísticas simples para el historial
+        // Estadísticas de pedidos completados (alineado al dashboard)
+        const statsConditions: any[] = [
+            {
+                estado: EstadoPedido.Completado,
+            }
+        ];
+        if (userId) {
+            statsConditions.push({
+                OR: [{ userId }, { userId: null }]
+            });
+        }
         const totalCompletados = await prisma.pedido.count({
-            where: { estado: EstadoPedido.Completado }
+            where: statsConditions.length === 1 ? statsConditions[0] : { AND: statsConditions }
         });
 
         return NextResponse.json({

@@ -110,7 +110,7 @@ export async function PUT(
   }
 }
 
-// DELETE - Eliminar pedido (solo admin)
+// DELETE - Eliminar pedido
 export async function DELETE(
   request: Request,
   { params }: { params: { id: string } }
@@ -121,16 +121,44 @@ export async function DELETE(
       return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
     }
 
-    const userRol = (session.user as any)?.rol;
-    if (userRol !== 'admin') {
-      return NextResponse.json({ error: 'No tiene permisos' }, { status: 403 });
-    }
+    const { id } = params;
 
-    await prisma.pedido.delete({
-      where: { id: params.id },
+    const pedido = await prisma.pedido.findUnique({
+      where: { id },
     });
 
-    return NextResponse.json({ message: 'Pedido eliminado exitosamente' });
+    if (!pedido) {
+      return NextResponse.json({ error: 'Pedido no encontrado' }, { status: 404 });
+    }
+
+    // Desvincular de forma segura las tablas relacionadas antes de eliminar
+    await prisma.$transaction(async (tx) => {
+      await tx.produccion.updateMany({
+        where: { pedidoId: id },
+        data: { pedidoId: null },
+      });
+
+      await tx.despacho.updateMany({
+        where: { pedidoId: id },
+        data: { pedidoId: null },
+      });
+
+      await tx.muestra.updateMany({
+        where: { pedidoId: id },
+        data: { pedidoId: null },
+      });
+
+      await tx.productoTerminado.updateMany({
+        where: { pedidoId: id },
+        data: { pedidoId: null },
+      });
+
+      await tx.pedido.delete({
+        where: { id },
+      });
+    });
+
+    return NextResponse.json({ message: 'Pedido eliminado exitosamente', id });
   } catch (error) {
     console.error('Error al eliminar pedido:', error);
     return NextResponse.json(
