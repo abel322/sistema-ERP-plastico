@@ -63,6 +63,7 @@ interface Produccion {
   estado: string;
   maquinaId: string;
   pedidoId?: string | null;
+  productoClienteId?: string | null;
   horaInicio?: string | null;
   horaFin?: string | null;
   observaciones?: string | null;
@@ -72,8 +73,15 @@ interface Produccion {
     cantidadSolicitada?: number;
     unidad?: string;
     cliente: {
+      id?: string;
       nombre: string;
-      tipoProducto: string;
+      tipoProducto?: string;
+      conImpresion?: boolean;
+    };
+    productoCliente?: {
+      id?: string;
+      nombreProducto?: string;
+      tipoProducto?: string;
       conImpresion?: boolean;
       pesoPorUnidad?: number;
       ancho?: number;
@@ -85,12 +93,17 @@ interface Produccion {
       anchoFuelle?: number;
       material?: string;
     };
-    productoCliente?: {
-      pesoPorUnidad?: number;
-    };
+  };
+  productoCliente?: {
+    id?: string;
+    nombreProducto?: string;
+    tipoProducto?: string;
+    conImpresion?: boolean;
+    pesoPorUnidad?: number;
   };
   registros: RegistroProduccion[];
   stockPrevio?: {
+    id?: string;
     cantidad: number;
     unidad: string;
     area: string;
@@ -410,19 +423,36 @@ export default function ProduccionPage() {
       const res = await fetch(`/api/produccion/${prod.id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ estado: 'Finalizado', completarPedido: false }),
+        body: JSON.stringify({
+          estado: 'Finalizado',
+          completarPedido: false,
+          siguienteArea: nextArea,
+        }),
       });
 
       if (!res.ok) {
-         throw new Error("Error en la respuesta del servidor al intentar avanzar");
+        const errorData = await res.json().catch(() => ({}));
+        throw new Error(errorData.error || "Error en la respuesta del servidor al intentar avanzar");
       }
 
+      await res.json();
+
       setIsAvance(true);
+      const unidadDestino = nextArea === 'Sellado' ? (prod.pedido?.unidad || 'Unidades') : 'Kilogramos';
       setFormData({
         ...formData,
+        fecha: today,
+        turno: 'Manana',
         area: nextArea,
-        pedidoId: prod.pedido?.id || '',
-        unidad: prod.unidad,
+        maquinaId: '',
+        operario: '',
+        pedidoId: prod.pedidoId || prod.pedido?.id || '',
+        unidad: unidadDestino,
+        cantidadProducida: '0',
+        merma: '0',
+        horaInicio: '',
+        horaFin: '',
+        observaciones: '',
       });
       setShowCrearModal(true);
 
@@ -431,13 +461,13 @@ export default function ProduccionPage() {
 
       toast({
         title: "Éxito",
-        description: `Avanzado a ${getAreaLabel(nextArea)}`,
+        description: `Fase finalizada y avanzada a ${getAreaLabel(nextArea)}`,
       });
-    } catch (err) {
+    } catch (err: any) {
       console.error(err);
       toast({
         title: "Error",
-        description: "Error al avanzar fase. Por favor, intente de nuevo.",
+        description: err?.message || "Error al avanzar fase. Por favor, intente de nuevo.",
         variant: "destructive",
       });
     } finally {
@@ -452,8 +482,10 @@ export default function ProduccionPage() {
   const calcularTotalMerma = (registros: RegistroProduccion[]) => registros.reduce((sum, r) => sum + r.merma + (r.mermaSinImpresion || 0) + (r.mermaImpreso || 0), 0);
 
   const getNextArea = (prod: Produccion): string | null => {
-    if (!prod.pedido || !prod.pedido.productoCliente) return null;
-    const { tipoProducto, conImpresion } = prod.pedido.productoCliente as any;
+    const pc = prod.pedido?.productoCliente || prod.productoCliente;
+    if (!pc) return null;
+    const tipoProducto = pc.tipoProducto;
+    const conImpresion = Boolean(pc.conImpresion);
     if (prod.area === 'Extrusion') {
       if (conImpresion) return 'Serigrafia';
       if (tipoProducto === 'Bolsa') return 'Sellado';
@@ -472,7 +504,7 @@ export default function ProduccionPage() {
   };
 
   const getDisplayValues = (prod: Produccion, totalProducido: number) => {
-    const productoCliente = prod.pedido?.productoCliente;
+    const productoCliente = prod.pedido?.productoCliente || prod.productoCliente;
     const unidadPedido = prod.pedido?.unidad;
     const peso = productoCliente?.pesoPorUnidad || 0;
     let targetAmount = prod.pedido?.cantidadSolicitada || 0;
@@ -632,7 +664,7 @@ export default function ProduccionPage() {
                             <>
                               <div className="flex items-start justify-between">
                                 <span className="px-2.5 py-1 bg-indigo-50 dark:bg-indigo-950/30 text-indigo-600 dark:text-indigo-400 text-[9px] font-black uppercase tracking-widest rounded-lg border border-indigo-100 dark:border-indigo-900/50">
-                                  P-{prod.pedido?.id?.slice(-5).toUpperCase() || 'N/A'}
+                                  P-{prod.pedido?.id?.slice(-5).toUpperCase() || prod.pedidoId?.slice(-5).toUpperCase() || 'N/A'}
                                 </span>
                                 <span className={`px-2.5 py-1 text-[9px] font-black uppercase tracking-widest rounded-lg border ${
                                   dv.isCompleted 
@@ -645,8 +677,13 @@ export default function ProduccionPage() {
 
                               <div className="flex flex-col gap-1.5">
                                 <h3 className="font-black text-slate-900 dark:text-white text-sm line-clamp-1 uppercase tracking-tight">
-                                  {prod.pedido?.cliente?.nombre || 'Sin Cliente'}
+                                  {prod.pedido?.cliente?.nombre || 'Producción Interna'}
                                 </h3>
+                                {(prod.pedido?.productoCliente?.nombreProducto || prod.productoCliente?.nombreProducto) && (
+                                  <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider line-clamp-1">
+                                    {prod.pedido?.productoCliente?.nombreProducto || prod.productoCliente?.nombreProducto}
+                                  </span>
+                                )}
                                 <div className="flex items-center gap-2">
                                   <div className="w-2 h-2 rounded-full bg-indigo-500 animate-pulse" />
                                   <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest">

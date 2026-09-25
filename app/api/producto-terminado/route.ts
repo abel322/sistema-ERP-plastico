@@ -26,8 +26,10 @@ export async function GET(request: Request) {
     const limit = parseInt(searchParams.get('limit') || '20');
     const skip = (page - 1) * limit;
 
+    const userFilter = userId ? { OR: [{ userId }, { userId: null }] } : {};
+
     const where: Record<string, unknown> = {
-      userId,
+      ...userFilter,
       cantidadDisponible: { gt: 0 }
     };
 
@@ -45,6 +47,15 @@ export async function GET(request: Request) {
               id: true,
               nombre: true,
               rif: true,
+            }
+          },
+          productoCliente: {
+            select: {
+              id: true,
+              nombreProducto: true,
+              codigoProducto: true,
+              tipoProducto: true,
+              conImpresion: true,
             }
           },
           produccion: {
@@ -70,16 +81,16 @@ export async function GET(request: Request) {
     ]);
 
     const listosDespacho = await prisma.productoTerminado.count({
-      where: { userId, estado: 'ListoDespacho', cantidadDisponible: { gt: 0 } }
+      where: { ...userFilter, estado: 'ListoDespacho', cantidadDisponible: { gt: 0 } }
     });
 
     const pendientesArea = await prisma.productoTerminado.count({
-      where: { userId, estado: 'PendienteArea', cantidadDisponible: { gt: 0 } }
+      where: { ...userFilter, estado: 'PendienteArea', cantidadDisponible: { gt: 0 } }
     });
 
     const pendientesPorArea = await prisma.productoTerminado.groupBy({
       by: ['siguienteArea'],
-      where: { userId, estado: 'PendienteArea', cantidadDisponible: { gt: 0 } },
+      where: { ...userFilter, estado: 'PendienteArea', cantidadDisponible: { gt: 0 } },
       _count: { id: true }
     });
 

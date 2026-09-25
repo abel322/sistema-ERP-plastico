@@ -35,6 +35,8 @@ export async function GET(request: Request) {
       if (fechaFin) where.fecha.lte = new Date(fechaFin + 'T23:59:59');
     }
 
+    const userFilter = userId ? { OR: [{ userId }, { userId: null }] } : {};
+
     const [producciones, total] = await Promise.all([
       prisma.produccion.findMany({
         where,
@@ -43,6 +45,7 @@ export async function GET(request: Request) {
           pedido: {
             include: { cliente: true, productoCliente: true },
           },
+          productoCliente: true,
           registros: {
             orderBy: { fecha: 'desc' },
           },
@@ -57,40 +60,143 @@ export async function GET(request: Request) {
     const produccionesConStockPrevio = await Promise.all(
       producciones.map(async (prod) => {
         if (prod.area !== 'Extrusion') {
-          // Si tiene pedidoId buscamos por pedidoId, sino buscamos el último ProductoTerminado
-          // que tenga cantidad disponible y que venga de un área anterior, para asociarlo si es orden libre.
-          const whereClause: any = {
-            userId,
-            produccionId: { not: prod.id },
-            areaOrigen: { not: prod.area },
-            cantidadDisponible: { gt: 0 } // Sólo traer si tiene stock > 0
-          };
+          const productoClienteId = prod.productoClienteId || prod.pedido?.productoClienteId;
+          const clienteId = prod.pedido?.clienteId || prod.pedido?.cliente?.id;
 
+          let previo = null;
+
+          // 1. Si la orden tiene pedidoId, buscar stock disponible de ese pedido
           if (prod.pedidoId) {
-            whereClause.pedidoId = prod.pedidoId;
-          } else {
-             // For internal/free orders, do not filter by pedidoId but ensure we only pick stock that hasn't been linked to a specific pedido
-             whereClause.pedidoId = null;
+            // 1a. Prioridad: ProductoTerminado del mismo pedido asignado a esta siguienteArea
+            previo = await prisma.productoTerminado.findFirst({
+              where: {
+                ...userFilter,
+                pedidoId: prod.pedidoId,
+                siguienteArea: prod.area as any,
+                cantidadDisponible: { gt: 0 },
+                produccionId: { not: prod.id },
+              },
+              orderBy: [
+                { fechaFinalizacion: 'desc' },
+                { createdAt: 'desc' },
+              ],
+            });
+
+            // 1b. Fallback: cualquier ProductoTerminado del mismo pedido proveniente de un área previa
+            if (!previo) {
+              previo = await prisma.productoTerminado.findFirst({
+                where: {
+                  ...userFilter,
+                  pedidoId: prod.pedidoId,
+                  areaOrigen: { not: prod.area },
+                  cantidadDisponible: { gt: 0 },
+                  produccionId: { not: prod.id },
+                },
+                orderBy: [
+                  { fechaFinalizacion: 'desc' },
+                  { createdAt: 'desc' },
+                ],
+              });
+            }
           }
 
-          const previo = await prisma.productoTerminado.findFirst({
-            where: whereClause,
-            orderBy: [
-              { fechaFinalizacion: 'desc' },
-              { createdAt: 'desc' }
-            ],
-          });
+          // 2. Si no se encontró por pedidoId (o la orden no tiene pedidoId), buscar por productoClienteId
+          if (!previo && productoClienteId) {
+            // 2a. Específico para esta siguienteArea
+            previo = await prisma.productoTerminado.findFirst({
+              where: {
+                ...userFilter,
+                productoClienteId,
+                siguienteArea: prod.area as any,
+                cantidadDisponible: { gt: 0 },
+                produccionId: { not: prod.id },
+              },
+              orderBy: [
+                { fechaFinalizacion: 'desc' },
+                { createdAt: 'desc' },
+              ],
+            });
+
+            // 2b. De cualquier área previa
+            if (!previo) {
+              previo = await prisma.productoTerminado.findFirst({
+                where: {
+                  ...userFilter,
+                  productoClienteId,
+                  areaOrigen: { not: prod.area },
+                  cantidadDisponible: { gt: 0 },
+                  produccionId: { not: prod.id },
+                },
+                orderBy: [
+                  { fechaFinalizacion: 'desc' },
+                  { createdAt: 'desc' },
+                ],
+              });
+            }
+          }
+
+          // 3. Si no se encontró por producto, buscar por clienteId destinado a esta área
+          if (!previo && clienteId) {
+            previo = await prisma.productoTerminado.findFirst({
+              where: {
+                ...userFilter,
+                clienteId,
+                siguienteArea: prod.area as any,
+                cantidadDisponible: { gt: 0 },
+                produccionId: { not: prod.id },
+              },
+              orderBy: [
+                { fechaFinalizacion: 'desc' },
+                { createdAt: 'desc' },
+              ],
+            });
+          }
+
+          // 4. Para órdenes libres / internas sin pedido específico:
+          if (!previo && !prod.pedidoId) {
+            // 4a. Buscar stock pendiente para esta área
+            previo = await prisma.productoTerminado.findFirst({
+              where: {
+                ...userFilter,
+                siguienteArea: prod.area as any,
+                cantidadDisponible: { gt: 0 },
+                produccionId: { not: prod.id },
+              },
+              orderBy: [
+                { fechaFinalizacion: 'desc' },
+                { createdAt: 'desc' },
+              ],
+            });
+
+            // 4b. Fallback: stock disponible de área previa (en Serigrafía, viene de Extrusión)
+            if (!previo) {
+              const areaOrigenFallback = prod.area === 'Serigrafia' ? 'Extrusion' : { not: prod.area };
+              previo = await prisma.productoTerminado.findFirst({
+                where: {
+                  ...userFilter,
+                  areaOrigen: areaOrigenFallback as any,
+                  cantidadDisponible: { gt: 0 },
+                  produccionId: { not: prod.id },
+                },
+                orderBy: [
+                  { fechaFinalizacion: 'desc' },
+                  { createdAt: 'desc' },
+                ],
+              });
+            }
+          }
 
           if (previo) {
             return {
               ...prod,
               stockPrevio: {
+                id: previo.id,
                 cantidad: previo.cantidadDisponible,
                 unidad: previo.unidad,
                 area: previo.areaOrigen,
                 tipoProducto: previo.tipoProducto,
                 conImpresion: previo.conImpresion,
-              }
+              },
             };
           }
         }
@@ -126,6 +232,7 @@ export async function POST(request: Request) {
       maquinaId,
       operario = 'Por asignar',
       pedidoId,
+      productoClienteId,
       cantidadProducida = 0,
       unidad = 'Kilogramos',
       merma = 0,
@@ -138,6 +245,17 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Campos requeridos faltantes (área y máquina)' }, { status: 400 });
     }
 
+    let finalProductoClienteId = productoClienteId || null;
+    if (!finalProductoClienteId && pedidoId) {
+      const pedidoRef = await prisma.pedido.findUnique({
+        where: { id: pedidoId },
+        select: { productoClienteId: true },
+      });
+      if (pedidoRef) {
+        finalProductoClienteId = pedidoRef.productoClienteId;
+      }
+    }
+
     const produccion = await prisma.produccion.create({
       data: {
         userId,
@@ -147,9 +265,10 @@ export async function POST(request: Request) {
         maquinaId,
         operario,
         pedidoId: pedidoId || null,
-        cantidadProducida: parseFloat(cantidadProducida),
+        productoClienteId: finalProductoClienteId,
+        cantidadProducida: parseFloat(cantidadProducida.toString()),
         unidad,
-        merma: merma ? parseFloat(merma) : 0,
+        merma: merma ? parseFloat(merma.toString()) : 0,
         horaInicio,
         horaFin,
         observaciones,
@@ -157,13 +276,14 @@ export async function POST(request: Request) {
       include: {
         maquina: true,
         pedido: { include: { cliente: true, productoCliente: true } },
+        productoCliente: true,
       },
     });
 
     if (pedidoId) {
       const pedido = await prisma.pedido.findFirst({ where: { id: pedidoId, userId } });
       if (pedido) {
-        const nuevaCantidad = pedido.cantidadProducida + parseFloat(cantidadProducida);
+        const nuevaCantidad = pedido.cantidadProducida + parseFloat(cantidadProducida.toString());
         let nuevoEstado = pedido.estado;
 
         if (pedido.estado === EstadoPedido.Pendiente) {

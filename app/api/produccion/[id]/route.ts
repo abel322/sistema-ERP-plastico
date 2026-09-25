@@ -1,13 +1,12 @@
 import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { prisma } from '@/lib/db';
-import { EstadoProduccion } from '@prisma/client';
+import { EstadoProduccion, TipoProducto, SiguienteArea } from '@prisma/client';
 import { authOptions } from '@/lib/auth-options';
-import { determinarDestinoProducto } from '@/lib/producto-terminado-logic';
+import { determinarDestinoProducto, DestinoProducto, getNombreArea } from '@/lib/producto-terminado-logic';
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
-
 
 export async function GET(
   request: Request,
@@ -23,8 +22,10 @@ export async function GET(
       where: { id: params.id },
       include: {
         maquina: true,
-        pedido: { include: { cliente: true } },
+        pedido: { include: { cliente: true, productoCliente: true } },
+        productoCliente: { include: { cliente: true } },
         productoTerminado: true,
+        registros: { orderBy: { fecha: 'desc' } },
       },
     });
 
@@ -48,151 +49,261 @@ export async function PUT(
     if (!session) {
       return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
     }
+    const userId = (session.user as any)?.id;
 
     const body = await request.json();
-    const { estado, completarPedido, ...updateData } = body;
+    const { estado, completarPedido, siguienteArea, ...updateData } = body;
 
-    // Obtener la producción actual con su pedido y cliente
+    // Obtener la producción actual con todas sus relaciones relevantes
     const produccionActual = await prisma.produccion.findUnique({
       where: { id: params.id },
       include: {
-        pedido: { include: { cliente: true } },
-        productoTerminado: true
-      }
+        maquina: true,
+        pedido: {
+          include: {
+            cliente: true,
+            productoCliente: true,
+          },
+        },
+        productoCliente: {
+          include: {
+            cliente: true,
+          },
+        },
+        productoTerminado: true,
+        registros: {
+          orderBy: { fecha: 'desc' },
+        },
+      },
     });
 
     if (!produccionActual) {
       return NextResponse.json({ error: 'Producción no encontrada' }, { status: 404 });
     }
 
-    // Si se está finalizando la producción por primera vez
-    const esRecienFinalizado = estado === EstadoProduccion.Finalizado && produccionActual.estado !== EstadoProduccion.Finalizado;
+    // Verificar si se está finalizando
+    const esRecienFinalizado =
+      estado === EstadoProduccion.Finalizado &&
+      produccionActual.estado !== EstadoProduccion.Finalizado;
+    const esFinalizado =
+      estado === EstadoProduccion.Finalizado ||
+      produccionActual.estado === EstadoProduccion.Finalizado;
 
-    if (esRecienFinalizado) {
-      updateData.estado = estado;
-      updateData.finalizadoAt = new Date();
+    // Calcular la cantidad producida real: suma de registros si existen, o la cantidad enviada/actual
+    const sumaRegistros =
+      produccionActual.registros && produccionActual.registros.length > 0
+        ? produccionActual.registros.reduce((sum, r) => sum + (Number(r.cantidad) || 0), 0)
+        : 0;
+
+    let cantidadFinal =
+      sumaRegistros > 0
+        ? sumaRegistros
+        : updateData.cantidadProducida !== undefined
+        ? Number(updateData.cantidadProducida)
+        : Number(produccionActual.cantidadProducida || 0);
+
+    if (isNaN(cantidadFinal) || cantidadFinal < 0) {
+      cantidadFinal = 0;
     }
 
-    const produccion = await prisma.produccion.update({
-      where: { id: params.id },
-      data: updateData,
-      include: {
-        maquina: true,
-        pedido: { include: { cliente: true } },
-        productoTerminado: true,
-      },
-    });
+    // Recalcular mermas si existen registros
+    const sumaMermas =
+      produccionActual.registros && produccionActual.registros.length > 0
+        ? produccionActual.registros.reduce(
+            (sum, r) =>
+              sum +
+              (Number(r.merma) || 0) +
+              (Number(r.mermaSinImpresion) || 0) +
+              (Number(r.mermaImpreso) || 0),
+            0
+          )
+        : updateData.merma !== undefined
+        ? Number(updateData.merma)
+        : Number(produccionActual.merma || 0);
 
-    // Si recién se finalizó, gestionamos las transiciones de inventario de producto terminado
+    const produccionUpdatePayload: any = {
+      ...updateData,
+      cantidadProducida: cantidadFinal,
+      merma: isNaN(sumaMermas) ? 0 : sumaMermas,
+    };
+
     if (esRecienFinalizado) {
-      // Obtener datos del cliente
-      let clienteId: string | null = null;
-      let tipoProducto = 'Bolsa';
-      let conImpresion = false;
+      produccionUpdatePayload.estado = EstadoProduccion.Finalizado;
+      produccionUpdatePayload.finalizadoAt = new Date();
+    } else if (estado) {
+      produccionUpdatePayload.estado = estado;
+    }
 
-      if (produccion.pedido?.cliente) {
-        clienteId = produccion.pedido.cliente.id;
-        tipoProducto = produccion.pedido.cliente.tipoProducto;
-        conImpresion = produccion.pedido.cliente.conImpresion || false;
-      } else {
-        // Fallback for internal orders without a specific client
+    // Si la orden está en estado Finalizado o se está finalizando ahora, persistir en ProductoTerminado
+    if (esFinalizado) {
+      // 1. Resolver Cliente
+      let clienteId: string | null =
+        produccionActual.pedido?.clienteId ||
+        produccionActual.pedido?.cliente?.id ||
+        produccionActual.productoCliente?.clienteId ||
+        produccionActual.productoCliente?.cliente?.id ||
+        null;
+
+      if (!clienteId) {
         let genericClient = await prisma.cliente.findFirst({
-          where: { nombre: 'Cliente Interno Genérico' }
+          where: { nombre: 'Cliente Interno Genérico' },
         });
         if (!genericClient) {
           genericClient = await prisma.cliente.create({
             data: {
-              userId: (session.user as any).id,
+              userId: userId || produccionActual.userId,
               nombre: 'Cliente Interno Genérico',
               rif: 'J-00000000-0',
-            }
+            },
           });
         }
         clienteId = genericClient.id;
-
-        // As per requirements: Default to 'Bobina' and conImpresion: false for free orders
-        tipoProducto = 'Bobina';
-        conImpresion = false;
-
-        // If the production has product info attached (e.g. via productoClienteId), use it
-        if (produccion.productoClienteId) {
-          const prodCli = await prisma.productoCliente.findUnique({
-             where: { id: produccion.productoClienteId }
-          });
-          if (prodCli) {
-             tipoProducto = prodCli.tipoProducto;
-             conImpresion = prodCli.conImpresion || false;
-          }
-        }
       }
 
-      if (clienteId) {
-        // Determinar el destino FINAL
-        const destino = determinarDestinoProducto(
-          produccion.area,
-          tipoProducto as 'Bolsa' | 'Bobina',
+      // 2. Resolver Producto y Especificaciones
+      const prodCli =
+        produccionActual.pedido?.productoCliente || produccionActual.productoCliente;
+      const productoClienteId =
+        prodCli?.id ||
+        produccionActual.productoClienteId ||
+        produccionActual.pedido?.productoClienteId ||
+        null;
+
+      let tipoProducto: TipoProducto = 'Bolsa';
+      if (prodCli?.tipoProducto) {
+        tipoProducto = prodCli.tipoProducto;
+      } else if (
+        produccionActual.unidad === 'Kilogramos' ||
+        produccionActual.area === 'Extrusion'
+      ) {
+        tipoProducto = 'Bobina';
+      }
+
+      let conImpresion = false;
+      if (prodCli?.conImpresion !== undefined && prodCli?.conImpresion !== null) {
+        conImpresion = Boolean(prodCli.conImpresion);
+      }
+
+      // 3. Determinar Destino y Siguiente Área
+      let destino: DestinoProducto;
+      const siguienteAreaValida = ['Sellado', 'Serigrafia', 'Refilado', 'Ninguna'].includes(
+        siguienteArea
+      )
+        ? (siguienteArea as SiguienteArea)
+        : null;
+
+      if (completarPedido) {
+        destino = {
+          estado: 'ListoDespacho',
+          siguienteArea: 'Ninguna',
+          descripcionDestino: 'Producto finalizado listo para despacho',
+        };
+      } else if (siguienteAreaValida && siguienteAreaValida !== 'Ninguna') {
+        destino = {
+          estado: 'PendienteArea',
+          siguienteArea: siguienteAreaValida,
+          descripcionDestino: `${tipoProducto} de ${produccionActual.area} para ${getNombreArea(
+            siguienteAreaValida
+          )}`,
+        };
+      } else {
+        destino = determinarDestinoProducto(
+          produccionActual.area,
+          tipoProducto,
           conImpresion
         );
+      }
 
-        if (produccionActual.productoTerminado) {
-          // Si ya existía dinámica (porque fuimos añadiendo registros) => lo actualizamos a su estado FINAL
-          await prisma.productoTerminado.update({
-            where: { id: produccionActual.productoTerminado.id },
-            data: {
-              estado: destino.estado,
-              siguienteArea: destino.siguienteArea,
-              descripcion: destino.descripcionDestino, // Quitar el "(En Proceso)"
-              fechaFinalizacion: new Date(),
-              cantidadTotal: produccion.cantidadProducida,
-              cantidadDisponible: produccion.cantidadProducida
-            }
-          });
-        } else {
-          // Si finalizó sin tener producto aún, lo creamos de cero
-          await prisma.productoTerminado.create({
-            data: {
-              produccionId: produccion.id,
-              pedidoId: produccion.pedidoId,
-              clienteId: clienteId,
-              areaOrigen: produccion.area,
-              descripcion: destino.descripcionDestino,
-              cantidadTotal: produccion.cantidadProducida,
-              cantidadDisponible: produccion.cantidadProducida,
-              unidad: produccion.unidad,
-              tipoProducto: tipoProducto as 'Bolsa' | 'Bobina',
-              conImpresion: conImpresion,
-              estado: destino.estado,
-              siguienteArea: destino.siguienteArea,
-              fechaFinalizacion: new Date()
-            }
-          });
-        }
-
-        // Recargar producción con producto terminado
-        const produccionConProducto = await prisma.produccion.findUnique({
+      // 4. Ejecutar transacción atómica en Prisma
+      const resultado = await prisma.$transaction(async (tx) => {
+        // Actualizar registro de Producción
+        const prodActualizada = await tx.produccion.update({
           where: { id: params.id },
+          data: produccionUpdatePayload,
           include: {
             maquina: true,
-            pedido: { include: { cliente: true } },
+            pedido: {
+              include: {
+                cliente: true,
+                productoCliente: true,
+              },
+            },
+            productoCliente: {
+              include: {
+                cliente: true,
+              },
+            },
             productoTerminado: true,
           },
         });
 
-        // Actualizar el Pedido a 'Completado' automáticamente al finalizar la producción
-        // SOLO si viene el flag completarPedido en true
-        if (produccionConProducto?.pedidoId && completarPedido) {
-          await prisma.pedido.update({
-            where: { id: produccionConProducto.pedidoId },
+        // Crear o actualizar ProductoTerminado de forma atómica y consistente
+        const ptData = {
+          userId: userId || produccionActual.userId,
+          pedidoId: produccionActual.pedidoId || null,
+          clienteId: clienteId!,
+          productoClienteId: productoClienteId,
+          areaOrigen: produccionActual.area,
+          descripcion: destino.descripcionDestino,
+          cantidadTotal: cantidadFinal,
+          cantidadDisponible: cantidadFinal,
+          unidad: produccionActual.unidad,
+          tipoProducto: tipoProducto,
+          conImpresion: conImpresion,
+          estado: destino.estado,
+          siguienteArea: destino.siguienteArea,
+          fechaFinalizacion: new Date(),
+        };
+
+        const prodTerminado = await tx.productoTerminado.upsert({
+          where: { produccionId: produccionActual.id },
+          update: ptData,
+          create: {
+            ...ptData,
+            produccionId: produccionActual.id,
+          },
+        });
+
+        // Actualizar el Pedido a 'Completado' automáticamente si viene completarPedido en true
+        if (prodActualizada.pedidoId && completarPedido) {
+          await tx.pedido.update({
+            where: { id: prodActualizada.pedidoId },
             data: {
               estado: 'Completado',
-              cantidadProducida: produccionConProducto.cantidadProducida // Se asume la producción final como la cantidad
-            }
+              cantidadProducida: cantidadFinal,
+            },
           });
         }
 
-        return NextResponse.json(produccionConProducto);
-      }
+        return {
+          ...prodActualizada,
+          productoTerminado: prodTerminado,
+        };
+      });
+
+      return NextResponse.json(resultado);
     }
+
+    // Actualización regular cuando no está finalizado
+    const produccion = await prisma.produccion.update({
+      where: { id: params.id },
+      data: produccionUpdatePayload,
+      include: {
+        maquina: true,
+        pedido: {
+          include: {
+            cliente: true,
+            productoCliente: true,
+          },
+        },
+        productoCliente: {
+          include: {
+            cliente: true,
+          },
+        },
+        productoTerminado: true,
+      },
+    });
 
     return NextResponse.json(produccion);
   } catch (error) {

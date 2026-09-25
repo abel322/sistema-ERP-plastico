@@ -70,9 +70,10 @@ export async function POST(
     const produccion = await prisma.produccion.findUnique({
       where: { id },
       include: {
-        pedido: { include: { cliente: true } },
-        productoTerminado: true
-      }
+        pedido: { include: { cliente: true, productoCliente: true } },
+        productoCliente: true,
+        productoTerminado: true,
+      },
     });
 
     if (!produccion) {
@@ -110,10 +111,15 @@ export async function POST(
     });
 
     // Actualizar o crear ProductoTerminado dinámicamente ("En proceso")
-    if (produccion.pedido?.cliente) {
-      const clienteId = produccion.pedido.cliente.id;
-      const tipoProducto = produccion.pedido.cliente.tipoProducto as 'Bolsa' | 'Bobina';
-      const conImpresion = produccion.pedido.cliente.conImpresion || false;
+    const prodCli = produccion.pedido?.productoCliente || produccion.productoCliente;
+    const clienteId =
+      produccion.pedido?.clienteId ||
+      produccion.pedido?.cliente?.id ||
+      produccion.productoCliente?.clienteId;
+
+    if (clienteId) {
+      const tipoProducto = (prodCli?.tipoProducto || (produccion.unidad === 'Kilogramos' ? 'Bobina' : 'Bolsa')) as 'Bolsa' | 'Bobina';
+      const conImpresion = prodCli?.conImpresion || false;
 
       const destinoTemp = determinarDestinoProducto(produccion.area, tipoProducto, conImpresion);
 
@@ -122,17 +128,20 @@ export async function POST(
         await prisma.productoTerminado.update({
           where: { id: produccion.productoTerminado.id },
           data: {
+            userId: (session.user as any)?.id || produccion.userId,
             cantidadTotal: totalCantidad,
             cantidadDisponible: totalCantidad,
-          }
+          },
         });
       } else {
         // Crear la tarjeta temporal que indica que está en proceso
         await prisma.productoTerminado.create({
           data: {
+            userId: (session.user as any)?.id || produccion.userId,
             produccionId: id,
             pedidoId: produccion.pedidoId,
             clienteId: clienteId,
+            productoClienteId: prodCli?.id || produccion.productoClienteId || null,
             areaOrigen: produccion.area,
             descripcion: `(En Proceso) Producción de ${produccion.area}`,
             cantidadTotal: totalCantidad,
@@ -142,8 +151,8 @@ export async function POST(
             conImpresion: conImpresion,
             estado: 'PendienteArea', // Forzado a estar pendiente mientras produce
             siguienteArea: destinoTemp.siguienteArea, // Mostramos hacia donde iría teóricamente
-            fechaFinalizacion: new Date()
-          }
+            fechaFinalizacion: new Date(),
+          },
         });
       }
 
@@ -156,9 +165,9 @@ export async function POST(
             pedidoId: produccion.pedidoId,
             cantidadDisponible: { gt: 0 },
             produccionId: { not: produccion.id }, // Exclude current production
-            areaOrigen: { not: produccion.area }  // Must be from a DIFFERENT area (e.g. Extrusion)
+            areaOrigen: { not: produccion.area }, // Must be from a DIFFERENT area (e.g. Extrusion)
           },
-          orderBy: { fechaFinalizacion: 'asc' } // Consume the oldest stock first
+          orderBy: { fechaFinalizacion: 'asc' }, // Consume the oldest stock first
         });
 
         console.log("Consumo Dinámico previo encontrado:", previo?.id, "Unidades:", previo?.unidad, "Actual:", produccion.unidad);
@@ -174,62 +183,54 @@ export async function POST(
           const esProduccionDeKg = previo.areaOrigen === 'Extrusion' || previo.areaOrigen === 'Serigrafia' || previo.areaOrigen === 'Refilado';
 
           if (esBolsaSellado && esProduccionDeKg) {
-            const cliente = produccion.pedido.cliente;
-            const ancho = cliente.ancho;
-            const largo = cliente.largo;
-            const calibre = cliente.calibre;
-            const tipoBobina = cliente.tipoBobinaCliente;
+            const cliente = produccion.pedido?.cliente;
+            const ancho = prodCli?.ancho ?? (cliente as any)?.ancho;
+            const largo = prodCli?.largo ?? (cliente as any)?.largo;
+            const calibre = prodCli?.calibre ?? (cliente as any)?.calibre;
+            const tipoBobina = prodCli?.tipoBobinaCliente ?? (cliente as any)?.tipoBobinaCliente;
+            const material = prodCli?.material ?? (cliente as any)?.material;
+            const anchoValvula = prodCli?.anchoValvula ?? (cliente as any)?.anchoValvula;
+            const anchoFuelle = prodCli?.anchoFuelle ?? (cliente as any)?.anchoFuelle;
+            const anchoSolapa = prodCli?.anchoSolapa ?? (cliente as any)?.anchoSolapa;
+            const pesoPorUnidad = prodCli?.pesoPorUnidad ?? (cliente as any)?.pesoPorUnidad ?? 0;
 
             // Sumamos todas las mermas que se generaron en este registro
             const mermasTotales = mermaAgregada + mermaAgregada_2 + mermaAgregada_3;
 
             // Determinar densidad basada en el material
             let densidad = 0.922; // Por defecto (baja densidad)
-            if (cliente.material) {
-              const materialStr = cliente.material.toLowerCase();
+            if (material) {
+              const materialStr = material.toLowerCase();
               if (materialStr.includes('alta') || materialStr.includes('hdpe') || materialStr.includes('ad')) {
                 densidad = 0.96; // Alta densidad
               }
             }
 
             // Verificar si tiene valvulada (pego) o con fuelle activo
-            const tieneValvulada = cliente.anchoValvula && cliente.anchoValvula > 0;
-            const tieneConFuelle = cliente.anchoFuelle && cliente.anchoFuelle > 0 && !tieneValvulada;
+            const tieneValvulada = anchoValvula && anchoValvula > 0;
+            const tieneConFuelle = anchoFuelle && anchoFuelle > 0 && !tieneValvulada;
 
             let pesoTotal = 0;
 
             if (tieneValvulada && ancho && largo && calibre) {
               // Fórmula para bolsas valvuladas (pego)
-              const fuelle = cliente.anchoFuelle || 0;
-              const solapa = cliente.anchoSolapa || 0;
+              const fuelle = anchoFuelle || 0;
+              const solapa = anchoSolapa || 0;
               
-              // (((ancho * 2) + (fuelle * 2) + solapa) * largo * densidad * calibre) / 1000000
               const pesoUnitario = (((ancho * 2) + (fuelle * 2) + solapa) * largo * densidad * calibre) / 1000000;
               pesoTotal = pesoUnitario * cantidadAgregada;
-              console.log(`Bolsa Valvulada (A=${ancho}, L=${largo}, C=${calibre}, F=${fuelle}, S=${solapa}, D=${densidad}, Qty=${cantidadAgregada}) -> Peso=${pesoTotal.toFixed(3)}kg`);
-              
             } else if (tieneConFuelle && ancho && largo && calibre) {
               // Fórmula para bolsas con fuelle
-              const fuelle = cliente.anchoFuelle || 0;
+              const fuelle = anchoFuelle || 0;
               
-              // ((ancho + (fuelle * 2)) * largo * calibre * densidad) / 1000000
               const pesoUnitario = ((ancho + (fuelle * 2)) * largo * calibre * densidad) / 1000000;
               pesoTotal = pesoUnitario * cantidadAgregada;
-              console.log(`Bolsa Con Fuelle (A=${ancho}, L=${largo}, C=${calibre}, F=${fuelle}, D=${densidad}, Qty=${cantidadAgregada}) -> Peso=${pesoTotal.toFixed(3)}kg`);
-              
             } else if (ancho && largo && calibre) {
-              // Fórmula original para bolsas normales
-              const esManga = tipoBobina === 'Manga';
-              
-              // (Ancho * Largo * Calibre * Densidad * Caras) / 1000000
+              // Fórmula para bolsas normales
               pesoTotal = (ancho * largo * calibre * densidad * cantidadAgregada) / 1000000;
-              console.log(`Bolsa Normal (Material=${cliente.material || 'N/A'}, Densidad=${densidad}, A=${ancho}, L=${largo}, C=${calibre}, Manga=${esManga}, Qty=${cantidadAgregada}) -> Peso=${pesoTotal.toFixed(3)}kg`);
-              
             } else {
               // Fallback a peso por unidad si faltan datos dimensionales
-              const pesoPorUnidad = cliente.pesoPorUnidad || 0;
               pesoTotal = (pesoPorUnidad * cantidadAgregada * densidad) / 1000;
-              console.log(`Fallback peso por unidad (peso=${pesoPorUnidad}, densidad=${densidad}, qty=${cantidadAgregada}) -> Peso=${pesoTotal.toFixed(3)}kg`);
             }
 
             consumido = pesoTotal + mermasTotales;
