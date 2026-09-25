@@ -573,7 +573,7 @@ export default function MaquinasPage() {
                           <tr className="border-b border-slate-100 dark:border-slate-800">
                             <th className="px-6 py-3.5 text-[9px] font-black uppercase tracking-widest text-slate-400">Producto</th>
                             <th className="px-6 py-3.5 text-[9px] font-black uppercase tracking-widest text-slate-400">Cliente</th>
-                            <th className="px-6 py-3.5 text-[9px] font-black uppercase tracking-widest text-slate-400 text-center">Dimensiones</th>
+                            <th className="px-6 py-3.5 text-[9px] font-black uppercase tracking-widest text-slate-400 text-center">Dimensiones / Cabezal</th>
                             <th className="px-6 py-3.5 text-[9px] font-black uppercase tracking-widest text-slate-400 text-right">Calibre</th>
                           </tr>
                         </thead>
@@ -581,29 +581,47 @@ export default function MaquinasPage() {
                           {compatData.compatibleProducts.filter(p => p.nombreProducto.toLowerCase().includes(searchProduct.toLowerCase())).length > 0 ? (
                             compatData.compatibleProducts
                               .filter(p => p.nombreProducto.toLowerCase().includes(searchProduct.toLowerCase()))
-                              .map((p) => (
-                                <tr key={p.id} className="hover:bg-slate-50/30 dark:hover:bg-slate-800/10">
-                                  <td className="px-6 py-4">
-                                    <p className="text-sm font-bold text-slate-800 dark:text-slate-200">{p.nombreProducto}</p>
-                                    <p className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">{p.tipoProducto}</p>
-                                  </td>
-                                  <td className="px-6 py-4">
-                                    <span className="text-xs text-slate-600 dark:text-slate-400 font-medium">{p.cliente?.nombre}</span>
-                                  </td>
-                                  <td className="px-6 py-4 text-center">
-                                    <span className="text-xs font-black text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-950/20 px-2 py-0.5 rounded">
-                                      {p.ancho || p.anchoBobina || 0}mm {p.largo ? `x ${p.largo}mm` : ''}
-                                    </span>
-                                  </td>
-                                  <td className="px-6 py-4 text-right text-xs font-semibold text-slate-600 dark:text-slate-400">
-                                    {p.calibre ? `${p.calibre} gauge` : 'N/A'}
-                                  </td>
-                                </tr>
-                              ))
+                              .map((p) => {
+                                const cabezalValor = p.extDiametroCabezal || p.anchoBobina || p.ancho;
+                                return (
+                                  <tr key={p.id} className="hover:bg-slate-50/30 dark:hover:bg-slate-800/10">
+                                    <td className="px-6 py-4">
+                                      <p className="text-sm font-bold text-slate-800 dark:text-slate-200">{p.nombreProducto}</p>
+                                      <span className="inline-block mt-1 px-2 py-0.5 rounded text-[9px] font-black uppercase tracking-wider bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300">
+                                        {p.tipoProducto}
+                                      </span>
+                                    </td>
+                                    <td className="px-6 py-4">
+                                      <span className="text-xs text-slate-600 dark:text-slate-400 font-semibold">{p.cliente?.nombre || 'S/C'}</span>
+                                    </td>
+                                    <td className="px-6 py-4 text-center">
+                                      <div className="flex flex-col items-center gap-1">
+                                        <span className="text-xs font-black text-slate-800 dark:text-slate-200">
+                                          {p.ancho || p.anchoBobina || 0}mm {p.largo ? `x ${p.largo}mm` : ''}
+                                        </span>
+                                        {cabezalValor ? (
+                                          <span className="text-[10px] font-extrabold text-indigo-700 dark:text-indigo-300 bg-indigo-50 dark:bg-indigo-950/40 border border-indigo-200/60 dark:border-indigo-800/40 px-2.5 py-0.5 rounded-md">
+                                            Cabezal: {cabezalValor}mm
+                                          </span>
+                                        ) : null}
+                                      </div>
+                                    </td>
+                                    <td className="px-6 py-4 text-right text-xs font-semibold text-slate-600 dark:text-slate-400">
+                                      {p.calibre ? `${p.calibre} micras` : 'N/A'}
+                                    </td>
+                                  </tr>
+                                );
+                              })
                           ) : (
                             <tr>
-                              <td colSpan={4} className="px-6 py-12 text-center text-slate-400 text-xs italic">
-                                Sin productos compatibles para las dimensiones de esta máquina.
+                              <td colSpan={4} className="px-6 py-16 text-center text-slate-400 text-xs font-semibold italic">
+                                {(() => {
+                                  const currentM = maquinas.find((m) => m.id === selectedMaquinaCompat);
+                                  const isExtrusora = currentM?.tipo === 'Extrusora' || currentM?.nombre?.toLowerCase().includes('extrusora');
+                                  return isExtrusora
+                                    ? 'No hay productos configurados para esta extrusora'
+                                    : 'No hay productos configurados para este equipo';
+                                })()}
                               </td>
                             </tr>
                           )}
@@ -661,8 +679,8 @@ export default function MaquinasPage() {
                             ))
                           ) : (
                             <tr>
-                              <td colSpan={4} className="px-6 py-12 text-center text-slate-400 text-xs italic">
-                                No hay órdenes de producción pendientes compatibles.
+                              <td colSpan={4} className="px-6 py-16 text-center text-slate-400 text-xs font-semibold italic">
+                                No hay órdenes de producción pendientes para este equipo.
                               </td>
                             </tr>
                           )}
