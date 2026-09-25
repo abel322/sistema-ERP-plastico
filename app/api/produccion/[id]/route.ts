@@ -107,24 +107,42 @@ export async function PUT(
     }
 
     // Recalcular mermas si existen registros
-    const sumaMermas =
-      produccionActual.registros && produccionActual.registros.length > 0
-        ? produccionActual.registros.reduce(
-            (sum, r) =>
-              sum +
-              (Number(r.merma) || 0) +
-              (Number(r.mermaSinImpresion) || 0) +
-              (Number(r.mermaImpreso) || 0),
-            0
-          )
-        : updateData.merma !== undefined
-        ? Number(updateData.merma)
-        : Number(produccionActual.merma || 0);
+    const tieneRegistros = produccionActual.registros && produccionActual.registros.length > 0;
+    const sumaMermas = tieneRegistros
+      ? produccionActual.registros.reduce(
+          (sum, r) =>
+            sum +
+            (Number(r.merma) || (Number((r as any).mermaColor || r.mermaImpreso || 0) + Number((r as any).mermaCristal || r.mermaSinImpresion || 0))),
+          0
+        )
+      : updateData.merma !== undefined
+      ? Number(updateData.merma)
+      : Number(produccionActual.merma || 0);
+
+    const sumaMermaColor = tieneRegistros
+      ? produccionActual.registros.reduce(
+          (sum, r) => sum + (Number((r as any).mermaColor) || Number(r.mermaImpreso) || 0),
+          0
+        )
+      : updateData.mermaColor !== undefined
+      ? Number(updateData.mermaColor)
+      : Number((produccionActual as any).mermaColor || 0);
+
+    const sumaMermaCristal = tieneRegistros
+      ? produccionActual.registros.reduce(
+          (sum, r) => sum + (Number((r as any).mermaCristal) || Number(r.mermaSinImpresion) || 0),
+          0
+        )
+      : updateData.mermaCristal !== undefined
+      ? Number(updateData.mermaCristal)
+      : Number((produccionActual as any).mermaCristal || 0);
 
     const produccionUpdatePayload: any = {
       ...updateData,
       cantidadProducida: cantidadFinal,
       merma: isNaN(sumaMermas) ? 0 : sumaMermas,
+      mermaColor: isNaN(sumaMermaColor) ? 0 : sumaMermaColor,
+      mermaCristal: isNaN(sumaMermaCristal) ? 0 : sumaMermaCristal,
     };
 
     if (esRecienFinalizado) {

@@ -73,15 +73,43 @@ export async function GET(request: Request) {
       }),
     ]);
 
+    // Asegurar cálculo consolidado de mermaColor y mermaCristal por orden
+    const produccionesConMermas = producciones.map((prod) => {
+      const mermaColor = prod.registros && prod.registros.length > 0
+        ? prod.registros.reduce((acc, r) => acc + ((r as any).mermaColor ?? r.mermaImpreso ?? 0), 0)
+        : ((prod as any).mermaColor || 0);
+
+      const mermaCristal = prod.registros && prod.registros.length > 0
+        ? prod.registros.reduce((acc, r) => acc + ((r as any).mermaCristal ?? r.mermaSinImpresion ?? 0), 0)
+        : ((prod as any).mermaCristal || 0);
+
+      const mermaTotal = prod.registros && prod.registros.length > 0
+        ? prod.registros.reduce((acc, r) => acc + (r.merma || (((r as any).mermaColor ?? r.mermaImpreso ?? 0) + ((r as any).mermaCristal ?? r.mermaSinImpresion ?? 0))), 0)
+        : (prod.merma || (mermaColor + mermaCristal));
+
+      return {
+        ...prod,
+        merma: mermaTotal,
+        mermaColor,
+        mermaCristal,
+      };
+    });
+
     // Calcular totales generales
+    const totalMermaColor = produccionesConMermas.reduce((acc, p) => acc + (p.mermaColor || 0), 0);
+    const totalMermaCristal = produccionesConMermas.reduce((acc, p) => acc + (p.mermaCristal || 0), 0);
+    const totalMerma = resumen.reduce((acc, r) => acc + (r._sum.merma || 0), 0) || (totalMermaColor + totalMermaCristal);
+
     const totales = {
       totalProducido: resumen.reduce((acc, r) => acc + (r._sum.cantidadProducida || 0), 0),
-      totalMerma: resumen.reduce((acc, r) => acc + (r._sum.merma || 0), 0),
+      totalMerma,
+      totalMermaColor,
+      totalMermaCristal,
       totalRegistros: resumen.reduce((acc, r) => acc + r._count, 0),
     };
 
     return NextResponse.json({
-      data: producciones,
+      data: produccionesConMermas,
       total,
       page,
       totalPages: Math.ceil(total / limit),

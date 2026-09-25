@@ -46,6 +46,8 @@ interface RegistroProduccion {
   cantidad: number;
   reporte?: string;
   merma: number;
+  mermaColor?: number;
+  mermaCristal?: number;
   mermaSinImpresion?: number;
   mermaImpreso?: number;
 }
@@ -71,6 +73,8 @@ interface Produccion {
   cantidadProducida: number;
   unidad: string;
   merma: number;
+  mermaColor?: number;
+  mermaCristal?: number;
   finalizadoAt: string;
   maquina: { nombre: string };
   pedido?: {
@@ -91,7 +95,13 @@ export default function HistorialProduccionPage() {
   const [loading, setLoading] = useState(true);
   const [producciones, setProducciones] = useState<Produccion[]>([]);
   const [resumenPorArea, setResumenPorArea] = useState<ResumenArea[]>([]);
-  const [totales, setTotales] = useState({ totalProducido: 0, totalMerma: 0, totalRegistros: 0 });
+  const [totales, setTotales] = useState({ 
+    totalProducido: 0, 
+    totalMerma: 0, 
+    totalMermaColor: 0, 
+    totalMermaCristal: 0, 
+    totalRegistros: 0 
+  });
   const [periodo, setPeriodo] = useState('semana');
   const [filterArea, setFilterArea] = useState('');
   const [fechaInicio, setFechaInicio] = useState('');
@@ -120,7 +130,7 @@ export default function HistorialProduccionPage() {
 
       setProducciones(data.data || []);
       setResumenPorArea(data.resumenPorArea || []);
-      setTotales(data.totales || { totalProducido: 0, totalMerma: 0, totalRegistros: 0 });
+      setTotales(data.totales || { totalProducido: 0, totalMerma: 0, totalMermaColor: 0, totalMermaCristal: 0, totalRegistros: 0 });
       setTotalPages(data.totalPages || 1);
       setFechaInicio(data.fechaInicio || '');
     } catch (error) {
@@ -291,11 +301,16 @@ export default function HistorialProduccionPage() {
               <div className="rounded-lg bg-white/20 p-3">
                 <AlertTriangle className="h-6 w-6" />
               </div>
-              <div>
+              <div className="flex-1">
                 <p className="text-sm text-white/80">Total Merma</p>
                 <p className="text-2xl font-bold">
                   {formatNumber(totales.totalMerma, { minDecimals: 2, maxDecimals: 2 })} kg
                 </p>
+                <div className="mt-1 flex flex-wrap items-center gap-2 text-[11px] font-semibold text-white/90">
+                  <span>Color: <strong>{formatNumber(totales.totalMermaColor, { minDecimals: 2, maxDecimals: 2 })} kg</strong></span>
+                  <span>·</span>
+                  <span>Cristal: <strong>{formatNumber(totales.totalMermaCristal, { minDecimals: 2, maxDecimals: 2 })} kg</strong></span>
+                </div>
               </div>
             </div>
           </motion.div>
@@ -481,40 +496,37 @@ export default function HistorialProduccionPage() {
                                       {prod.area === 'Sellado' ? 'Cantidad (Und)' : 'Cantidad'}
                                     </th>
                                     <th className="px-3 py-2 text-left font-semibold text-gray-700">Reporte</th>
-                                    {requiereMermaSubdividida(prod.area) ? (
-                                      <>
-                                        <th className="px-3 py-2 text-right font-semibold text-gray-700">Merma-1</th>
-                                        <th className="px-3 py-2 text-right font-semibold text-gray-700">Merma-Impreso</th>
-                                      </>) : (
-                                      <th className="px-3 py-2 text-right font-semibold text-gray-700">Merma</th>
-                                    )}
+                                    <th className="px-3 py-2 text-right font-semibold text-purple-700">Merma Color (kg)</th>
+                                    <th className="px-3 py-2 text-right font-semibold text-cyan-700">Merma Cristal (kg)</th>
+                                    <th className="px-3 py-2 text-right font-semibold text-gray-900">Total Merma</th>
                                   </tr>
                                 </thead>
                                 <tbody className="divide-y divide-gray-100">
-                                  {prod.registros.map((reg) => (
-                                    <tr key={reg.id} className="hover:bg-emerald-50/50">
-                                      <td className="px-3 py-2 text-gray-600">{getTurnoLabel(reg.turno)}</td>
-                                      <td className="px-3 py-2 text-gray-600">{formatDayOfWeek(reg.fecha)}</td>
-                                      <td className="px-3 py-2 text-gray-900">{reg.operario}</td>
-                                      <td className="px-3 py-2 text-right font-medium text-gray-900">
-                                        {formatNumber(reg.cantidad, { minDecimals: isUnidades ? 0 : 2, maxDecimals: 2 })}
-                                      </td>
-                                      <td className="px-3 py-2 text-gray-600">{reg.reporte || '-'}</td>
-                                      {requiereMermaSubdividida(prod.area) ? (
-                                        <>
-                                          <td className="px-3 py-2 text-right text-red-600">
-                                            {formatNumber(reg.mermaSinImpresion, { minDecimals: 2, maxDecimals: 2 })}
-                                          </td>
-                                          <td className="px-3 py-2 text-right text-red-600">
-                                            {formatNumber(reg.mermaImpreso, { minDecimals: 2, maxDecimals: 2 })}
-                                          </td>
-                                        </>) : (
-                                        <td className="px-3 py-2 text-right text-red-600">
-                                          {formatNumber(reg.merma, { minDecimals: 2, maxDecimals: 2 })}
+                                  {prod.registros.map((reg) => {
+                                    const regColor = (reg.mermaColor !== undefined && reg.mermaColor !== null) ? reg.mermaColor : (reg.mermaImpreso || 0);
+                                    const regCristal = (reg.mermaCristal !== undefined && reg.mermaCristal !== null) ? reg.mermaCristal : (reg.mermaSinImpresion || 0);
+                                    const regTotal = reg.merma || (regColor + regCristal);
+                                    return (
+                                      <tr key={reg.id} className="hover:bg-emerald-50/50">
+                                        <td className="px-3 py-2 text-gray-600">{getTurnoLabel(reg.turno)}</td>
+                                        <td className="px-3 py-2 text-gray-600">{formatDayOfWeek(reg.fecha)}</td>
+                                        <td className="px-3 py-2 text-gray-900">{reg.operario}</td>
+                                        <td className="px-3 py-2 text-right font-medium text-gray-900">
+                                          {formatNumber(reg.cantidad, { minDecimals: isUnidades ? 0 : 2, maxDecimals: 2 })}
                                         </td>
-                                      )}
-                                    </tr>
-                                  ))}
+                                        <td className="px-3 py-2 text-gray-600">{reg.reporte || '-'}</td>
+                                        <td className="px-3 py-2 text-right font-medium text-purple-700">
+                                          {formatNumber(regColor, { minDecimals: 2, maxDecimals: 2 })}
+                                        </td>
+                                        <td className="px-3 py-2 text-right font-medium text-cyan-700">
+                                          {formatNumber(regCristal, { minDecimals: 2, maxDecimals: 2 })}
+                                        </td>
+                                        <td className="px-3 py-2 text-right font-bold text-red-600">
+                                          {formatNumber(regTotal, { minDecimals: 2, maxDecimals: 2 })}
+                                        </td>
+                                      </tr>
+                                    );
+                                  })}
                                 </tbody>
                                 <tfoot className="border-t-2 border-gray-200 bg-gray-50/80 font-bold">
                                   <tr>
@@ -530,20 +542,15 @@ export default function HistorialProduccionPage() {
                                         </span>
                                       )}
                                     </td>
-                                    {requiereMermaSubdividida(prod.area) ? (
-                                      <>
-                                        <td className="px-3 py-2 text-right text-red-600">
-                                          {formatNumber(prod.registros.reduce((acc, r) => acc + (r.mermaSinImpresion || 0), 0), { minDecimals: 2, maxDecimals: 2 })}
-                                        </td>
-                                        <td className="px-3 py-2 text-right text-red-600">
-                                          {formatNumber(prod.registros.reduce((acc, r) => acc + (r.mermaImpreso || 0), 0), { minDecimals: 2, maxDecimals: 2 })}
-                                        </td>
-                                      </>
-                                    ) : (
-                                      <td className="px-3 py-2 text-right text-red-600">
-                                        {formatNumber(prod.merma, { minDecimals: 2, maxDecimals: 2 })}
-                                      </td>
-                                    )}
+                                    <td className="px-3 py-2 text-right font-bold text-purple-700">
+                                      {formatNumber(prod.registros.reduce((acc, r) => acc + ((r as any).mermaColor ?? r.mermaImpreso ?? 0), 0), { minDecimals: 2, maxDecimals: 2 })}
+                                    </td>
+                                    <td className="px-3 py-2 text-right font-bold text-cyan-700">
+                                      {formatNumber(prod.registros.reduce((acc, r) => acc + ((r as any).mermaCristal ?? r.mermaSinImpresion ?? 0), 0), { minDecimals: 2, maxDecimals: 2 })}
+                                    </td>
+                                    <td className="px-3 py-2 text-right font-bold text-red-600">
+                                      {formatNumber(prod.merma, { minDecimals: 2, maxDecimals: 2 })}
+                                    </td>
                                   </tr>
                                 </tfoot>
                               </table>
@@ -568,10 +575,17 @@ export default function HistorialProduccionPage() {
                       {prod.area === 'Sellado' ? 'unidades' : prod.unidad}
                     </div>
                     <div className="flex flex-wrap items-center gap-3">
-                      <div className="text-sm font-medium text-gray-700">
-                        Merma Total:{' '}
-                        <span className="font-bold text-gray-900">
-                          {formatNumber(prod.merma, { minDecimals: 2, maxDecimals: 2 })} kg
+                      <div className="flex flex-wrap items-center gap-2 bg-white/90 dark:bg-slate-800 px-3 py-1.5 rounded-xl border border-gray-200 text-xs font-semibold">
+                        <span className="text-gray-700">
+                          Total Merma: <strong className="text-gray-900 font-bold">{formatNumber(prod.merma, { minDecimals: 2, maxDecimals: 2 })} kg</strong>
+                        </span>
+                        <span className="text-gray-300">|</span>
+                        <span className="text-purple-700">
+                          Color: <strong>{formatNumber(prod.mermaColor || prod.registros?.reduce((acc, r) => acc + ((r as any).mermaColor ?? r.mermaImpreso ?? 0), 0) || 0, { minDecimals: 2, maxDecimals: 2 })} kg</strong>
+                        </span>
+                        <span className="text-gray-300">|</span>
+                        <span className="text-cyan-700">
+                          Cristal: <strong>{formatNumber(prod.mermaCristal || prod.registros?.reduce((acc, r) => acc + ((r as any).mermaCristal ?? r.mermaSinImpresion ?? 0), 0) || 0, { minDecimals: 2, maxDecimals: 2 })} kg</strong>
                         </span>
                       </div>
                       {desperdicio.tienePorcentaje && desperdicio.porcentaje !== null && (

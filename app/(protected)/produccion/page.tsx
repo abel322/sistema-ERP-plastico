@@ -50,6 +50,8 @@ interface RegistroProduccion {
   cantidad: number;
   reporte?: string;
   merma: number;
+  mermaColor?: number;
+  mermaCristal?: number;
   mermaSinImpresion?: number;
   mermaImpreso?: number;
 }
@@ -63,6 +65,8 @@ interface Produccion {
   cantidadProducida: number;
   unidad: string;
   merma: number;
+  mermaColor?: number;
+  mermaCristal?: number;
   estado: string;
   maquinaId: string;
   pedidoId?: string | null;
@@ -191,9 +195,20 @@ export default function ProduccionPage() {
     cantidad: '',
     reporte: '',
     merma: '0',
+    mermaColor: '0',
+    mermaCristal: '0',
     mermaSinImpresion: '0',
     mermaImpreso: '0',
   });
+
+  const esOrdenImpresa = (prod: Produccion): boolean => {
+    const pc = prod.pedido?.productoCliente || prod.productoCliente;
+    if (pc?.conImpresion) return true;
+    if (prod.pedido?.cliente?.conImpresion) return true;
+    if (prod.stockPrevio?.conImpresion) return true;
+    if (prod.stockPrevio?.area === 'Serigrafia') return true;
+    return false;
+  };
 
   const isAdmin = (session?.user as any)?.rol === 'admin';
 
@@ -284,18 +299,54 @@ export default function ProduccionPage() {
     if (!selectedProduccion) return;
     setSaving(true);
     try {
+      const area = selectedProduccion.area;
+      let payloadMerma = 0;
+      let payloadColor = 0;
+      let payloadCristal = 0;
+
+      if (area === 'Serigrafia' || area === 'Refilado') {
+        payloadColor = parseFloat(registroForm.mermaColor || '0') || 0;
+        payloadCristal = parseFloat(registroForm.mermaCristal || '0') || 0;
+        payloadMerma = payloadColor + payloadCristal;
+      } else if (area === 'Sellado') {
+        const rawVal = parseFloat(registroForm.merma || '0') || 0;
+        payloadMerma = rawVal;
+        if (esOrdenImpresa(selectedProduccion)) {
+          payloadColor = rawVal;
+          payloadCristal = 0;
+        } else {
+          payloadCristal = rawVal;
+          payloadColor = 0;
+        }
+      } else {
+        // Extrusión
+        const rawVal = parseFloat(registroForm.merma || '0') || 0;
+        payloadMerma = rawVal;
+        payloadCristal = rawVal;
+        payloadColor = 0;
+      }
+
+      const payload = {
+        ...registroForm,
+        merma: payloadMerma.toString(),
+        mermaColor: payloadColor.toString(),
+        mermaCristal: payloadCristal.toString(),
+        mermaImpreso: payloadColor.toString(),
+        mermaSinImpresion: payloadCristal.toString(),
+      };
+
       let res;
       if (isEditRegistro && editRegistroId) {
         res = await fetch(`/api/produccion/${selectedProduccion.id}/registros/${editRegistroId}`, {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(registroForm),
+          body: JSON.stringify(payload),
         });
       } else {
         res = await fetch(`/api/produccion/${selectedProduccion.id}/registros`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(registroForm),
+          body: JSON.stringify(payload),
         });
       }
       if (res.ok) {
@@ -419,6 +470,8 @@ export default function ProduccionPage() {
       cantidad: '',
       reporte: '',
       merma: '0',
+      mermaColor: '0',
+      mermaCristal: '0',
       mermaSinImpresion: '0',
       mermaImpreso: '0',
     });
@@ -699,6 +752,18 @@ export default function ProduccionPage() {
                             esOrdenFinalizada: false,
                           });
                           const isUnidades = dv.displayUnit.toLowerCase().startsWith('un') || dv.displayUnit.toLowerCase().startsWith('ud') || prod.area === 'Sellado';
+                          const isSellado = prod.area === 'Sellado';
+                          const isSeriORefilado = prod.area === 'Serigrafia' || prod.area === 'Refilado';
+                          const esImpresa = esOrdenImpresa(prod);
+                          const tipoMermaSellado = esImpresa ? 'Color' : 'Cristal';
+
+                          const mermaColorTotal = prod.registros && prod.registros.length > 0
+                            ? prod.registros.reduce((acc, r) => acc + ((r as any).mermaColor ?? r.mermaImpreso ?? 0), 0)
+                            : ((prod as any).mermaColor || 0);
+
+                          const mermaCristalTotal = prod.registros && prod.registros.length > 0
+                            ? prod.registros.reduce((acc, r) => acc + ((r as any).mermaCristal ?? r.mermaSinImpresion ?? 0), 0)
+                            : ((prod as any).mermaCristal || 0);
                           return (
                             <>
                               <div className="flex items-start justify-between">
@@ -762,36 +827,61 @@ export default function ProduccionPage() {
                                   />
                                 </div>
 
-                                <div className={`flex justify-between items-center mt-2.5 pt-2 border-t transition-colors ${
+                                <div className={`flex flex-col mt-2.5 pt-2 border-t transition-colors ${
                                   desperdicioInfo.semaforo.esAlertaAlta
                                     ? 'border-rose-300 dark:border-rose-900/60 bg-rose-50/70 dark:bg-rose-950/20 -mx-3 px-3 py-1.5 rounded-xl'
                                     : 'border-slate-200/60 dark:border-slate-700/60'
                                 }`}>
-                                  <div className="flex items-center gap-1.5">
-                                    <span className="text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest">
-                                      DESPERDICIO
-                                    </span>
-                                    {desperdicioInfo.semaforo.esAlertaAlta && (
-                                      <span className="px-1.5 py-0.5 rounded text-[8px] font-black uppercase tracking-wider bg-rose-100 dark:bg-rose-900/50 text-rose-700 dark:text-rose-300 border border-rose-200 dark:border-rose-800">
-                                        Merma Alta
+                                  <div className="flex justify-between items-center">
+                                    <div className="flex items-center gap-1.5">
+                                      <span className="text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest">
+                                        DESPERDICIO
                                       </span>
-                                    )}
-                                  </div>
-                                  <span className={`text-xs font-bold leading-none ${desperdicioInfo.semaforo.colorText}`}>
-                                    {formatNumber(prod.merma, { minDecimals: 2, maxDecimals: 2 })}{' '}
-                                    <span className="text-[10px] uppercase">KG</span>
-                                    {desperdicioInfo.esAjusteInicial ? (
-                                      <span className="text-[10px] text-slate-400 dark:text-slate-500 ml-1 font-medium italic">
-                                        ({desperdicioInfo.porcentaje !== null ? `${formatNumber(desperdicioInfo.porcentaje, { minDecimals: 1, maxDecimals: 1 })}% · ` : ''}Ajuste inicial)
-                                      </span>
-                                    ) : (
-                                      desperdicioInfo.tienePorcentaje && desperdicioInfo.porcentaje !== null && (
-                                        <span className="text-[10px] ml-1 font-medium opacity-90">
-                                          ({formatNumber(desperdicioInfo.porcentaje, { minDecimals: 1, maxDecimals: 1 })}%)
+                                      {isSellado && (
+                                        <span className={`px-1.5 py-0.5 rounded text-[8px] font-black uppercase tracking-wider border ${
+                                          esImpresa 
+                                            ? 'bg-purple-50 dark:bg-purple-950/40 text-purple-700 dark:text-purple-300 border-purple-200 dark:border-purple-800' 
+                                            : 'bg-cyan-50 dark:bg-cyan-950/40 text-cyan-700 dark:text-cyan-300 border-cyan-200 dark:border-cyan-800'
+                                        }`}>
+                                          ({tipoMermaSellado})
                                         </span>
-                                      )
-                                    )}
-                                  </span>
+                                      )}
+                                      {desperdicioInfo.semaforo.esAlertaAlta && (
+                                        <span className="px-1.5 py-0.5 rounded text-[8px] font-black uppercase tracking-wider bg-rose-100 dark:bg-rose-900/50 text-rose-700 dark:text-rose-300 border border-rose-200 dark:border-rose-800">
+                                          Merma Alta
+                                        </span>
+                                      )}
+                                    </div>
+                                    <span className={`text-xs font-bold leading-none ${desperdicioInfo.semaforo.colorText}`}>
+                                      {formatNumber(prod.merma, { minDecimals: 2, maxDecimals: 2 })}{' '}
+                                      <span className="text-[10px] uppercase">KG</span>
+                                      {desperdicioInfo.esAjusteInicial ? (
+                                        <span className="text-[10px] text-slate-400 dark:text-slate-500 ml-1 font-medium italic">
+                                          ({desperdicioInfo.porcentaje !== null ? `${formatNumber(desperdicioInfo.porcentaje, { minDecimals: 1, maxDecimals: 1 })}% · ` : ''}Ajuste inicial)
+                                        </span>
+                                      ) : (
+                                        desperdicioInfo.tienePorcentaje && desperdicioInfo.porcentaje !== null && (
+                                          <span className="text-[10px] ml-1 font-medium opacity-90">
+                                            ({formatNumber(desperdicioInfo.porcentaje, { minDecimals: 1, maxDecimals: 1 })}%)
+                                          </span>
+                                        )
+                                      )}
+                                    </span>
+                                  </div>
+
+                                  {isSeriORefilado && (
+                                    <div className="flex justify-between items-center text-[10px] font-semibold text-slate-500 dark:text-slate-400 mt-2 pt-1.5 border-t border-slate-200/50 dark:border-slate-700/50">
+                                      <span className="flex items-center gap-1.5">
+                                        <span className="w-1.5 h-1.5 rounded-full bg-purple-500 shrink-0" />
+                                        Color: <strong className="text-slate-800 dark:text-slate-200 font-bold">{formatNumber(mermaColorTotal, { minDecimals: 2, maxDecimals: 2 })} kg</strong>
+                                      </span>
+                                      <span className="text-slate-300 dark:text-slate-600">|</span>
+                                      <span className="flex items-center gap-1.5">
+                                        <span className="w-1.5 h-1.5 rounded-full bg-cyan-500 shrink-0" />
+                                        Cristal: <strong className="text-slate-800 dark:text-slate-200 font-bold">{formatNumber(mermaCristalTotal, { minDecimals: 2, maxDecimals: 2 })} kg</strong>
+                                      </span>
+                                    </div>
+                                  )}
                                 </div>
                               </div>
 
@@ -1077,30 +1167,108 @@ export default function ProduccionPage() {
                   />
                 </div>
 
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">Cantidad Producida</label>
-                    <div className="relative">
-                      <input
-                        type="number"
-                        required
-                        min="0"
-                        step="0.01"
-                        value={registroForm.cantidad}
-                        onChange={(e) => setRegistroForm({ ...registroForm, cantidad: e.target.value })}
-                        className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl px-5 py-3 text-sm font-black text-slate-900 dark:text-white focus:ring-2 focus:ring-indigo-500 outline-none transition-all"
-                      />
-                      <span className="absolute right-5 top-1/2 -translate-y-1/2 text-[10px] font-black text-slate-400 uppercase">{selectedProduccion.unidad === 'Kilogramos' ? 'KG' : 'UND'}</span>
+                {/* Cantidad Producida */}
+                <div>
+                  <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">Cantidad Producida</label>
+                  <div className="relative">
+                    <input
+                      type="number"
+                      required
+                      min="0"
+                      step="0.01"
+                      value={registroForm.cantidad}
+                      onChange={(e) => setRegistroForm({ ...registroForm, cantidad: e.target.value })}
+                      className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl px-5 py-3 text-sm font-black text-slate-900 dark:text-white focus:ring-2 focus:ring-indigo-500 outline-none transition-all"
+                    />
+                    <span className="absolute right-5 top-1/2 -translate-y-1/2 text-[10px] font-black text-slate-400 uppercase">{selectedProduccion.unidad === 'Kilogramos' ? 'KG' : 'UND'}</span>
+                  </div>
+                </div>
+
+                {/* Desperdicio / Scrap Input por Área */}
+                {selectedProduccion.area === 'Serigrafia' || selectedProduccion.area === 'Refilado' ? (
+                  <div className="space-y-4 pt-1">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <div>
+                        <div className="flex items-center justify-between mb-2 ml-1">
+                          <label className="text-[10px] font-black text-purple-600 dark:text-purple-400 uppercase tracking-widest flex items-center gap-1.5">
+                            <span className="w-2 h-2 rounded-full bg-purple-500" />
+                            Desp. Color (kg)
+                          </label>
+                          <span className="text-[9px] font-bold text-slate-400">Impreso</span>
+                        </div>
+                        <div className="relative">
+                          <input
+                            type="number"
+                            min="0"
+                            step="0.01"
+                            placeholder="0.00"
+                            value={registroForm.mermaColor}
+                            onChange={(e) => setRegistroForm({ ...registroForm, mermaColor: e.target.value })}
+                            className="w-full bg-slate-50 dark:bg-slate-800 border border-purple-200 dark:border-purple-900/50 rounded-2xl px-5 py-3 text-sm font-black text-slate-900 dark:text-white focus:ring-2 focus:ring-purple-500 outline-none transition-all"
+                          />
+                          <span className="absolute right-5 top-1/2 -translate-y-1/2 text-[10px] font-black text-purple-400 uppercase">KG</span>
+                        </div>
+                      </div>
+
+                      <div>
+                        <div className="flex items-center justify-between mb-2 ml-1">
+                          <label className="text-[10px] font-black text-cyan-600 dark:text-cyan-400 uppercase tracking-widest flex items-center gap-1.5">
+                            <span className="w-2 h-2 rounded-full bg-cyan-500" />
+                            Desp. Cristal / Blanco (kg)
+                          </label>
+                          <span className="text-[9px] font-bold text-slate-400">Limpia</span>
+                        </div>
+                        <div className="relative">
+                          <input
+                            type="number"
+                            min="0"
+                            step="0.01"
+                            placeholder="0.00"
+                            value={registroForm.mermaCristal}
+                            onChange={(e) => setRegistroForm({ ...registroForm, mermaCristal: e.target.value })}
+                            className="w-full bg-slate-50 dark:bg-slate-800 border border-cyan-200 dark:border-cyan-900/50 rounded-2xl px-5 py-3 text-sm font-black text-slate-900 dark:text-white focus:ring-2 focus:ring-cyan-500 outline-none transition-all"
+                          />
+                          <span className="absolute right-5 top-1/2 -translate-y-1/2 text-[10px] font-black text-cyan-400 uppercase">KG</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="p-3 bg-slate-50 dark:bg-slate-800/60 rounded-xl border border-slate-100 dark:border-slate-800 flex items-center justify-between">
+                      <span className="font-bold text-slate-500 dark:text-slate-400 text-[10px] uppercase tracking-wider">
+                        Total Desperdicio del Turno:
+                      </span>
+                      <span className="font-black text-slate-900 dark:text-white text-xs">
+                        {formatNumber((parseFloat(registroForm.mermaColor || '0') || 0) + (parseFloat(registroForm.mermaCristal || '0') || 0), { minDecimals: 2, maxDecimals: 2 })} KG
+                      </span>
                     </div>
                   </div>
-
+                ) : (
                   <div>
-                    <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">Desperdicio (Merma)</label>
+                    <div className="flex items-center justify-between mb-2 ml-1">
+                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                        Desp. Total (kg)
+                      </label>
+                      {selectedProduccion.area === 'Sellado' && (
+                        <span className={`text-[9px] font-bold px-2 py-0.5 rounded-full border ${
+                          esOrdenImpresa(selectedProduccion)
+                            ? 'bg-purple-50 dark:bg-purple-950/40 text-purple-700 dark:text-purple-300 border-purple-200 dark:border-purple-800'
+                            : 'bg-cyan-50 dark:bg-cyan-950/40 text-cyan-700 dark:text-cyan-300 border-cyan-200 dark:border-cyan-800'
+                        }`}>
+                          {esOrdenImpresa(selectedProduccion) ? '→ Asigna a Merma Color' : '→ Asigna a Merma Cristal'}
+                        </span>
+                      )}
+                      {selectedProduccion.area === 'Extrusion' && (
+                        <span className="text-[9px] font-bold px-2 py-0.5 rounded-full border bg-cyan-50 dark:bg-cyan-950/40 text-cyan-700 dark:text-cyan-300 border-cyan-200 dark:border-cyan-800">
+                          → Asigna a Merma Cristal
+                        </span>
+                      )}
+                    </div>
                     <div className="relative">
                       <input
                         type="number"
                         min="0"
                         step="0.01"
+                        placeholder="0.00"
                         value={registroForm.merma}
                         onChange={(e) => setRegistroForm({ ...registroForm, merma: e.target.value })}
                         className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl px-5 py-3 text-sm font-black text-slate-900 dark:text-white focus:ring-2 focus:ring-indigo-500 outline-none transition-all"
@@ -1108,7 +1276,7 @@ export default function ProduccionPage() {
                       <span className="absolute right-5 top-1/2 -translate-y-1/2 text-[10px] font-black text-slate-400 uppercase">KG</span>
                     </div>
                   </div>
-                </div>
+                )}
 
                 <div className="flex gap-4 pt-4">
                   <button
@@ -1179,8 +1347,24 @@ export default function ProduccionPage() {
                           {formatNumber(reg.cantidad, { minDecimals: selectedProduccion.unidad === 'Kilogramos' ? 2 : 0, maxDecimals: 2 })}
                         </td>
                         <td className="px-6 py-4 text-right text-xs font-black text-slate-900 dark:text-white">
-                          {formatNumber(reg.merma, { minDecimals: 2, maxDecimals: 2 })}{' '}
-                          <span className="text-[10px] opacity-60">KG</span>
+                          <div>
+                            {formatNumber(reg.merma || ((reg.mermaColor || reg.mermaImpreso || 0) + (reg.mermaCristal || reg.mermaSinImpresion || 0)), { minDecimals: 2, maxDecimals: 2 })}{' '}
+                            <span className="text-[10px] opacity-60">KG</span>
+                          </div>
+                          {(selectedProduccion.area === 'Serigrafia' || selectedProduccion.area === 'Refilado') && (
+                            <div className="text-[9px] font-bold mt-0.5">
+                              <span className="text-purple-600 dark:text-purple-400">Col: {formatNumber(reg.mermaColor || reg.mermaImpreso || 0, { minDecimals: 2, maxDecimals: 2 })}</span>
+                              <span className="text-slate-300 dark:text-slate-600 mx-1">|</span>
+                              <span className="text-cyan-600 dark:text-cyan-400">Cri: {formatNumber(reg.mermaCristal || reg.mermaSinImpresion || 0, { minDecimals: 2, maxDecimals: 2 })}</span>
+                            </div>
+                          )}
+                          {selectedProduccion.area === 'Sellado' && (
+                            <div className="text-[9px] font-bold mt-0.5">
+                              <span className={esOrdenImpresa(selectedProduccion) ? 'text-purple-600 dark:text-purple-400' : 'text-cyan-600 dark:text-cyan-400'}>
+                                ({esOrdenImpresa(selectedProduccion) ? 'Color' : 'Cristal'})
+                              </span>
+                            </div>
+                          )}
                         </td>
                         <td className="px-6 py-4">
                           <div className="flex justify-center gap-2">
@@ -1188,15 +1372,20 @@ export default function ProduccionPage() {
                               onClick={() => {
                                 setIsEditRegistro(true);
                                 setEditRegistroId(reg.id);
+                                const colorVal = reg.mermaColor !== undefined && reg.mermaColor !== null ? reg.mermaColor : (reg.mermaImpreso || 0);
+                                const cristalVal = reg.mermaCristal !== undefined && reg.mermaCristal !== null ? reg.mermaCristal : (reg.mermaSinImpresion || 0);
+                                const totalVal = reg.merma || (colorVal + cristalVal);
                                 setRegistroForm({
                                   turno: reg.turno,
                                   fecha: reg.fecha ? reg.fecha.split('T')[0] : today,
                                   operario: reg.operario,
                                   cantidad: reg.cantidad.toString(),
                                   reporte: reg.reporte || '',
-                                  merma: reg.merma.toString(),
-                                  mermaSinImpresion: reg.mermaSinImpresion?.toString() || '0',
-                                  mermaImpreso: reg.mermaImpreso?.toString() || '0',
+                                  merma: totalVal.toString(),
+                                  mermaColor: colorVal.toString(),
+                                  mermaCristal: cristalVal.toString(),
+                                  mermaSinImpresion: cristalVal.toString(),
+                                  mermaImpreso: colorVal.toString(),
                                 });
                                 setShowRegistrosListModal(false);
                                 setShowRegistroModal(true);

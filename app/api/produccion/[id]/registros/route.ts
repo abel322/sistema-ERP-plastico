@@ -24,14 +24,18 @@ export async function GET(
       orderBy: { fecha: 'desc' },
     });
 
-    // Calcular total de cantidad
+    // Calcular total de cantidad y mermas
     const totalCantidad = registros.reduce((sum, r) => sum + r.cantidad, 0);
     const totalMerma = registros.reduce((sum, r) => sum + r.merma, 0);
+    const totalMermaColor = registros.reduce((sum, r) => sum + ((r as any).mermaColor ?? r.mermaImpreso ?? 0), 0);
+    const totalMermaCristal = registros.reduce((sum, r) => sum + ((r as any).mermaCristal ?? r.mermaSinImpresion ?? 0), 0);
 
     return NextResponse.json({
       registros,
       totalCantidad,
       totalMerma,
+      totalMermaColor,
+      totalMermaCristal,
     });
   } catch (error) {
     console.error('Error al obtener registros:', error);
@@ -58,6 +62,8 @@ export async function POST(
       cantidad,
       reporte,
       merma,
+      mermaColor,
+      mermaCristal,
       mermaSinImpresion,
       mermaImpreso,
     } = body;
@@ -80,6 +86,52 @@ export async function POST(
       return NextResponse.json({ error: 'Producción no encontrada' }, { status: 404 });
     }
 
+    // Clasificación y segregación de desperdicio según área
+    let finalMermaColor = 0;
+    let finalMermaCristal = 0;
+    let finalMerma = 0;
+
+    const area = produccion.area;
+    if (area === 'Serigrafia' || area === 'Refilado') {
+      finalMermaColor = mermaColor !== undefined 
+        ? (parseFloat(mermaColor?.toString() || '0') || 0)
+        : (parseFloat(mermaImpreso?.toString() || '0') || 0);
+
+      finalMermaCristal = mermaCristal !== undefined
+        ? (parseFloat(mermaCristal?.toString() || '0') || 0)
+        : (parseFloat(mermaSinImpresion?.toString() || '0') || 0);
+
+      finalMerma = finalMermaColor + finalMermaCristal;
+    } else if (area === 'Sellado') {
+      const rawMerma = merma !== undefined 
+        ? (parseFloat(merma?.toString() || '0') || 0)
+        : ((parseFloat(mermaColor?.toString() || '0') || 0) + (parseFloat(mermaCristal?.toString() || '0') || 0));
+
+      const conImpresion = Boolean(
+        produccion.pedido?.productoCliente?.conImpresion ||
+        produccion.productoCliente?.conImpresion ||
+        (produccion.pedido?.cliente as any)?.conImpresion
+      );
+
+      if (conImpresion) {
+        finalMermaColor = rawMerma;
+        finalMermaCristal = 0;
+      } else {
+        finalMermaCristal = rawMerma;
+        finalMermaColor = 0;
+      }
+      finalMerma = rawMerma;
+    } else {
+      // Extrusión o default
+      const rawMerma = merma !== undefined 
+        ? (parseFloat(merma?.toString() || '0') || 0)
+        : ((parseFloat(mermaColor?.toString() || '0') || 0) + (parseFloat(mermaCristal?.toString() || '0') || 0));
+
+      finalMermaCristal = rawMerma;
+      finalMermaColor = 0;
+      finalMerma = rawMerma;
+    }
+
     // Crear registro
     const registro = await prisma.registroProduccion.create({
       data: {
@@ -89,10 +141,12 @@ export async function POST(
         operario,
         cantidad: parseFloat(cantidad.toString()),
         reporte: reporte || null,
-        merma: merma ? parseFloat(merma.toString()) : 0,
-        mermaSinImpresion: mermaSinImpresion ? parseFloat(mermaSinImpresion.toString()) : null,
-        mermaImpreso: mermaImpreso ? parseFloat(mermaImpreso.toString()) : null,
-      },
+        merma: finalMerma,
+        mermaColor: finalMermaColor,
+        mermaCristal: finalMermaCristal,
+        mermaSinImpresion: finalMermaCristal,
+        mermaImpreso: finalMermaColor,
+      } as any,
     });
 
     // Actualizar cantidad total en la producción
@@ -101,13 +155,17 @@ export async function POST(
     });
     const totalCantidad = todosRegistros.reduce((sum, r) => sum + r.cantidad, 0);
     const totalMerma = todosRegistros.reduce((sum, r) => sum + r.merma, 0);
+    const totalMermaColor = todosRegistros.reduce((sum, r) => sum + ((r as any).mermaColor ?? r.mermaImpreso ?? 0), 0);
+    const totalMermaCristal = todosRegistros.reduce((sum, r) => sum + ((r as any).mermaCristal ?? r.mermaSinImpresion ?? 0), 0);
 
     await prisma.produccion.update({
       where: { id },
       data: {
         cantidadProducida: totalCantidad,
         merma: totalMerma,
-      },
+        mermaColor: totalMermaColor,
+        mermaCristal: totalMermaCristal,
+      } as any,
     });
 
     // Actualizar o crear ProductoTerminado dinámicamente ("En proceso")
@@ -175,10 +233,6 @@ export async function POST(
         if (previo) {
           let consumido = 0;
           const cantidadAgregada = parseFloat(cantidad.toString());
-          const mermaAgregada = merma ? parseFloat(merma.toString()) : 0;
-          const mermaAgregada_2 = mermaSinImpresion ? parseFloat(mermaSinImpresion.toString()) : 0;
-          const mermaAgregada_3 = mermaImpreso ? parseFloat(mermaImpreso.toString()) : 0;
-
           const esBolsaSellado = tipoProducto === 'Bolsa' && produccion.area === 'Sellado';
           const esProduccionDeKg = previo.areaOrigen === 'Extrusion' || previo.areaOrigen === 'Serigrafia' || previo.areaOrigen === 'Refilado';
 
@@ -193,9 +247,6 @@ export async function POST(
             const anchoFuelle = prodCli?.anchoFuelle ?? (cliente as any)?.anchoFuelle;
             const anchoSolapa = prodCli?.anchoSolapa ?? (cliente as any)?.anchoSolapa;
             const pesoPorUnidad = prodCli?.pesoPorUnidad ?? (cliente as any)?.pesoPorUnidad ?? 0;
-
-            // Sumamos todas las mermas que se generaron en este registro
-            const mermasTotales = mermaAgregada + mermaAgregada_2 + mermaAgregada_3;
 
             // Determinar densidad basada en el material
             let densidad = 0.922; // Por defecto (baja densidad)
@@ -233,10 +284,10 @@ export async function POST(
               pesoTotal = (pesoPorUnidad * cantidadAgregada * densidad) / 1000;
             }
 
-            consumido = pesoTotal + mermasTotales;
-            console.log(`Total consumido: ${consumido.toFixed(3)}kg (Producción: ${pesoTotal.toFixed(3)}kg + Mermas: ${mermasTotales}kg)`);
+            consumido = pesoTotal + finalMerma;
+            console.log(`Total consumido: ${consumido.toFixed(3)}kg (Producción: ${pesoTotal.toFixed(3)}kg + Merma: ${finalMerma}kg)`);
           } else {
-            consumido = cantidadAgregada + mermaAgregada + mermaAgregada_2 + mermaAgregada_3;
+            consumido = cantidadAgregada + finalMerma;
           }
 
           console.log(`Deduciendo ${consumido} del producto previo ID: ${previo.id}`);

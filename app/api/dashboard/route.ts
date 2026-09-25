@@ -117,6 +117,26 @@ export async function GET() {
       _count: true,
     });
 
+    // Desperdicio segregado (Color vs Cristal/Blanco)
+    const [desperdicioRegistrosHoy, desperdicioRegistrosTotal] = await Promise.all([
+      prisma.registroProduccion.aggregate({
+        where: { produccion: { userId }, fecha: { gte: inicioHoy } },
+        _sum: { merma: true, mermaColor: true, mermaCristal: true, mermaImpreso: true, mermaSinImpresion: true } as any,
+      }),
+      prisma.registroProduccion.aggregate({
+        where: { produccion: { userId } },
+        _sum: { merma: true, mermaColor: true, mermaCristal: true, mermaImpreso: true, mermaSinImpresion: true } as any,
+      }),
+    ]);
+
+    const mermaColorHoy = Number((desperdicioRegistrosHoy._sum as any)?.mermaColor || (desperdicioRegistrosHoy._sum as any)?.mermaImpreso || 0);
+    const mermaCristalHoy = Number((desperdicioRegistrosHoy._sum as any)?.mermaCristal || (desperdicioRegistrosHoy._sum as any)?.mermaSinImpresion || 0);
+    const mermaHoy = Number((produccionHoy._sum.merma || 0) || (desperdicioRegistrosHoy._sum as any)?.merma || (mermaColorHoy + mermaCristalHoy));
+
+    const totalMermaColorAcumulada = Number((desperdicioRegistrosTotal._sum as any)?.mermaColor || (desperdicioRegistrosTotal._sum as any)?.mermaImpreso || 0);
+    const totalMermaCristalAcumulada = Number((desperdicioRegistrosTotal._sum as any)?.mermaCristal || (desperdicioRegistrosTotal._sum as any)?.mermaSinImpresion || 0);
+    const totalMermaAcumulada = Number((desperdicioRegistrosTotal._sum as any)?.merma || (totalMermaColorAcumulada + totalMermaCristalAcumulada));
+
     // Producción por área del día
     const produccionPorArea = await prisma.produccion.groupBy({
       by: ['area'],
@@ -246,7 +266,12 @@ export async function GET() {
         pedidosCompletadosMes,
         pedidosUrgentes,
         produccionHoy: produccionHoy._sum.cantidadProducida || 0,
-        mermaHoy: produccionHoy._sum.merma || 0,
+        mermaHoy,
+        mermaColorHoy,
+        mermaCristalHoy,
+        totalMermaAcumulada,
+        totalMermaColorAcumulada,
+        totalMermaCristalAcumulada,
         registrosProduccionHoy: produccionHoy._count,
         despachosHoy,
         despachosPendientes,

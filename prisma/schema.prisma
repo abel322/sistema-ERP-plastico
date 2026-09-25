@@ -586,6 +586,8 @@ model Produccion {
   cantidadProducida Float
   unidad            UnidadVenta
   merma             Float             @default(0)
+  mermaColor        Float             @default(0)
+  mermaCristal      Float             @default(0)
   horaInicio        String?
   horaFin           String?
   observaciones     String?
@@ -620,6 +622,8 @@ model RegistroProduccion {
   cantidad            Float
   reporte             String?
   merma               Float     @default(0)
+  mermaColor          Float     @default(0)
+  mermaCristal        Float     @default(0)
   mermaSinImpresion   Float?
   mermaImpreso        Float?
   createdAt           DateTime  @default(now())
