@@ -48,7 +48,10 @@ export async function GET(request: Request) {
         where,
         include: {
           maquina: true,
-          pedido: { include: { cliente: true } },
+          pedido: {
+            include: { cliente: true, productoCliente: true },
+          },
+          productoCliente: true,
           registros: {
             orderBy: { fecha: 'asc' },
           },

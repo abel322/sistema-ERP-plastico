@@ -25,6 +25,7 @@ import {
 } from 'lucide-react';
 import { formatNumber } from '@/lib/utils';
 import { calculateBagWeight, getPlasticDensity } from '@/lib/utils/bag-weight';
+import { calcularDesperdicioInfo } from '@/lib/utils/merma';
 
 const AREAS = [
   { value: 'Extrusion', label: 'Extrusión' },
@@ -557,83 +558,6 @@ export default function ProduccionPage() {
     return { targetAmount, displayTotal: totalProducido, displayUnit, isCompleted: targetAmount > 0 && totalProducido >= targetAmount, originalTargetAmount, originalDisplayUnit };
   };
 
-  const calcularDesperdicioInfo = (
-    prod: Produccion,
-    dv: { displayTotal: number; displayUnit: string }
-  ) => {
-    const isUnidades =
-      dv.displayUnit.toLowerCase().startsWith('un') ||
-      dv.displayUnit.toLowerCase().startsWith('ud') ||
-      prod.area === 'Sellado';
-    const pc = prod.pedido?.productoCliente || prod.productoCliente;
-
-    if (isUnidades) {
-      let pesoUnitarioKg = 0;
-      if (pc?.pesoPorUnidad && pc.pesoPorUnidad > 0) {
-        pesoUnitarioKg = pc.pesoPorUnidad / 1000;
-      } else if (pc?.ancho && pc?.largo && pc?.calibre) {
-        const densidad = getPlasticDensity(pc.material);
-        const pesoGramos = calculateBagWeight({
-          tipoBolsa:
-            pc.anchoValvula && pc.anchoValvula > 0
-              ? 'valvula'
-              : pc.anchoFuelle && pc.anchoFuelle > 0
-              ? 'fuelle'
-              : 'sencilla',
-          ancho: pc.ancho,
-          largo: pc.largo,
-          calibre: pc.calibre,
-          fuelle: pc.anchoFuelle,
-          solapa: pc.anchoSolapa,
-          densidad,
-        });
-        if (pesoGramos > 0) {
-          pesoUnitarioKg = pesoGramos / 1000;
-        }
-      }
-
-      if (pesoUnitarioKg > 0) {
-        const kilosEquivalentesProducidos = dv.displayTotal * pesoUnitarioKg;
-        const masaTotalConsumida = kilosEquivalentesProducidos + (prod.merma || 0);
-        if (masaTotalConsumida > 0) {
-          const porcentaje = ((prod.merma || 0) / masaTotalConsumida) * 100;
-          return {
-            tienePorcentaje: true,
-            porcentaje,
-            kilosEquivalentesProducidos,
-            isUnidades: true,
-          };
-        }
-        return {
-          tienePorcentaje: true,
-          porcentaje: 0,
-          kilosEquivalentesProducidos: 0,
-          isUnidades: true,
-        };
-      }
-
-      // Si la unidad es UND pero no se tiene registro de peso unitario para convertir piezas a kg,
-      // se omite el porcentaje erróneo para evitar confusiones al operario.
-      return {
-        tienePorcentaje: false,
-        porcentaje: null,
-        kilosEquivalentesProducidos: null,
-        isUnidades: true,
-      };
-    } else {
-      // Área que produce en KG (Extrusión, etc.)
-      const masaTotal = dv.displayTotal + (prod.merma || 0);
-      const porcentaje =
-        masaTotal > 0 ? ((prod.merma || 0) / masaTotal) * 100 : 0;
-      return {
-        tienePorcentaje: true,
-        porcentaje,
-        kilosEquivalentesProducidos: dv.displayTotal,
-        isUnidades: false,
-      };
-    }
-  };
-
   if (loading) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[60vh] bg-slate-50 dark:bg-slate-950 transition-colors">
@@ -765,7 +689,15 @@ export default function ProduccionPage() {
                       >
                         {(() => {
                           const dv = getDisplayValues(prod, totalProducido);
-                          const desperdicioInfo = calcularDesperdicioInfo(prod, dv);
+                          const desperdicioInfo = calcularDesperdicioInfo({
+                            area: prod.area,
+                            merma: prod.merma,
+                            producido: dv.displayTotal,
+                            unidad: dv.displayUnit,
+                            targetAmount: dv.targetAmount,
+                            productoCliente: prod.pedido?.productoCliente || prod.productoCliente,
+                            esOrdenFinalizada: false,
+                          });
                           const isUnidades = dv.displayUnit.toLowerCase().startsWith('un') || dv.displayUnit.toLowerCase().startsWith('ud') || prod.area === 'Sellado';
                           return (
                             <>
@@ -830,17 +762,34 @@ export default function ProduccionPage() {
                                   />
                                 </div>
 
-                                <div className="flex justify-between items-center mt-2.5 pt-2 border-t border-slate-200/60 dark:border-slate-700/60">
-                                  <span className="text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest">
-                                    DESPERDICIO
-                                  </span>
-                                  <span className="text-xs font-bold text-rose-500 dark:text-rose-400 leading-none">
+                                <div className={`flex justify-between items-center mt-2.5 pt-2 border-t transition-colors ${
+                                  desperdicioInfo.semaforo.esAlertaAlta
+                                    ? 'border-rose-300 dark:border-rose-900/60 bg-rose-50/70 dark:bg-rose-950/20 -mx-3 px-3 py-1.5 rounded-xl'
+                                    : 'border-slate-200/60 dark:border-slate-700/60'
+                                }`}>
+                                  <div className="flex items-center gap-1.5">
+                                    <span className="text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest">
+                                      DESPERDICIO
+                                    </span>
+                                    {desperdicioInfo.semaforo.esAlertaAlta && (
+                                      <span className="px-1.5 py-0.5 rounded text-[8px] font-black uppercase tracking-wider bg-rose-100 dark:bg-rose-900/50 text-rose-700 dark:text-rose-300 border border-rose-200 dark:border-rose-800">
+                                        Merma Alta
+                                      </span>
+                                    )}
+                                  </div>
+                                  <span className={`text-xs font-bold leading-none ${desperdicioInfo.semaforo.colorText}`}>
                                     {formatNumber(prod.merma, { minDecimals: 2, maxDecimals: 2 })}{' '}
                                     <span className="text-[10px] uppercase">KG</span>
-                                    {desperdicioInfo.tienePorcentaje && desperdicioInfo.porcentaje !== null && (
-                                      <span className="text-[10px] text-rose-400/90 ml-1 font-medium">
-                                        ({formatNumber(desperdicioInfo.porcentaje, { minDecimals: 1, maxDecimals: 1 })}%)
+                                    {desperdicioInfo.esAjusteInicial ? (
+                                      <span className="text-[10px] text-slate-400 dark:text-slate-500 ml-1 font-medium italic">
+                                        ({desperdicioInfo.porcentaje !== null ? `${formatNumber(desperdicioInfo.porcentaje, { minDecimals: 1, maxDecimals: 1 })}% · ` : ''}Ajuste inicial)
                                       </span>
+                                    ) : (
+                                      desperdicioInfo.tienePorcentaje && desperdicioInfo.porcentaje !== null && (
+                                        <span className="text-[10px] ml-1 font-medium opacity-90">
+                                          ({formatNumber(desperdicioInfo.porcentaje, { minDecimals: 1, maxDecimals: 1 })}%)
+                                        </span>
+                                      )
                                     )}
                                   </span>
                                 </div>
