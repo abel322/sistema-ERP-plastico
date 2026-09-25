@@ -35,6 +35,7 @@ import {
   getCompatibleProductsAndOrders,
   getMaquinaStats,
 } from '@/app/actions/maquinas';
+import { isProductCompatibleWithMachine } from '@/lib/utils/maquinas';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import { Badge } from '@/components/ui/badge';
 import { Bar, Line } from 'react-chartjs-2';

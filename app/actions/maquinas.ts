@@ -5,6 +5,7 @@ import { getServerSession } from 'next-auth';
 import { prisma } from '@/lib/db';
 import { authOptions } from '@/lib/auth-options';
 import { TipoMaquina, EstadoMaquina, AreaProduccion } from '@prisma/client';
+import { isProductCompatibleWithMachine } from '@/lib/utils/maquinas';
 
 async function requireAuth() {
   const session = await getServerSession(authOptions);
@@ -150,91 +151,6 @@ export async function deleteMaquina(id: string) {
     console.error(`Error al eliminar máquina ${id}:`, error);
     throw new Error('Error al eliminar máquina: ' + error.message);
   }
-}
-
-export function isProductCompatibleWithMachine(producto: any, maquina: any): boolean {
-  if (!producto || !maquina) return false;
-
-  const mNom = (maquina.nombre || '').trim().toLowerCase();
-  const mNumMatch = mNom.match(/\d+/);
-  const mNum = mNumMatch ? parseInt(mNumMatch[0], 10) : null;
-
-  if (maquina.tipo === 'Extrusora' || mNom.includes('extrusora')) {
-    // 1. Asignación explícita en extMaquinaExtrusora
-    if (producto.extMaquinaExtrusora !== null && producto.extMaquinaExtrusora !== undefined) {
-      const pExtStr = String(producto.extMaquinaExtrusora).trim().toLowerCase();
-      if (pExtStr === mNom) return true;
-
-      const pNum = parseInt(pExtStr.replace(/\D/g, ''), 10);
-      if (!isNaN(pNum) && mNum !== null) {
-        return pNum === mNum;
-      }
-      return false; // Asignado explícitamente a otra máquina extrusora
-    }
-
-    // 2. Relación directa many-to-many en maquinasCompatibles
-    if (producto.maquinasCompatibles && Array.isArray(producto.maquinasCompatibles)) {
-      if (producto.maquinasCompatibles.some((mc: any) => mc.id === maquina.id || (mc.nombre && mc.nombre.trim().toLowerCase() === mNom))) {
-        return true;
-      }
-    }
-
-    // 3. Compatibilidad física según diametroCabezal requerido por la bobina frente al cabezal/límite de la extrusora
-    if (producto.tipoProducto === 'Bobina') {
-      const cabezal = producto.extDiametroCabezal || producto.anchoBobina || producto.ancho;
-      if (cabezal && cabezal > 0) {
-        if (mNum === 1) {
-          // Extrusora 1: bobinas pequeñas (<= 60mm)
-          return cabezal <= 60;
-        }
-        if (mNum === 5) {
-          // Extrusora 5: bobinas ultra pequeñas (<= 50mm)
-          return cabezal <= 50;
-        }
-        if (mNum === 6) {
-          // Extrusora 6: bobinas medianas (61mm a 110mm)
-          return cabezal > 60 && cabezal <= 110;
-        }
-        if (mNum === 2 || mNum === 3) {
-          // Extrusoras 2 y 3: bobinas medianas-grandes (111mm a 120mm)
-          return cabezal > 110 && cabezal <= 120;
-        }
-        if (mNum === 4) {
-          // Extrusora 4: bobinas de gran ancho (> 120mm)
-          return cabezal > 120 && cabezal <= 150;
-        }
-        // Fallback genérico para extrusoras sin número en el nombre
-        if (maquina.anchoMaximoMm > 0) {
-          return cabezal <= maquina.anchoMaximoMm;
-        }
-      }
-    }
-
-    return false;
-  } else if (maquina.tipo === 'Selladora') {
-    if (producto.tipoProducto !== 'Bolsa') return false;
-    if (maquina.anchoMaximoMm > 0) {
-      const ancho = producto.ancho || 0;
-      return ancho <= maquina.anchoMaximoMm;
-    }
-    return true;
-  } else if (maquina.tipo === 'Impresora') {
-    if (!producto.conImpresion) return false;
-    if (maquina.anchoMaximoMm > 0) {
-      const ancho = producto.anchoBobina || producto.ancho || 0;
-      return ancho <= maquina.anchoMaximoMm;
-    }
-    return true;
-  } else if (maquina.tipo === 'Refiladora') {
-    if (!producto.tipoRefilado && producto.tipoProducto !== 'Bobina') return false;
-    if (maquina.anchoMaximoMm > 0) {
-      const ancho = producto.anchoBobina || producto.ancho || 0;
-      return ancho <= maquina.anchoMaximoMm;
-    }
-    return true;
-  }
-
-  return true;
 }
 
 export async function getCompatibleProductsAndOrders(maquinaId: string) {
