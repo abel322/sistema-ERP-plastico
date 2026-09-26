@@ -14,7 +14,7 @@ export function Header({ onMenuClick }: HeaderProps) {
   const { data: session } = useSession() || {};
 
   return (
-    <header className="flex h-16 items-center justify-between border-b bg-white dark:bg-slate-900 dark:border-slate-800 px-4 shadow-sm sm:px-6 lg:px-8 transition-colors duration-300">
+    <header className="sticky top-0 z-40 flex h-16 items-center justify-between border-b border-slate-200 bg-white/80 dark:bg-slate-900/80 backdrop-blur-md dark:border-slate-800 px-4 shadow-sm sm:px-6 lg:px-8 transition-colors duration-300">
       <div className="flex items-center gap-3">
         {/* Botón menú móvil - solo visible en pantallas pequeñas */}
         <button
