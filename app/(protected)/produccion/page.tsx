@@ -773,6 +773,26 @@ export default function ProduccionPage() {
                           const mermaCristalTotal = prod.registros && prod.registros.length > 0
                             ? prod.registros.reduce((acc, r) => acc + ((r as any).mermaCristal ?? r.mermaSinImpresion ?? 0), 0)
                             : ((prod as any).mermaCristal || 0);
+
+                          let pesoBolsaKg = 0;
+                          let mostrarBolsasEstimadas = false;
+                          let bolsasEstimadas = 0;
+                          if (isSellado) {
+                            const esUnidadesPedido = prod.pedido?.unidad === 'Unidades' || (dv.originalDisplayUnit && (dv.originalDisplayUnit.toLowerCase().startsWith('unid') || dv.originalDisplayUnit.toLowerCase().startsWith('uds') || dv.originalDisplayUnit.toLowerCase().startsWith('und')));
+                            if (esUnidadesPedido) {
+                              const productoC = prod.pedido?.productoCliente || prod.productoCliente;
+                              if (productoC?.pesoPorUnidad) {
+                                pesoBolsaKg = productoC.pesoPorUnidad / 1000;
+                              } else if (dv.targetAmount > 0 && dv.originalTargetAmount && dv.originalTargetAmount > 0) {
+                                pesoBolsaKg = dv.targetAmount / dv.originalTargetAmount;
+                              }
+                              if (pesoBolsaKg > 0 && prod.stockPrevio?.cantidad) {
+                                mostrarBolsasEstimadas = true;
+                                bolsasEstimadas = Math.floor(prod.stockPrevio.cantidad / pesoBolsaKg);
+                              }
+                            }
+                          }
+
                           return (
                             <>
                               <div className="flex items-start justify-between">
@@ -918,9 +938,16 @@ export default function ProduccionPage() {
                                     <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">
                                       STOCK PREVIO {prod.loteOrigen ? `· ${prod.loteOrigen}` : ''}
                                     </span>
-                                    <span className={`text-[10px] font-black uppercase tracking-widest ${sinStock ? 'text-red-600 animate-pulse' : 'text-emerald-600'}`}>
-                                      {sinStock ? '! SIN STOCK' : `${formatNumber(prod.stockPrevio?.cantidad, { minDecimals: prod.stockPrevio?.unidad === 'Kilogramos' ? 2 : 0, maxDecimals: 2 })} ${prod.stockPrevio?.unidad === 'Kilogramos' ? 'kg' : 'und'}`}
-                                    </span>
+                                    <div className="flex items-center gap-1.5 text-right">
+                                      <span className={`text-[10px] font-black uppercase tracking-widest ${sinStock ? 'text-red-600 animate-pulse' : 'text-emerald-600'}`}>
+                                        {sinStock ? '! SIN STOCK' : `${formatNumber(prod.stockPrevio?.cantidad, { minDecimals: prod.stockPrevio?.unidad === 'Kilogramos' ? 2 : 0, maxDecimals: 2 })} ${prod.stockPrevio?.unidad === 'Kilogramos' ? 'kg' : 'und'}`}
+                                      </span>
+                                      {mostrarBolsasEstimadas && (
+                                        <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400 tracking-wider">
+                                          (≈ {bolsasEstimadas.toLocaleString('es-ES')} und)
+                                        </span>
+                                      )}
+                                    </div>
                                   </div>
                                 </div>
                               )}
