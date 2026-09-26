@@ -52,15 +52,15 @@ export function ProtectedLayout({ children }: { children: React.ReactNode }) {
   };
 
   return (
-    <div className="flex h-screen overflow-hidden bg-gray-50 dark:bg-slate-950 transition-colors duration-300">
+    <div className="flex min-h-screen bg-gray-50 dark:bg-slate-950 transition-colors duration-300">
       <Sidebar
         userRol={(session.user as any)?.rol}
         isOpen={sidebarOpen}
         onClose={handleCloseSidebar}
       />
-      <div className="flex flex-1 flex-col overflow-hidden">
+      <div className="flex flex-1 flex-col">
         <Header onMenuClick={handleOpenSidebar} />
-        <main className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8">{children}</main>
+        <main className="flex-1 p-4 sm:p-6 lg:p-8">{children}</main>
       </div>
     </div>
   );
