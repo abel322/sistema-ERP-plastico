@@ -60,7 +60,7 @@ export function ProtectedLayout({ children }: { children: React.ReactNode }) {
       />
       <div className="flex flex-1 flex-col">
         <Header onMenuClick={handleOpenSidebar} />
-        <main className="flex-1 p-4 sm:p-6 lg:p-8">{children}</main>
+        <main className="flex-1 px-4 pb-4 pt-20 sm:px-6 sm:pb-6 sm:pt-20 lg:px-8 lg:pb-8 lg:pt-20">{children}</main>
       </div>
     </div>
   );
