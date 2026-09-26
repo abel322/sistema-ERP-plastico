@@ -58,6 +58,8 @@ interface RegistroProduccion {
 
 interface Produccion {
   id: string;
+  codigoLote?: string | null;
+  loteOrigen?: string | null;
   fecha: string;
   turno: string;
   area: string;
@@ -119,6 +121,8 @@ interface Produccion {
   registros: RegistroProduccion[];
   stockPrevio?: {
     id?: string;
+    codigoLote?: string;
+    lote?: string;
     cantidad: number;
     unidad: string;
     area: string;
@@ -186,6 +190,7 @@ export default function ProduccionPage() {
     horaInicio: '',
     horaFin: '',
     observaciones: '',
+    loteOrigen: '',
   });
 
   const [registroForm, setRegistroForm] = useState({
@@ -445,6 +450,7 @@ export default function ProduccionPage() {
       horaInicio: '',
       horaFin: '',
       observaciones: '',
+      loteOrigen: '',
     });
     setShowPedidoWarning(false);
   };
@@ -499,10 +505,12 @@ export default function ProduccionPage() {
         throw new Error(errorData.error || "Error en la respuesta del servidor al intentar avanzar");
       }
 
-      await res.json();
+      const finalizadaData = await res.json();
 
       setIsAvance(true);
       const unidadDestino = nextArea === 'Sellado' ? (prod.pedido?.unidad || 'Unidades') : 'Kilogramos';
+      const lotePadre = finalizadaData?.codigoLote || prod.codigoLote || '';
+
       setFormData({
         ...formData,
         fecha: today,
@@ -517,6 +525,7 @@ export default function ProduccionPage() {
         horaInicio: '',
         horaFin: '',
         observaciones: '',
+        loteOrigen: lotePadre,
       });
       setShowCrearModal(true);
 
@@ -525,7 +534,7 @@ export default function ProduccionPage() {
 
       toast({
         title: "Éxito",
-        description: `Fase finalizada y avanzada a ${getAreaLabel(nextArea)}`,
+        description: `Fase finalizada y avanzada a ${getAreaLabel(nextArea)} con Lote Origen: ${lotePadre}`,
       });
     } catch (err: any) {
       console.error(err);
@@ -767,9 +776,16 @@ export default function ProduccionPage() {
                           return (
                             <>
                               <div className="flex items-start justify-between">
-                                <span className="px-2.5 py-1 bg-indigo-50 dark:bg-indigo-950/30 text-indigo-600 dark:text-indigo-400 text-[9px] font-black uppercase tracking-widest rounded-lg border border-indigo-100 dark:border-indigo-900/50">
-                                  P-{prod.pedido?.id?.slice(-5).toUpperCase() || prod.pedidoId?.slice(-5).toUpperCase() || 'N/A'}
-                                </span>
+                                <div className="flex items-center gap-1.5 flex-wrap">
+                                  <span className="px-2.5 py-1 bg-indigo-50 dark:bg-indigo-950/30 text-indigo-600 dark:text-indigo-400 text-[9px] font-black uppercase tracking-widest rounded-lg border border-indigo-100 dark:border-indigo-900/50">
+                                    P-{prod.pedido?.id?.slice(-5).toUpperCase() || prod.pedidoId?.slice(-5).toUpperCase() || 'N/A'}
+                                  </span>
+                                  {prod.codigoLote && (
+                                    <span className="px-2.5 py-1 bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900 text-[9px] font-black uppercase tracking-widest rounded-lg shadow-sm">
+                                      Lote: {prod.codigoLote}
+                                    </span>
+                                  )}
+                                </div>
                                 <span className={`px-2.5 py-1 text-[9px] font-black uppercase tracking-widest rounded-lg border ${
                                   dv.isCompleted 
                                     ? 'bg-emerald-50 dark:bg-emerald-950/30 text-emerald-600 dark:text-emerald-400 border-emerald-100 dark:border-emerald-900/50' 
@@ -778,6 +794,13 @@ export default function ProduccionPage() {
                                   {dv.isCompleted ? 'Completado' : 'En proceso'}
                                 </span>
                               </div>
+
+                              {prod.loteOrigen && (
+                                <div className="flex items-center gap-1.5 px-2.5 py-1 bg-amber-50 dark:bg-amber-950/40 text-amber-800 dark:text-amber-300 text-[9px] font-black uppercase tracking-widest rounded-lg border border-amber-200 dark:border-amber-900/60 -mt-1">
+                                  <span className="opacity-70">Bobina Origen:</span>
+                                  <span className="font-mono font-bold text-amber-900 dark:text-amber-200">{prod.loteOrigen}</span>
+                                </div>
+                              )}
 
                               <div className="flex flex-col gap-1.5">
                                 <h3 className="font-black text-slate-900 dark:text-white text-sm line-clamp-1 uppercase tracking-tight">
@@ -892,7 +915,9 @@ export default function ProduccionPage() {
                                     : 'bg-slate-50 dark:bg-slate-800/30 border-slate-100 dark:border-slate-800/50'
                                 }`}>
                                   <div className="flex justify-between items-center">
-                                    <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">STOCK PREVIO</span>
+                                    <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">
+                                      STOCK PREVIO {prod.loteOrigen ? `· ${prod.loteOrigen}` : ''}
+                                    </span>
                                     <span className={`text-[10px] font-black uppercase tracking-widest ${sinStock ? 'text-red-600 animate-pulse' : 'text-emerald-600'}`}>
                                       {sinStock ? '! SIN STOCK' : `${formatNumber(prod.stockPrevio?.cantidad, { minDecimals: prod.stockPrevio?.unidad === 'Kilogramos' ? 2 : 0, maxDecimals: 2 })} ${prod.stockPrevio?.unidad === 'Kilogramos' ? 'kg' : 'und'}`}
                                     </span>
@@ -1040,6 +1065,43 @@ export default function ProduccionPage() {
                     ))}
                   </select>
                 </div>
+
+                {formData.loteOrigen ? (
+                  <div className="p-4 rounded-2xl bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-900/50">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                      <div>
+                        <span className="text-[10px] font-black text-amber-600 dark:text-amber-400 uppercase tracking-widest">
+                          Trazabilidad Madre-Hija
+                        </span>
+                        <div className="flex items-center gap-2 mt-1">
+                          <span className="text-xs font-bold text-slate-700 dark:text-slate-300">Bobina / Lote Origen:</span>
+                          <span className="px-2.5 py-0.5 rounded-lg bg-amber-200/80 dark:bg-amber-900/80 text-amber-900 dark:text-amber-100 font-mono font-black text-xs">
+                            {formData.loteOrigen}
+                          </span>
+                        </div>
+                      </div>
+                      <span className="text-[10px] text-amber-700 dark:text-amber-400 font-medium">
+                        El stock se consumirá de este lote exacto
+                      </span>
+                    </div>
+                  </div>
+                ) : formData.area !== 'Extrusion' ? (
+                  <div>
+                    <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">
+                      Lote de Origen (Opcional)
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="Ej: EXT-20260925-A1B2"
+                      value={formData.loteOrigen}
+                      onChange={(e) => setFormData({ ...formData, loteOrigen: e.target.value.toUpperCase() })}
+                      className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl px-5 py-3 text-sm font-bold text-slate-700 dark:text-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none transition-all uppercase"
+                    />
+                    <p className="text-[10px] text-slate-400 mt-1 ml-1">
+                      Indica el código de lote previo a consumir.
+                    </p>
+                  </div>
+                ) : null}
 
                 <div className="pt-4 border-t border-slate-100 dark:border-slate-800">
                   <div className="flex items-center justify-between mb-4">

@@ -66,6 +66,8 @@ interface ProductoEspecificacion {
 
 interface Produccion {
   id: string;
+  codigoLote?: string;
+  loteOrigen?: string;
   fecha: string;
   turno: string;
   area: string;
@@ -421,10 +423,20 @@ export default function HistorialProduccionPage() {
                   {/* Encabezado */}
                   <div className={`bg-gradient-to-r ${getAreaInfo(prod.area).gradient || 'from-gray-600 to-gray-400'} p-4`}>
                     <div className="flex flex-wrap items-center justify-between gap-3">
-                      <div className="flex items-center gap-3">
+                      <div className="flex items-center gap-3 flex-wrap">
                         <h3 className="text-xl font-bold text-white">
                           Producción N° {index + 1}
                         </h3>
+                        {prod.codigoLote && (
+                          <span className="rounded-lg bg-black/40 border border-white/20 px-2.5 py-0.5 text-xs font-mono font-bold text-white shadow-sm">
+                            Lote: {prod.codigoLote}
+                          </span>
+                        )}
+                        {prod.loteOrigen && (
+                          <span className="rounded-lg bg-amber-500/80 border border-amber-300/40 px-2.5 py-0.5 text-xs font-mono font-bold text-white shadow-sm">
+                            Bobina Origen: {prod.loteOrigen}
+                          </span>
+                        )}
                       </div>
                       <div className="flex flex-wrap items-center gap-2">
                         <span className="rounded-full bg-white/20 px-3 py-1 text-sm font-medium text-white">

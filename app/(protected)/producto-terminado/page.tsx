@@ -35,6 +35,8 @@ import { formatNumber } from '@/lib/utils';
 
 interface ProductoTerminado {
   id: string;
+  codigoLote?: string;
+  loteOrigen?: string;
   produccionId: string;
   pedidoId: string | null;
   clienteId: string;
@@ -260,7 +262,9 @@ export default function ProductoTerminadoPage() {
         p.cliente.nombre.toLowerCase().includes(search) ||
         p.descripcion?.toLowerCase().includes(search) ||
         p.tipoProducto.toLowerCase().includes(search) ||
-        (p.pedidoId && p.pedidoId.toLowerCase().includes(search))
+        (p.pedidoId && p.pedidoId.toLowerCase().includes(search)) ||
+        (p.codigoLote && p.codigoLote.toLowerCase().includes(search)) ||
+        (p.loteOrigen && p.loteOrigen.toLowerCase().includes(search))
       );
     }
     return true;

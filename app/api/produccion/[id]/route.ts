@@ -4,6 +4,7 @@ import { prisma } from '@/lib/db';
 import { EstadoProduccion, TipoProducto, SiguienteArea } from '@prisma/client';
 import { authOptions } from '@/lib/auth-options';
 import { determinarDestinoProducto, DestinoProducto, getNombreArea } from '@/lib/producto-terminado-logic';
+import { generarCodigoLoteUnico } from '@/lib/utils/lote';
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
@@ -145,6 +146,11 @@ export async function PUT(
       mermaCristal: isNaN(sumaMermaCristal) ? 0 : sumaMermaCristal,
     };
 
+    // Asegurar que la producción cuente con un código de lote único
+    if (!produccionActual.codigoLote && !produccionUpdatePayload.codigoLote) {
+      produccionUpdatePayload.codigoLote = await generarCodigoLoteUnico(prisma, produccionActual.area, produccionActual.fecha);
+    }
+
     if (esRecienFinalizado) {
       produccionUpdatePayload.estado = EstadoProduccion.Finalizado;
       produccionUpdatePayload.finalizadoAt = new Date();
@@ -255,9 +261,11 @@ export async function PUT(
           },
         });
 
-        // Crear o actualizar ProductoTerminado de forma atómica y consistente
+        // Crear o actualizar ProductoTerminado de forma atómica y consistente con el lote
         const ptData = {
           userId: userId || produccionActual.userId,
+          codigoLote: prodActualizada.codigoLote,
+          loteOrigen: prodActualizada.loteOrigen,
           pedidoId: produccionActual.pedidoId || null,
           clienteId: clienteId!,
           productoClienteId: productoClienteId,

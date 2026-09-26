@@ -7,6 +7,8 @@ import { formatNumber } from '@/lib/utils';
 
 interface ProductoTerminado {
   id: string;
+  codigoLote?: string;
+  loteOrigen?: string;
   produccionId: string;
   pedidoId: string | null;
   clienteId: string;
@@ -94,12 +96,24 @@ export function ProductoTerminadoCard({
         <div className="flex items-start justify-between gap-4">
           <div className="flex-1">
             <div className="flex flex-col mb-3">
-              <span className="text-[9px] font-black text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-950/30 px-2 py-0.5 rounded-lg self-start uppercase tracking-widest border border-blue-100 dark:border-blue-900/50">
-                P-{producto.pedidoId?.slice(-5).toUpperCase() || 'N/A'}
-              </span>
+              <div className="flex flex-wrap items-center gap-1.5 mb-1">
+                <span className="text-[9px] font-black text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-950/30 px-2 py-0.5 rounded-lg uppercase tracking-widest border border-blue-100 dark:border-blue-900/50">
+                  P-{producto.pedidoId?.slice(-5).toUpperCase() || 'N/A'}
+                </span>
+                {producto.codigoLote && (
+                  <span className="text-[9px] font-black text-slate-800 dark:text-slate-200 bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded-lg uppercase tracking-widest border border-slate-300 dark:border-slate-700">
+                    Lote: {producto.codigoLote}
+                  </span>
+                )}
+                {producto.loteOrigen && (
+                  <span className="text-[9px] font-black text-amber-700 dark:text-amber-300 bg-amber-50 dark:bg-amber-950/40 px-2 py-0.5 rounded-lg uppercase tracking-widest border border-amber-200 dark:border-amber-900/50">
+                    Bobina Origen: {producto.loteOrigen}
+                  </span>
+                )}
+              </div>
               <button
                 onClick={() => router.push(`/clientes/${producto.clienteId}`)}
-                className="text-left font-black text-slate-900 dark:text-white text-base leading-tight mt-2 hover:text-blue-600 dark:hover:text-blue-400 transition-colors break-words"
+                className="text-left font-black text-slate-900 dark:text-white text-base leading-tight mt-1 hover:text-blue-600 dark:hover:text-blue-400 transition-colors break-words"
                 title={producto.cliente.nombre}
               >
                 {producto.cliente.nombre}

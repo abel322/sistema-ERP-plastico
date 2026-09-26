@@ -3,6 +3,7 @@ import { getServerSession } from 'next-auth';
 import { prisma } from '@/lib/db';
 import { AreaProduccion, EstadoPedido } from '@prisma/client';
 import { authOptions } from '@/lib/auth-options';
+import { generarCodigoLoteUnico } from '@/lib/utils/lote';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
@@ -60,13 +61,36 @@ export async function GET(request: Request) {
     const produccionesConStockPrevio = await Promise.all(
       producciones.map(async (prod) => {
         if (prod.area !== 'Extrusion') {
-          const productoClienteId = prod.productoClienteId || prod.pedido?.productoClienteId;
-          const clienteId = prod.pedido?.clienteId || prod.pedido?.cliente?.id;
-
           let previo = null;
 
-          // 1. Si la orden tiene pedidoId, buscar stock disponible de ese pedido
-          if (prod.pedidoId) {
+          // 1. Trazabilidad exacta madre-hija: Si la orden tiene loteOrigen, buscar directamente por código de lote
+          if (prod.loteOrigen) {
+            previo = await prisma.productoTerminado.findFirst({
+              where: {
+                ...userFilter,
+                codigoLote: prod.loteOrigen,
+                cantidadDisponible: { gt: 0 },
+              },
+            });
+
+            // Si el stock está en 0, igualmente vincularlo para mostrar la trazabilidad exacta
+            if (!previo) {
+              previo = await prisma.productoTerminado.findFirst({
+                where: {
+                  ...userFilter,
+                  codigoLote: prod.loteOrigen,
+                },
+              });
+            }
+          }
+
+          // 2. Fallback heurístico para órdenes legacy que no posean loteOrigen
+          if (!previo && !prod.loteOrigen) {
+            const productoClienteId = prod.productoClienteId || prod.pedido?.productoClienteId;
+            const clienteId = prod.pedido?.clienteId || prod.pedido?.cliente?.id;
+
+            // 2a. Si la orden tiene pedidoId, buscar stock disponible de ese pedido
+            if (prod.pedidoId) {
             // 1a. Prioridad: ProductoTerminado del mismo pedido asignado a esta siguienteArea
             previo = await prisma.productoTerminado.findFirst({
               where: {
@@ -185,24 +209,27 @@ export async function GET(request: Request) {
               });
             }
           }
-
-          if (previo) {
-            return {
-              ...prod,
-              stockPrevio: {
-                id: previo.id,
-                cantidad: previo.cantidadDisponible,
-                unidad: previo.unidad,
-                area: previo.areaOrigen,
-                tipoProducto: previo.tipoProducto,
-                conImpresion: previo.conImpresion,
-              },
-            };
-          }
         }
-        return { ...prod, stockPrevio: null };
-      })
-    );
+
+        if (previo) {
+          return {
+            ...prod,
+            stockPrevio: {
+              id: previo.id,
+              codigoLote: previo.codigoLote,
+              lote: previo.codigoLote,
+              cantidad: previo.cantidadDisponible,
+              unidad: previo.unidad,
+              area: previo.areaOrigen,
+              tipoProducto: previo.tipoProducto,
+              conImpresion: previo.conImpresion,
+            },
+          };
+        }
+      }
+      return { ...prod, stockPrevio: null };
+    })
+  );
 
     return NextResponse.json({
       data: produccionesConStockPrevio,
@@ -239,6 +266,8 @@ export async function POST(request: Request) {
       horaInicio,
       horaFin,
       observaciones,
+      codigoLote,
+      loteOrigen,
     } = body;
 
     if (!area || !maquinaId) {
@@ -256,9 +285,16 @@ export async function POST(request: Request) {
       }
     }
 
+    // Generar código de lote único (ej. EXT-YYYYMMDD-XXXX) si no fue provisto
+    const finalCodigoLote = (codigoLote && typeof codigoLote === 'string' && codigoLote.trim() !== '')
+      ? codigoLote.trim()
+      : await generarCodigoLoteUnico(prisma, area, fecha);
+
     const produccion = await prisma.produccion.create({
       data: {
         userId,
+        codigoLote: finalCodigoLote,
+        loteOrigen: (loteOrigen && typeof loteOrigen === 'string' && loteOrigen.trim() !== '') ? loteOrigen.trim() : null,
         fecha: fecha ? new Date(fecha) : new Date(),
         turno,
         area,

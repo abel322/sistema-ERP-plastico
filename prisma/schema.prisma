@@ -575,6 +575,8 @@ model Maquina {
 
 model Produccion {
   id                String            @id @default(cuid())
+  codigoLote        String?           @unique
+  loteOrigen        String?
   userId            String?
   fecha             DateTime          @default(now())
   turno             Turno
@@ -611,6 +613,8 @@ model Produccion {
   @@index([pedidoId])
   @@index([productoClienteId])
   @@index([estado])
+  @@index([codigoLote])
+  @@index([loteOrigen])
 }
 
 model RegistroProduccion {
@@ -678,6 +682,8 @@ model Despacho {
 
 model ProductoTerminado {
   id                  String                   @id @default(cuid())
+  codigoLote          String?                  @unique
+  loteOrigen          String?
   userId              String?
   produccionId        String?                  @unique
   pedidoId            String?
@@ -710,6 +716,8 @@ model ProductoTerminado {
   @@index([clienteId])
   @@index([productoClienteId])
   @@index([fechaFinalizacion])
+  @@index([codigoLote])
+  @@index([loteOrigen])
 }
 
 model Muestra {

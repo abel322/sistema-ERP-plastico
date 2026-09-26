@@ -187,6 +187,8 @@ export async function POST(
           where: { id: produccion.productoTerminado.id },
           data: {
             userId: (session.user as any)?.id || produccion.userId,
+            codigoLote: produccion.codigoLote,
+            loteOrigen: produccion.loteOrigen,
             cantidadTotal: totalCantidad,
             cantidadDisponible: totalCantidad,
           },
@@ -196,6 +198,8 @@ export async function POST(
         await prisma.productoTerminado.create({
           data: {
             userId: (session.user as any)?.id || produccion.userId,
+            codigoLote: produccion.codigoLote,
+            loteOrigen: produccion.loteOrigen,
             produccionId: id,
             pedidoId: produccion.pedidoId,
             clienteId: clienteId,
@@ -214,21 +218,35 @@ export async function POST(
         });
       }
 
-      // --- DINAMIC MATERIAL CONSUMPTION ---
+      // --- DINAMIC MATERIAL CONSUMPTION CON TRAZABILIDAD DE LOTE ---
       // If we are producing in Sellado (or any subsequent area consuming Bobinas), deduct from the previous phase 
-      // dynamically per register.
-      if (produccion.pedidoId && produccion.area !== 'Extrusion') {
-        const previo = await prisma.productoTerminado.findFirst({
-          where: {
-            pedidoId: produccion.pedidoId,
-            cantidadDisponible: { gt: 0 },
-            produccionId: { not: produccion.id }, // Exclude current production
-            areaOrigen: { not: produccion.area }, // Must be from a DIFFERENT area (e.g. Extrusion)
-          },
-          orderBy: { fechaFinalizacion: 'asc' }, // Consume the oldest stock first
-        });
+      // dynamically per register linked to exact loteOrigen.
+      if (produccion.area !== 'Extrusion') {
+        let previo = null;
 
-        console.log("Consumo Dinámico previo encontrado:", previo?.id, "Unidades:", previo?.unidad, "Actual:", produccion.unidad);
+        // 1. Trazabilidad punto a punto: Buscar exactamente por el loteOrigen de la bobina
+        if (produccion.loteOrigen) {
+          previo = await prisma.productoTerminado.findFirst({
+            where: {
+              codigoLote: produccion.loteOrigen,
+            },
+          });
+        }
+
+        // 2. Fallback heurístico para órdenes legacy sin loteOrigen
+        if (!previo && produccion.pedidoId) {
+          previo = await prisma.productoTerminado.findFirst({
+            where: {
+              pedidoId: produccion.pedidoId,
+              cantidadDisponible: { gt: 0 },
+              produccionId: { not: produccion.id }, // Exclude current production
+              areaOrigen: { not: produccion.area }, // Must be from a DIFFERENT area (e.g. Extrusion)
+            },
+            orderBy: { fechaFinalizacion: 'asc' }, // Consume the oldest stock first
+          });
+        }
+
+        console.log("Consumo Dinámico previo encontrado:", previo?.id, "Lote:", previo?.codigoLote, "Unidades:", previo?.unidad, "Actual:", produccion.unidad);
 
         if (previo) {
           let consumido = 0;

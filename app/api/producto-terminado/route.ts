@@ -4,6 +4,7 @@ import { authOptions } from '@/lib/auth-options';
 import { prisma } from '@/lib/db';
 import { EstadoProductoTerminado, SiguienteArea, AreaProduccion, TipoProducto } from '@prisma/client';
 import { determinarDestinoProducto } from '@/lib/producto-terminado-logic';
+import { generarCodigoLoteUnico } from '@/lib/utils/lote';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
@@ -22,6 +23,7 @@ export async function GET(request: Request) {
     const siguienteArea = searchParams.get('siguienteArea') as SiguienteArea | null;
     const areaOrigen = searchParams.get('areaOrigen') as AreaProduccion | null;
     const clienteId = searchParams.get('clienteId');
+    const codigoLote = searchParams.get('codigoLote') || searchParams.get('lote');
     const page = parseInt(searchParams.get('page') || '1');
     const limit = parseInt(searchParams.get('limit') || '20');
     const skip = (page - 1) * limit;
@@ -37,6 +39,12 @@ export async function GET(request: Request) {
     if (siguienteArea) where.siguienteArea = siguienteArea;
     if (areaOrigen) where.areaOrigen = areaOrigen;
     if (clienteId) where.clienteId = clienteId;
+    if (codigoLote) {
+      where.OR = [
+        { codigoLote: { contains: codigoLote, mode: 'insensitive' } },
+        { loteOrigen: { contains: codigoLote, mode: 'insensitive' } },
+      ];
+    }
 
     const [productos, total] = await Promise.all([
       prisma.productoTerminado.findMany({
@@ -140,7 +148,9 @@ export async function POST(request: Request) {
       conImpresion,
       pedidoId,
       estado,
-      siguienteArea
+      siguienteArea,
+      codigoLote,
+      loteOrigen,
     } = body;
 
     if (!clienteId || !areaOrigen || !cantidadTotal || !unidad || !tipoProducto) {
@@ -150,8 +160,9 @@ export async function POST(request: Request) {
       );
     }
 
+    let produccionExistente = null;
     if (produccionId) {
-      const produccionExistente = await prisma.produccion.findFirst({
+      produccionExistente = await prisma.produccion.findFirst({
         where: { id: produccionId, userId },
         include: { productoTerminado: true }
       });
@@ -171,6 +182,13 @@ export async function POST(request: Request) {
       }
     }
 
+    let finalCodigoLote = produccionExistente?.codigoLote || (codigoLote?.trim() || null);
+    let finalLoteOrigen = produccionExistente?.loteOrigen || (loteOrigen?.trim() || null);
+
+    if (!finalCodigoLote) {
+      finalCodigoLote = await generarCodigoLoteUnico(prisma, areaOrigen);
+    }
+
     const destino = (estado && siguienteArea)
       ? { estado, siguienteArea, descripcionDestino: `Ingresado desde ${areaOrigen} para ${estado === 'ListoDespacho' ? 'Despacho' : siguienteArea}` }
       : determinarDestinoProducto(
@@ -182,6 +200,8 @@ export async function POST(request: Request) {
     const productoTerminado = await prisma.productoTerminado.create({
       data: {
         userId,
+        codigoLote: finalCodigoLote,
+        loteOrigen: finalLoteOrigen,
         produccionId,
         pedidoId,
         clienteId,
