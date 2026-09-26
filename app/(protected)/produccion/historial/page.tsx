@@ -102,7 +102,7 @@ export default function HistorialProduccionPage() {
     totalMerma: 0, 
     totalMermaColor: 0, 
     totalMermaCristal: 0, 
-    totalRegistros: 0 
+    totalRegistros: 0, totalProducidoExtrusion: 0, totalProducidoSellado: 0
   });
   const [periodo, setPeriodo] = useState('semana');
   const [filterArea, setFilterArea] = useState('');
@@ -132,7 +132,7 @@ export default function HistorialProduccionPage() {
 
       setProducciones(data.data || []);
       setResumenPorArea(data.resumenPorArea || []);
-      setTotales(data.totales || { totalProducido: 0, totalMerma: 0, totalMermaColor: 0, totalMermaCristal: 0, totalRegistros: 0 });
+      setTotales(data.totales || { totalProducido: 0, totalMerma: 0, totalMermaColor: 0, totalMermaCristal: 0, totalRegistros: 0, totalProducidoExtrusion: 0, totalProducidoSellado: 0 });
       setTotalPages(data.totalPages || 1);
       setFechaInicio(data.fechaInicio || '');
     } catch (error) {
@@ -217,6 +217,17 @@ export default function HistorialProduccionPage() {
     return area === 'Serigrafia' || area === 'Refilado';
   };
 
+    const getUnidadForArea = (areaName: string) => {
+    if (areaName === 'Sellado') return 'UND'; // Default fallback
+    const prods = producciones.filter(p => p.area === areaName);
+    if (prods.length > 0 && prods[0].unidad) {
+      const u = prods[0].unidad.toLowerCase();
+      if (u.startsWith('un') || u.startsWith('ud') || u.startsWith('bol') || u.startsWith('pz')) return 'UND';
+      return 'KG';
+    }
+    return 'KG'; // Default fallback
+  };
+
   const calcularTotalCantidad = (registros: RegistroProduccion[]) => {
     return registros.reduce((sum, r) => sum + r.cantidad, 0);
   };
@@ -286,9 +297,23 @@ export default function HistorialProduccionPage() {
               </div>
               <div>
                 <p className="text-sm text-white/80">Total Producido</p>
-                <p className="text-2xl font-bold">
-                  {formatNumber(totales.totalProducido, { minDecimals: 2, maxDecimals: 2 })}
-                </p>
+                {!filterArea ? (
+                  <>
+                    <p className="text-2xl font-bold">
+                      {formatNumber(totales.totalProducidoExtrusion || 0, { minDecimals: 2, maxDecimals: 2 })} KG
+                    </p>
+                    <p className="text-sm text-white/90 mt-1">
+                      Terminado: {formatNumber(totales.totalProducidoSellado || 0, { minDecimals: 0, maxDecimals: 0 })} UND
+                    </p>
+                  </>
+                ) : (
+                  <p className="text-2xl font-bold">
+                    {formatNumber(totales.totalProducido, {
+                      minDecimals: getUnidadForArea(filterArea) === 'UND' ? 0 : 2,
+                      maxDecimals: getUnidadForArea(filterArea) === 'UND' ? 0 : 2
+                    })} {getUnidadForArea(filterArea)}
+                  </p>
+                )}
               </div>
             </div>
           </motion.div>
@@ -365,7 +390,7 @@ export default function HistorialProduccionPage() {
                     <span className="font-medium text-gray-900">{area.label}</span>
                   </div>
                   <p className="text-sm text-gray-600">
-                    Producido: <span className="font-semibold">{formatNumber(resumen?._sum.cantidadProducida, { minDecimals: area.value === 'Sellado' ? 0 : 2, maxDecimals: 2 })}</span>
+                    Producido: <span className="font-semibold">{formatNumber(resumen?._sum.cantidadProducida || 0, { minDecimals: getUnidadForArea(area.value) === 'UND' ? 0 : 2, maxDecimals: getUnidadForArea(area.value) === 'UND' ? 0 : 2 })} {getUnidadForArea(area.value)}</span>
                   </p>
                   <p className="text-sm text-gray-600">
                     Merma: <span className="font-semibold text-red-600">{formatNumber(resumen?._sum.merma, { minDecimals: 2, maxDecimals: 2 })} kg</span>
