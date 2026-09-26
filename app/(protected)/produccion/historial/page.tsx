@@ -22,6 +22,7 @@ import { EditarProduccionModal } from '@/components/modals/EditarProduccionModal
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import { formatNumber } from '@/lib/utils';
 import { calcularDesperdicioInfo } from '@/lib/utils/merma';
+import { agruparProduccionesPorLote } from '@/lib/utils/agrupar-producciones';
 
 const AREAS = [
   { value: 'Extrusion', label: 'Extrusión', color: 'bg-blue-500', gradient: 'from-blue-600 via-blue-500 to-indigo-500' },
@@ -95,6 +96,7 @@ interface ResumenArea {
 
 export default function HistorialProduccionPage() {
   const [loading, setLoading] = useState(true);
+  const [produccionesGrupadas, setProduccionesGrupadas] = useState<Produccion[][]>([]);
   const [producciones, setProducciones] = useState<Produccion[]>([]);
   const [resumenPorArea, setResumenPorArea] = useState<ResumenArea[]>([]);
   const [totales, setTotales] = useState({ 
@@ -131,6 +133,9 @@ export default function HistorialProduccionPage() {
       const data = await res.json();
 
       setProducciones(data.data || []);
+      const grupos = agruparProduccionesPorLote(data.data || []);
+      setProduccionesGrupadas(grupos);
+
       setResumenPorArea(data.resumenPorArea || []);
       setTotales(data.totales || { totalProducido: 0, totalMerma: 0, totalMermaColor: 0, totalMermaCristal: 0, totalRegistros: 0, totalProducidoExtrusion: 0, totalProducidoSellado: 0 });
       setTotalPages(data.totalPages || 1);
@@ -230,6 +235,54 @@ export default function HistorialProduccionPage() {
 
   const calcularTotalCantidad = (registros: RegistroProduccion[]) => {
     return registros.reduce((sum, r) => sum + r.cantidad, 0);
+  };
+
+  const calcularMetricasGrupo = (grupo: Produccion[]) => {
+    if (!grupo || grupo.length === 0) return null;
+
+    // Asumimos que el grupo ya está ordenado secuencialmente en agruparProduccionesPorLote
+    // (Extrusión -> Serigrafía -> Refilado -> Sellado).
+    // La última etapa alcanzada será el último elemento del arreglo.
+    const ultimaFase = grupo[grupo.length - 1];
+
+    const cantidadTotal = ultimaFase.registros && ultimaFase.registros.length > 0
+      ? calcularTotalCantidad(ultimaFase.registros)
+      : ultimaFase.cantidadProducida;
+
+    const mermaColor = grupo.reduce((acc, p) => acc + (p.mermaColor || p.registros?.reduce((a, r) => a + ((r as any).mermaColor ?? r.mermaImpreso ?? 0), 0) || 0), 0);
+    const mermaCristal = grupo.reduce((acc, p) => acc + (p.mermaCristal || p.registros?.reduce((a, r) => a + ((r as any).mermaCristal ?? r.mermaSinImpresion ?? 0), 0) || 0), 0);
+    const mermaTotal = grupo.reduce((acc, p) => {
+      let rMerma = p.registros?.reduce((a, r) => a + (r.merma || (((r as any).mermaColor ?? r.mermaImpreso ?? 0) + ((r as any).mermaCristal ?? r.mermaSinImpresion ?? 0))), 0) || 0;
+      return acc + (p.merma || rMerma);
+    }, 0);
+
+    // Obtener datos del pedido o producto para el título
+    const pedido = grupo.find(p => p.pedido)?.pedido;
+    const productoCliente = pedido?.productoCliente || grupo.find(p => p.productoCliente)?.productoCliente;
+    const clienteNombre = pedido?.cliente?.nombre || 'Cliente Interno Genérico';
+    const productoNombre = productoCliente?.tipoProducto || 'Producto No Especificado';
+
+    let titulo = '';
+    if (pedido) {
+      // Usar ID corto del pedido si existe
+      titulo = `Orden #${pedido.id.slice(0, 6).toUpperCase()} - ${clienteNombre} - ${productoNombre}`;
+    } else {
+      // Usar lote raíz como referencia
+      const loteRaiz = grupo[0].codigoLote || grupo[0].id.slice(0, 6).toUpperCase();
+      titulo = `Lote: ${loteRaiz} · ${clienteNombre} - ${productoNombre}`;
+    }
+
+    const isUnidades = ultimaFase.area === 'Sellado' || ultimaFase.unidad?.toLowerCase().startsWith('un') || ultimaFase.unidad?.toLowerCase().startsWith('ud');
+
+    return {
+      ultimaFase,
+      cantidadTotal,
+      mermaTotal,
+      mermaColor,
+      mermaCristal,
+      titulo,
+      isUnidades
+    };
   };
 
   return (
@@ -415,13 +468,68 @@ export default function HistorialProduccionPage() {
             )}
           </div>
 
-          {producciones.length === 0 ? (
+          {produccionesGrupadas.length === 0 ? (
             <div className="rounded-xl bg-white p-8 text-center text-gray-500 shadow-sm">
               <History className="mx-auto mb-4 h-12 w-12 text-gray-300" />
               <p className="text-lg font-medium">No hay producciones finalizadas en este período</p>
             </div>
           ) : (
-            producciones.map((prod, index) => {
+            produccionesGrupadas.map((grupo, grupoIndex) => {
+              const metricas = calcularMetricasGrupo(grupo);
+              if (!metricas) return null;
+
+              const { titulo, cantidadTotal, mermaTotal, mermaColor, mermaCristal, isUnidades, ultimaFase } = metricas;
+              const grupoId = `grupo-${grupo[0].id}`;
+              const isExpanded = expandedCards.has(grupoId);
+
+              return (
+                <motion.div
+                  key={grupoId}
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: grupoIndex * 0.03 }}
+                  className="overflow-hidden rounded-xl bg-white shadow-md border border-gray-200"
+                >
+                  {/* Cabecera del Grupo Principal */}
+                  <div className="bg-gray-50 px-5 py-4 border-b border-gray-200 flex flex-wrap items-center justify-between gap-4">
+                    <div className="flex flex-col gap-1">
+                      <h3 className="text-xl font-bold text-gray-900">{titulo}</h3>
+                      <div className="flex items-center gap-3 text-sm text-gray-600">
+                        <span className="inline-flex items-center gap-1 font-medium text-emerald-700 bg-emerald-100/50 px-2.5 py-0.5 rounded-full border border-emerald-200">
+                          <CheckCircle className="h-4 w-4" />
+                          Completado
+                        </span>
+                        <span>
+                          Finalizado: <strong className="text-gray-900">{formatNumber(cantidadTotal, { minDecimals: isUnidades ? 0 : 2, maxDecimals: 2 })} {isUnidades ? 'unidades' : ultimaFase.unidad}</strong>
+                        </span>
+                        <span className="text-gray-300">|</span>
+                        <span>
+                          Merma Total: <strong className="text-red-600">{formatNumber(mermaTotal, { minDecimals: 2, maxDecimals: 2 })} kg</strong>
+                        </span>
+                      </div>
+                    </div>
+
+                    <button
+                      onClick={() => toggleExpand(grupoId)}
+                      className="flex items-center gap-2 rounded-xl bg-white border border-gray-300 px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50 shadow-sm transition-colors"
+                    >
+                      {isExpanded ? (
+                        <><ChevronUp className="h-4 w-4" /> Ocultar Fases</>
+                      ) : (
+                        <><ChevronDown className="h-4 w-4" /> Ver Fases ({grupo.length})</>
+                      )}
+                    </button>
+                  </div>
+
+                  <AnimatePresence>
+                    {isExpanded && (
+                      <motion.div
+                        initial={{ height: 0, opacity: 0 }}
+                        animate={{ height: 'auto', opacity: 1 }}
+                        exit={{ height: 0, opacity: 0 }}
+                        className="bg-gray-100 p-4 space-y-4"
+                      >
+                        {grupo.map((prod, indexFase) => {
               const cantidadTotal = prod.registros && prod.registros.length > 0
                 ? calcularTotalCantidad(prod.registros)
                 : prod.cantidadProducida;
@@ -450,7 +558,7 @@ export default function HistorialProduccionPage() {
                     <div className="flex flex-wrap items-center justify-between gap-3">
                       <div className="flex items-center gap-3 flex-wrap">
                         <h3 className="text-xl font-bold text-white">
-                          Producción N° {index + 1}
+                          Fase {indexFase + 1}: {getAreaInfo(prod.area).label}
                         </h3>
                         {prod.codigoLote && (
                           <span className="rounded-lg bg-black/40 border border-white/20 px-2.5 py-0.5 text-xs font-mono font-bold text-white shadow-sm">
@@ -485,7 +593,7 @@ export default function HistorialProduccionPage() {
                           className="flex items-center gap-1 rounded-lg bg-white/20 px-3 py-1.5 text-sm font-medium text-white hover:bg-white/30"
                         >
                           {expandedCards.has(prod.id) ? (
-                            <><ChevronUp className="h-4 w-4" /> Ocultar</>) : (
+                            <><ChevronUp className="h-4 w-4" /> Ocultar Tablas</>) : (
                             <><ChevronDown className="h-4 w-4" /> Ver Registros</>)}
                         </button>
                         <button
@@ -633,6 +741,12 @@ export default function HistorialProduccionPage() {
                       )}
                     </div>
                   </div>
+                </motion.div>
+              );
+            })}
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
                 </motion.div>
               );
             })
