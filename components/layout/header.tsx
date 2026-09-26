@@ -14,7 +14,7 @@ export function Header({ onMenuClick }: HeaderProps) {
   const { data: session } = useSession() || {};
 
   return (
-    <header className="sticky top-0 z-40 flex h-16 items-center justify-between border-b border-slate-200 bg-white/80 dark:bg-slate-900/80 backdrop-blur-md dark:border-slate-800 px-4 shadow-sm sm:px-6 lg:px-8 transition-colors duration-300">
+    <header className="fixed top-0 left-0 right-0 z-50 bg-white/95 dark:bg-slate-900/95 backdrop-blur-sm border-b border-slate-200 dark:border-slate-800 flex items-center justify-between w-full h-16 px-4 sm:px-6 lg:px-8 transition-colors duration-300">
       <div className="flex items-center gap-3">
         {/* Botón menú móvil - solo visible en pantallas pequeñas */}
         <button
@@ -32,11 +32,11 @@ export function Header({ onMenuClick }: HeaderProps) {
       </div>
       
       {/* Búsqueda global */}
-      <div className="flex-1 flex justify-center px-4 max-w-md mx-auto">
+      <div className="flex-1 max-w-md mx-2 sm:mx-4 flex justify-center">
         <GlobalSearch />
       </div>
       
-      <div className="flex items-center gap-2 sm:gap-4">
+      <div className="flex items-center gap-2 sm:gap-4 shrink-0">
         {/* Toggle de Tema (Día/Noche) */}
         <ThemeToggle />
         
