@@ -550,7 +550,7 @@ export default function HistorialProduccionPage() {
                   key={prod.id}
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: index * 0.03 }}
+                  transition={{ delay: indexFase * 0.03 }}
                   className="overflow-hidden rounded-xl bg-gradient-to-br from-emerald-50 via-white to-gray-50 shadow-lg border border-emerald-100"
                 >
                   {/* Encabezado */}
