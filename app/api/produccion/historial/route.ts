@@ -106,6 +106,8 @@ export async function GET(request: Request) {
       totalMermaColor,
       totalMermaCristal,
       totalRegistros: resumen.reduce((acc, r) => acc + r._count, 0),
+      totalProducidoExtrusion: resumen.find(r => r.area === 'Extrusion')?._sum.cantidadProducida || 0,
+      totalProducidoSellado: resumen.find(r => r.area === 'Sellado')?._sum.cantidadProducida || 0,
     };
 
     return NextResponse.json({
