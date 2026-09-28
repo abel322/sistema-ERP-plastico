@@ -632,10 +632,10 @@ export default function ProduccionPage() {
   const maquinasFiltradas = maquinas.filter((m) => m.area === formData.area);
 
   return (
-    <div className="p-8 bg-slate-50 dark:bg-slate-950 min-h-screen transition-colors duration-300">
+    <div className="p-4 sm:p-6 lg:p-8 bg-slate-50 dark:bg-slate-950 min-h-screen transition-colors duration-300 w-full max-w-full overflow-x-hidden">
       {/* Header Area */}
       <div className="mb-8">
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 bg-white dark:bg-slate-900 p-6 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-800 transition-colors">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 bg-white dark:bg-slate-900 p-4 sm:p-6 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-800 transition-colors">
           <div className="flex items-center gap-4">
             <div className="w-14 h-14 bg-indigo-600 rounded-2xl flex items-center justify-center text-white shadow-lg shadow-indigo-200 dark:shadow-none">
               <Factory className="w-8 h-8" />
@@ -675,7 +675,7 @@ export default function ProduccionPage() {
       </div>
 
       {/* Filtros */}
-      <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-800 p-6 mb-8 transition-colors">
+      <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-800 p-4 sm:p-6 mb-8 transition-colors">
         <div className="flex flex-col lg:flex-row items-start lg:items-center gap-6">
           <div className="flex items-center gap-2 px-3 py-1 bg-slate-100 dark:bg-slate-800 rounded-lg">
             <Filter className="h-3 w-3 text-slate-500" />
@@ -717,11 +717,11 @@ export default function ProduccionPage() {
       </div>
 
       {/* Tablero Kanban */}
-      <div className="flex gap-6 overflow-x-auto pb-8 -mx-4 sm:-mx-8 px-4 sm:px-8">
+      <div className="flex gap-4 sm:gap-6 overflow-x-auto pb-8 -mx-4 sm:-mx-6 lg:-mx-8 px-4 sm:px-6 lg:px-8 w-auto max-w-full">
         {AREAS.map((areaCol) => {
           const prodEnArea = producciones.filter(p => p.area === areaCol.value);
           return (
-            <div key={areaCol.value} className="flex min-w-[320px] w-[340px] lg:w-auto lg:flex-1 shrink-0 flex-col gap-6 rounded-[2.5rem] bg-slate-100 dark:bg-slate-800/40 p-5 border border-slate-200 dark:border-slate-800 transition-colors">
+            <div key={areaCol.value} className="flex min-w-[280px] w-[85vw] max-w-[340px] lg:w-auto lg:flex-1 shrink-0 flex-col gap-6 rounded-[2.5rem] bg-slate-100 dark:bg-slate-800/40 p-4 sm:p-5 border border-slate-200 dark:border-slate-800 transition-colors">
               <div className="flex items-center justify-between px-3">
                 <h2 className="text-xs font-black text-slate-800 dark:text-slate-200 uppercase tracking-[0.2em]">{areaCol.label}</h2>
                 <span className="flex h-6 w-8 items-center justify-center rounded-lg bg-white dark:bg-slate-800 text-[10px] font-black text-slate-600 dark:text-slate-400 shadow-sm border border-slate-200 dark:border-slate-700 transition-colors">

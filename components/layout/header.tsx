@@ -14,10 +14,10 @@ export function Header({ onMenuClick }: HeaderProps) {
   const { data: session } = useSession() || {};
 
   return (
-    <header className="fixed top-0 left-0 right-0 z-50 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md border-b border-slate-200 dark:border-slate-800 transition-colors duration-200">
-      <div className="flex items-center justify-between w-full h-16 px-4 sm:px-6 lg:px-8">
-        {/* Izquierda: Botón menú hamburguesa (y logo si aplica) */}
-        <div className="flex items-center gap-3 shrink-0">
+    <header className="fixed top-0 left-0 right-0 z-50 w-full h-16 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md border-b border-slate-200 dark:border-slate-800">
+      <div className="flex items-center justify-between w-full h-full px-4 max-w-7xl mx-auto">
+        {/* Izquierda: Menú */}
+        <div className="shrink-0 flex items-center gap-3">
           <button
             type="button"
             onClick={onMenuClick}
@@ -32,13 +32,13 @@ export function Header({ onMenuClick }: HeaderProps) {
           </div>
         </div>
 
-        {/* Centro: Input de búsqueda rápido con tamaño responsive */}
-        <div className="flex-1 max-w-xs sm:max-w-md mx-2 sm:mx-4 flex justify-center">
+        {/* Centro: Buscador flexible (sin empujar los laterales) */}
+        <div className="flex-1 max-w-xs mx-2 min-w-0 flex justify-center">
           <GlobalSearch />
         </div>
 
-        {/* Derecha: Bloque de acciones */}
-        <div className="shrink-0 flex items-center gap-2 sm:gap-3">
+        {/* Derecha: Acciones siempre visibles */}
+        <div className="shrink-0 flex items-center gap-2">
           {/* Toggle de tema (Sol/Luna) */}
           <ThemeToggle />
 

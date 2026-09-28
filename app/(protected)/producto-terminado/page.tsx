@@ -304,10 +304,10 @@ export default function ProductoTerminadoPage() {
 
   return (
     <>
-    <div className="p-8 bg-slate-50 dark:bg-slate-950 min-h-screen transition-colors duration-300">
+    <div className="p-4 sm:p-6 lg:p-8 bg-slate-50 dark:bg-slate-950 min-h-screen transition-colors duration-300 w-full max-w-full overflow-x-hidden">
       {/* Header Area */}
       <div className="mb-8">
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 bg-white dark:bg-slate-900 p-6 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-800 transition-colors">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 bg-white dark:bg-slate-900 p-4 sm:p-6 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-800 transition-colors">
           <div className="flex items-center gap-4">
             <div className="w-14 h-14 bg-emerald-600 rounded-2xl flex items-center justify-center text-white shadow-lg shadow-emerald-200 dark:shadow-none">
               <Package className="w-8 h-8" />
@@ -322,7 +322,7 @@ export default function ProductoTerminadoPage() {
             </div>
           </div>
           
-          <div className="flex flex-wrap items-center gap-3">
+          <div className="flex flex-wrap items-center gap-2 sm:gap-3">
             <button
               onClick={() => router.push('/pedidos')}
               className="flex items-center gap-2 px-4 py-2 bg-blue-50 dark:bg-blue-950/30 text-blue-600 dark:text-blue-400 rounded-xl hover:bg-blue-100 dark:hover:bg-blue-900/50 transition-all font-bold text-xs uppercase tracking-widest border border-blue-100 dark:border-blue-900/50"
@@ -421,8 +421,8 @@ export default function ProductoTerminadoPage() {
         )}
 
       {/* Filtros */}
-      <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-800 p-6 mb-8">
-        <div className="flex flex-col lg:flex-row items-center gap-6">
+      <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-800 p-4 sm:p-6 mb-8">
+        <div className="flex flex-col lg:flex-row items-center gap-4 sm:gap-6">
           <div className="relative flex-1 w-full">
             <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
             <input
@@ -433,13 +433,13 @@ export default function ProductoTerminadoPage() {
               className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl py-2.5 pl-10 pr-4 text-sm focus:ring-2 focus:ring-emerald-500 outline-none transition-all text-slate-900 dark:text-slate-100 placeholder:text-slate-400"
             />
           </div>
-          <div className="flex items-center gap-3 w-full lg:w-auto">
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 w-full lg:w-auto">
             <div className="flex items-center gap-2 bg-slate-50 dark:bg-slate-800 p-1 rounded-xl border border-slate-200 dark:border-slate-700 flex-1 lg:flex-none">
               <div className="px-3 text-[10px] font-black text-slate-400 uppercase tracking-widest border-r border-slate-200 dark:border-slate-700">Estado</div>
               <select
                 value={filtroEstado}
                 onChange={(e) => setFiltroEstado(e.target.value)}
-                className="bg-transparent px-3 py-1.5 text-xs font-bold text-slate-600 dark:text-slate-300 focus:outline-none cursor-pointer"
+                className="bg-transparent px-3 py-1.5 text-xs font-bold text-slate-600 dark:text-slate-300 focus:outline-none cursor-pointer w-full"
               >
                 <option value="todos">Todos</option>
                 <option value="ListoDespacho">Listo Despacho</option>
@@ -452,7 +452,7 @@ export default function ProductoTerminadoPage() {
               <select
                 value={filtroArea}
                 onChange={(e) => setFiltroArea(e.target.value)}
-                className="bg-transparent px-3 py-1.5 text-xs font-bold text-slate-600 dark:text-slate-300 focus:outline-none cursor-pointer"
+                className="bg-transparent px-3 py-1.5 text-xs font-bold text-slate-600 dark:text-slate-300 focus:outline-none cursor-pointer w-full"
               >
                 <option value="todos">Todas</option>
                 <option value="Extrusion">Extrusión</option>
@@ -519,7 +519,7 @@ export default function ProductoTerminadoPage() {
           <div key={seccion.id} className="bg-white dark:bg-slate-900 rounded-[2rem] shadow-sm border border-slate-200 dark:border-slate-800 overflow-hidden mb-6 transition-colors">
             <button
               onClick={() => toggleSeccion(seccion.id)}
-              className={`w-full px-8 py-5 flex items-center justify-between bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-all border-b border-slate-100 dark:border-slate-800`}
+              className={`w-full px-4 sm:px-8 py-4 sm:py-5 flex items-center justify-between bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-all border-b border-slate-100 dark:border-slate-800`}
             >
               <div className="flex items-center gap-4">
                 <div className={`p-3 rounded-2xl ${seccion.bgIcon} shadow-lg shadow-${seccion.bgIcon.split('-')[1]}-200 dark:shadow-none`}>
@@ -554,14 +554,14 @@ export default function ProductoTerminadoPage() {
                   className="overflow-hidden"
                 >
                   {seccion.lista.length === 0 ? (
-                    <div className="p-12 text-center">
+                    <div className="p-8 sm:p-12 text-center">
                       <div className="w-16 h-16 bg-slate-50 dark:bg-slate-800 rounded-full flex items-center justify-center mx-auto mb-4 text-slate-300">
                         <Package className="w-8 h-8" />
                       </div>
                       <p className="text-sm font-bold text-slate-400 uppercase tracking-widest">No hay productos en esta categoría</p>
                     </div>
                   ) : (
-                    <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3 p-8 bg-slate-50/50 dark:bg-slate-950/20">
+                    <div className="grid gap-4 sm:gap-6 sm:grid-cols-2 lg:grid-cols-3 p-4 sm:p-6 lg:p-8 bg-slate-50/50 dark:bg-slate-950/20">
                       {seccion.lista.map((producto) => (
                         <ProductoTerminadoCard
                           key={producto.id}
@@ -588,7 +588,7 @@ export default function ProductoTerminadoPage() {
         <div className="bg-white dark:bg-slate-900 rounded-[2.5rem] shadow-sm border border-slate-200 dark:border-slate-800 overflow-hidden mb-6 transition-colors">
           <button
             onClick={() => toggleSeccion('sobrante')}
-            className={`w-full px-8 py-5 flex items-center justify-between bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-all border-b border-slate-100 dark:border-slate-800`}
+            className={`w-full px-4 sm:px-8 py-4 sm:py-5 flex items-center justify-between bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-all border-b border-slate-100 dark:border-slate-800`}
           >
             <div className="flex items-center gap-4">
               <div className="p-3 rounded-2xl bg-slate-700 shadow-lg shadow-slate-200 dark:shadow-none">
