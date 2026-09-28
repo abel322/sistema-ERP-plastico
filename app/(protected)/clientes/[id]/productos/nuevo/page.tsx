@@ -816,6 +816,7 @@ export default function NuevoProductoPage() {
               
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 {[
+                  { key: 'molido', label: 'Molido' },
                   { key: 'formFB7000', label: 'FB7000' },
                   { key: 'form3003', label: '3003' },
                   { key: 'formLineal', label: 'Lineal' },
@@ -837,8 +838,9 @@ export default function NuevoProductoPage() {
                       step="0.01"
                       min="0"
                       max="100"
-                      value={formData[field.key] || ''}
-                      onChange={(e) => handleChange(field.key, e.target.value ? parseFloat(e.target.value) : null)}
+                      placeholder="0"
+                      value={formData[field.key] !== undefined && formData[field.key] !== null ? formData[field.key] : ''}
+                      onChange={(e) => handleChange(field.key, e.target.value !== '' ? parseFloat(e.target.value) : (field.key === 'molido' ? 0 : null))}
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                     />
                   </div>

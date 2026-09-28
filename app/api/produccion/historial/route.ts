@@ -43,7 +43,7 @@ export async function GET(request: Request) {
     };
     if (area) where.area = area;
 
-    const [producciones, total, resumen] = await Promise.all([
+    const [producciones, total, resumen, produccionesExtrusionRaw] = await Promise.all([
       prisma.produccion.findMany({
         where,
         include: {
@@ -71,7 +71,74 @@ export async function GET(request: Request) {
         },
         _count: true,
       }),
+      // Órdenes de Extrusión para desglose consolidado de materia prima
+      prisma.produccion.findMany({
+        where: {
+          estado: EstadoProduccion.Finalizado,
+          finalizadoAt: { gte: fechaInicio },
+          area: AreaProduccion.Extrusion,
+        },
+        select: {
+          id: true,
+          cantidadProducida: true,
+          registros: {
+            select: { cantidad: true },
+          },
+          productoCliente: true,
+          pedido: {
+            select: {
+              productoCliente: true,
+            },
+          },
+        },
+      }),
     ]);
+
+    // Calcular consumo consolidado de materias primas en Extrusión durante el período filtrado
+    const consumoConsolidadoExtrusion: Record<string, number> = {
+      molido: 0,
+      formFB7000: 0,
+      form3003: 0,
+      formLineal: 0,
+      form0240: 0,
+      form0348: 0,
+      form7000F: 0,
+      formDeslizante: 0,
+      formMasterbachBlanco: 0,
+      formMasterbachNegro: 0,
+      formMasterbachAzul: 0,
+      formMasterbachAmarillo: 0,
+    };
+
+    const produccionesExtrusionPeriodo = (produccionesExtrusionRaw || []) as Array<{
+      cantidadProducida: number;
+      registros: Array<{ cantidad: number }>;
+      productoCliente: any;
+      pedido?: { productoCliente: any } | null;
+    }>;
+
+    produccionesExtrusionPeriodo.forEach((ord) => {
+      const kgExtrusion = ord.registros && ord.registros.length > 0
+        ? ord.registros.reduce((sum, r) => sum + (r.cantidad || 0), 0)
+        : (ord.cantidadProducida || 0);
+
+      const f = ord.productoCliente || ord.pedido?.productoCliente;
+      if (!f || kgExtrusion <= 0) return;
+
+      const molidoPct = Number(f.molido ?? f.formMolido ?? 0);
+      consumoConsolidadoExtrusion.molido += kgExtrusion * (molidoPct / 100);
+      consumoConsolidadoExtrusion.formFB7000 += kgExtrusion * ((Number(f.formFB7000) || 0) / 100);
+      consumoConsolidadoExtrusion.form3003 += kgExtrusion * ((Number(f.form3003) || 0) / 100);
+      consumoConsolidadoExtrusion.formLineal += kgExtrusion * ((Number(f.formLineal) || 0) / 100);
+      consumoConsolidadoExtrusion.form0240 += kgExtrusion * ((Number(f.form0240) || 0) / 100);
+      consumoConsolidadoExtrusion.form0348 += kgExtrusion * ((Number(f.form0348) || 0) / 100);
+      consumoConsolidadoExtrusion.form7000F += kgExtrusion * ((Number(f.form7000F) || 0) / 100);
+      consumoConsolidadoExtrusion.formDeslizante += kgExtrusion * ((Number(f.formDeslizante) || 0) / 100);
+      consumoConsolidadoExtrusion.formMasterbachBlanco += kgExtrusion * ((Number(f.formMasterbachBlanco) || 0) / 100);
+      consumoConsolidadoExtrusion.formMasterbachNegro += kgExtrusion * ((Number(f.formMasterbachNegro) || 0) / 100);
+      consumoConsolidadoExtrusion.formMasterbachAzul += kgExtrusion * ((Number(f.formMasterbachAzul) || 0) / 100);
+      consumoConsolidadoExtrusion.formMasterbachAmarillo += kgExtrusion * ((Number(f.formMasterbachAmarillo) || 0) / 100);
+    });
 
     // Asegurar cálculo consolidado de mermaColor y mermaCristal por orden
     const produccionesConMermas = producciones.map((prod) => {
@@ -108,6 +175,7 @@ export async function GET(request: Request) {
       totalRegistros: resumen.reduce((acc, r) => acc + r._count, 0),
       totalProducidoExtrusion: resumen.find(r => r.area === 'Extrusion')?._sum.cantidadProducida || 0,
       totalProducidoSellado: resumen.find(r => r.area === 'Sellado')?._sum.cantidadProducida || 0,
+      consumoMateriasPrimasExtrusion: consumoConsolidadoExtrusion,
     };
 
     return NextResponse.json({

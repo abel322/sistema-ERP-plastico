@@ -331,6 +331,7 @@ model ProductoCliente {
   laminaRebobinadorCalibre Float?
 
   // Formulación de materia prima en porcentaje
+  molido               Float?         @default(0)
   formFB7000           Float?
   form3003             Float?
   formLineal           Float?

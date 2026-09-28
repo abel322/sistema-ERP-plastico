@@ -41,6 +41,7 @@ interface ProductoCliente {
   tipoBobinaCliente?: string;
   laminaRebobinadorAncho?: number;
   laminaRebobinadorCalibre?: number;
+  molido?: number;
   formFB7000?: number;
   form3003?: number;
   formLineal?: number;
@@ -291,13 +292,14 @@ export function ProductoClienteCard({
             </DetailSection>
 
             {/* Formulation Section */}
-            {(producto.formFB7000 || producto.form3003 || producto.formLineal || producto.form0240) && (
+            {(producto.molido || producto.formFB7000 || producto.form3003 || producto.formLineal || producto.form0240) && (
               <DetailSection 
                 title="Formulación Materia Prima" 
                 icon={<Layers className="w-4 h-4" />}
                 accentColor="emerald"
               >
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                  {producto.molido && <FormTag label="Molido" value={producto.molido} />}
                   {producto.formFB7000 && <FormTag label="FB7000" value={producto.formFB7000} />}
                   {producto.form3003 && <FormTag label="3003" value={producto.form3003} />}
                   {producto.formLineal && <FormTag label="Lineal" value={producto.formLineal} />}

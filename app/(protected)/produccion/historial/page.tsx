@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import Link from 'next/link';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
@@ -16,6 +16,8 @@ import {
   CheckCircle,
   Pencil,
   Trash2,
+  Layers,
+  X,
 } from 'lucide-react';
 import { ActionPasswordModal } from '@/components/modals/ActionPasswordModal';
 import { EditarProduccionModal } from '@/components/modals/EditarProduccionModal';
@@ -63,7 +65,47 @@ interface ProductoEspecificacion {
   anchoSolapa?: number;
   material?: string;
   tipoProducto?: string;
+  molido?: number | null;
+  formMolido?: number | null;
+  formFB7000?: number | null;
+  fb7000?: number | null;
+  form3003?: number | null;
+  p3003?: number | null;
+  formLineal?: number | null;
+  lineal?: number | null;
+  form0240?: number | null;
+  p0240?: number | null;
+  form0348?: number | null;
+  p0348?: number | null;
+  form7000F?: number | null;
+  p7000F?: number | null;
+  formDeslizante?: number | null;
+  deslizante?: number | null;
+  formMasterbachBlanco?: number | null;
+  masterbachBlanco?: number | null;
+  formMasterbachNegro?: number | null;
+  masterbachNegro?: number | null;
+  formMasterbachAzul?: number | null;
+  masterbachAzul?: number | null;
+  formMasterbachAmarillo?: number | null;
+  masterbachAmarillo?: number | null;
+  [key: string]: any;
 }
+
+const MATERIALES_FORMULACION = [
+  { key: 'molido', label: 'Molido (%)', name: 'Molido', color: 'bg-amber-500', barColor: 'bg-amber-500', badgeClass: 'bg-amber-100 text-amber-900 border-amber-200' },
+  { key: 'formFB7000', label: 'FB7000 (%)', name: 'FB7000', color: 'bg-blue-500', barColor: 'bg-blue-500', badgeClass: 'bg-blue-100 text-blue-900 border-blue-200' },
+  { key: 'form3003', label: '3003 (%)', name: '3003', color: 'bg-cyan-500', barColor: 'bg-cyan-500', badgeClass: 'bg-cyan-100 text-cyan-900 border-cyan-200' },
+  { key: 'formLineal', label: 'Lineal (%)', name: 'Lineal', color: 'bg-sky-500', barColor: 'bg-sky-500', badgeClass: 'bg-sky-100 text-sky-900 border-sky-200' },
+  { key: 'form0240', label: '0240 (%)', name: '0240', color: 'bg-indigo-500', barColor: 'bg-indigo-500', badgeClass: 'bg-indigo-100 text-indigo-900 border-indigo-200' },
+  { key: 'form0348', label: '0348 (%)', name: '0348', color: 'bg-violet-500', barColor: 'bg-violet-500', badgeClass: 'bg-violet-100 text-violet-900 border-violet-200' },
+  { key: 'form7000F', label: '7000F (%)', name: '7000F', color: 'bg-purple-500', barColor: 'bg-purple-500', badgeClass: 'bg-purple-100 text-purple-900 border-purple-200' },
+  { key: 'formDeslizante', label: 'Aditivo Deslizante (%)', name: 'Deslizante', color: 'bg-fuchsia-500', barColor: 'bg-fuchsia-500', badgeClass: 'bg-fuchsia-100 text-fuchsia-900 border-fuchsia-200' },
+  { key: 'formMasterbachBlanco', label: 'MB Blanco (%)', name: 'MB Blanco', color: 'bg-slate-400', barColor: 'bg-slate-400', badgeClass: 'bg-slate-100 text-slate-900 border-slate-300' },
+  { key: 'formMasterbachNegro', label: 'MB Negro (%)', name: 'MB Negro', color: 'bg-zinc-800', barColor: 'bg-zinc-800', badgeClass: 'bg-zinc-100 text-zinc-900 border-zinc-300' },
+  { key: 'formMasterbachAzul', label: 'MB Azul (%)', name: 'MB Azul', color: 'bg-blue-700', barColor: 'bg-blue-700', badgeClass: 'bg-blue-100 text-blue-900 border-blue-300' },
+  { key: 'formMasterbachAmarillo', label: 'MB Amarillo (%)', name: 'MB Amarillo', color: 'bg-amber-400', barColor: 'bg-amber-400', badgeClass: 'bg-yellow-100 text-yellow-900 border-yellow-300' },
+];
 
 interface Produccion {
   id: string;
@@ -81,6 +123,7 @@ interface Produccion {
   finalizadoAt: string;
   maquina: { nombre: string };
   pedido?: {
+    id: string;
     cliente: { nombre: string };
     productoCliente?: ProductoEspecificacion;
   };
@@ -99,13 +142,40 @@ export default function HistorialProduccionPage() {
   const [produccionesGrupadas, setProduccionesGrupadas] = useState<Produccion[][]>([]);
   const [producciones, setProducciones] = useState<Produccion[]>([]);
   const [resumenPorArea, setResumenPorArea] = useState<ResumenArea[]>([]);
-  const [totales, setTotales] = useState({ 
+  const [totales, setTotales] = useState<{
+    totalProducido: number;
+    totalMerma: number;
+    totalMermaColor: number;
+    totalMermaCristal: number;
+    totalRegistros: number;
+    totalProducidoExtrusion: number;
+    totalProducidoSellado: number;
+    consumoMateriasPrimasExtrusion?: Record<string, number>;
+  }>({ 
     totalProducido: 0, 
     totalMerma: 0, 
     totalMermaColor: 0, 
     totalMermaCristal: 0, 
-    totalRegistros: 0, totalProducidoExtrusion: 0, totalProducidoSellado: 0
+    totalRegistros: 0, 
+    totalProducidoExtrusion: 0, 
+    totalProducidoSellado: 0 
   });
+  const [showConsumoDropdown, setShowConsumoDropdown] = useState(false);
+  const consumoDropdownRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (consumoDropdownRef.current && !consumoDropdownRef.current.contains(event.target as Node)) {
+        setShowConsumoDropdown(false);
+      }
+    }
+    if (showConsumoDropdown) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [showConsumoDropdown]);
   const [periodo, setPeriodo] = useState('semana');
   const [filterArea, setFilterArea] = useState('');
   const [fechaInicio, setFechaInicio] = useState('');
@@ -285,6 +355,81 @@ export default function HistorialProduccionPage() {
     };
   };
 
+  // Consolidado de consumo de materias primas procesadas en Extrusión
+  const consumosMateriaPrima = useMemo(() => {
+    const totalesCalc: Record<string, number> = {
+      molido: 0,
+      formFB7000: 0,
+      form3003: 0,
+      formLineal: 0,
+      form0240: 0,
+      form0348: 0,
+      form7000F: 0,
+      formDeslizante: 0,
+      formMasterbachBlanco: 0,
+      formMasterbachNegro: 0,
+      formMasterbachAzul: 0,
+      formMasterbachAmarillo: 0,
+    };
+
+    if (totales.consumoMateriasPrimasExtrusion && Object.keys(totales.consumoMateriasPrimasExtrusion).length > 0) {
+      Object.entries(totales.consumoMateriasPrimasExtrusion).forEach(([k, v]) => {
+        totalesCalc[k] = (totalesCalc[k] || 0) + (Number(v) || 0);
+      });
+    } else {
+      // Filtrar órdenes de Extrusión del listado
+      const ordenesExtrusion = producciones.filter((p) => p.area === 'Extrusion');
+      ordenesExtrusion.forEach((ord) => {
+        const kgExtrusion = ord.registros && ord.registros.length > 0
+          ? ord.registros.reduce((acc, r) => acc + (Number(r.cantidad) || 0), 0)
+          : (Number(ord.cantidadProducida) || 0);
+
+        if (kgExtrusion <= 0) return;
+
+        const f = ord.productoCliente || ord.pedido?.productoCliente;
+        if (!f) return;
+
+        const molidoPct = Number(f.molido ?? f.formMolido ?? 0);
+        const fb7000Pct = Number(f.formFB7000 ?? f.fb7000 ?? 0);
+        const p3003Pct = Number(f.form3003 ?? f.p3003 ?? 0);
+        const linealPct = Number(f.formLineal ?? f.lineal ?? 0);
+        const p0240Pct = Number(f.form0240 ?? f.p0240 ?? 0);
+        const p0348Pct = Number(f.form0348 ?? f.p0348 ?? 0);
+        const p7000FPct = Number(f.form7000F ?? f.p7000F ?? 0);
+        const deslizantePct = Number(f.formDeslizante ?? f.deslizante ?? 0);
+        const mbBlancoPct = Number(f.formMasterbachBlanco ?? f.masterbachBlanco ?? 0);
+        const mbNegroPct = Number(f.formMasterbachNegro ?? f.masterbachNegro ?? 0);
+        const mbAzulPct = Number(f.formMasterbachAzul ?? f.masterbachAzul ?? 0);
+        const mbAmarilloPct = Number(f.formMasterbachAmarillo ?? f.masterbachAmarillo ?? 0);
+
+        totalesCalc.molido += kgExtrusion * (molidoPct / 100);
+        totalesCalc.formFB7000 += kgExtrusion * (fb7000Pct / 100);
+        totalesCalc.form3003 += kgExtrusion * (p3003Pct / 100);
+        totalesCalc.formLineal += kgExtrusion * (linealPct / 100);
+        totalesCalc.form0240 += kgExtrusion * (p0240Pct / 100);
+        totalesCalc.form0348 += kgExtrusion * (p0348Pct / 100);
+        totalesCalc.form7000F += kgExtrusion * (p7000FPct / 100);
+        totalesCalc.formDeslizante += kgExtrusion * (deslizantePct / 100);
+        totalesCalc.formMasterbachBlanco += kgExtrusion * (mbBlancoPct / 100);
+        totalesCalc.formMasterbachNegro += kgExtrusion * (mbNegroPct / 100);
+        totalesCalc.formMasterbachAzul += kgExtrusion * (mbAzulPct / 100);
+        totalesCalc.formMasterbachAmarillo += kgExtrusion * (mbAmarilloPct / 100);
+      });
+    }
+
+    // Filtrar únicamente los materiales cuyo consumo acumulado sea mayor a 0 kg
+    return MATERIALES_FORMULACION
+      .map((m) => ({
+        ...m,
+        cantidadKg: totalesCalc[m.key] || 0,
+      }))
+      .filter((m) => m.cantidadKg > 0.001);
+  }, [totales.consumoMateriasPrimasExtrusion, producciones]);
+
+  const totalKgConsumidos = useMemo(() => {
+    return consumosMateriaPrima.reduce((acc, m) => acc + m.cantidadKg, 0);
+  }, [consumosMateriaPrima]);
+
   return (
     <>
       <div className="space-y-6">
@@ -342,31 +487,153 @@ export default function HistorialProduccionPage() {
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            className="rounded-xl bg-gradient-to-br from-emerald-500 to-teal-600 p-6 text-white shadow-lg"
+            className="relative rounded-xl bg-gradient-to-br from-emerald-500 to-teal-600 p-6 text-white shadow-lg overflow-visible"
           >
-            <div className="flex items-center gap-3">
-              <div className="rounded-lg bg-white/20 p-3">
-                <Package className="h-6 w-6" />
-              </div>
-              <div>
-                <p className="text-sm text-white/80">Total Producido</p>
-                {!filterArea ? (
-                  <>
+            <div className="flex items-start justify-between gap-3">
+              <div className="flex items-center gap-3">
+                <div className="rounded-lg bg-white/20 p-3 shrink-0">
+                  <Package className="h-6 w-6" />
+                </div>
+                <div>
+                  <p className="text-sm text-white/80">Total Producido</p>
+                  {!filterArea ? (
+                    <>
+                      <p className="text-2xl font-bold">
+                        {formatNumber(totales.totalProducidoExtrusion || 0, { minDecimals: 2, maxDecimals: 2 })} KG
+                      </p>
+                      <p className="text-sm text-white/90 mt-1">
+                        Terminado: {formatNumber(totales.totalProducidoSellado || 0, { minDecimals: 0, maxDecimals: 0 })} UND
+                      </p>
+                    </>
+                  ) : (
                     <p className="text-2xl font-bold">
-                      {formatNumber(totales.totalProducidoExtrusion || 0, { minDecimals: 2, maxDecimals: 2 })} KG
+                      {formatNumber(totales.totalProducido, {
+                        minDecimals: getUnidadForArea(filterArea) === 'UND' ? 0 : 2,
+                        maxDecimals: getUnidadForArea(filterArea) === 'UND' ? 0 : 2
+                      })} {getUnidadForArea(filterArea)}
                     </p>
-                    <p className="text-sm text-white/90 mt-1">
-                      Terminado: {formatNumber(totales.totalProducidoSellado || 0, { minDecimals: 0, maxDecimals: 0 })} UND
-                    </p>
-                  </>
-                ) : (
-                  <p className="text-2xl font-bold">
-                    {formatNumber(totales.totalProducido, {
-                      minDecimals: getUnidadForArea(filterArea) === 'UND' ? 0 : 2,
-                      maxDecimals: getUnidadForArea(filterArea) === 'UND' ? 0 : 2
-                    })} {getUnidadForArea(filterArea)}
-                  </p>
-                )}
+                  )}
+                </div>
+              </div>
+
+              {/* Botón interactivo para desplegar consumo de MP */}
+              <div className="relative shrink-0" ref={consumoDropdownRef}>
+                <button
+                  type="button"
+                  onClick={() => setShowConsumoDropdown((prev) => !prev)}
+                  className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-all shadow-sm ${
+                    showConsumoDropdown
+                      ? 'bg-white text-emerald-900 shadow-md ring-2 ring-white/50'
+                      : 'bg-white/20 hover:bg-white/30 text-white border border-white/25 active:scale-95'
+                  }`}
+                  title="Ver desglose de resinas y molido extruidos"
+                  aria-expanded={showConsumoDropdown}
+                  aria-label="Ver desglose de materias primas"
+                >
+                  <Layers className="h-3.5 w-3.5" />
+                  <span className="hidden sm:inline">Consumo MP</span>
+                  <ChevronDown
+                    className={`h-3.5 w-3.5 transition-transform duration-200 ${
+                      showConsumoDropdown ? 'rotate-180' : ''
+                    }`}
+                  />
+                </button>
+
+                {/* Popover / Dropdown con el resumen consolidado */}
+                <AnimatePresence>
+                  {showConsumoDropdown && (
+                    <motion.div
+                      initial={{ opacity: 0, y: 8, scale: 0.95 }}
+                      animate={{ opacity: 1, y: 0, scale: 1 }}
+                      exit={{ opacity: 0, y: 6, scale: 0.95 }}
+                      transition={{ duration: 0.15 }}
+                      className="absolute right-0 top-full mt-2 w-80 sm:w-96 rounded-2xl bg-white p-4 text-gray-900 shadow-2xl border border-gray-100 z-50"
+                      style={{ filter: 'drop-shadow(0 20px 25px rgba(0, 0, 0, 0.15))' }}
+                    >
+                      {/* Cabecera del popover */}
+                      <div className="flex items-center justify-between border-b border-gray-100 pb-3 mb-3">
+                        <div className="flex items-center gap-2">
+                          <div className="p-1.5 bg-emerald-100 text-emerald-700 rounded-lg">
+                            <Layers className="h-4 w-4" />
+                          </div>
+                          <div>
+                            <h4 className="text-sm font-bold text-gray-900">Consumo de Materia Prima</h4>
+                            <p className="text-[11px] text-gray-500">
+                              Extrusión · {periodo === 'semana' ? 'Esta Semana' : 'Este Mes'}
+                            </p>
+                          </div>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => setShowConsumoDropdown(false)}
+                          className="p-1 rounded-md text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors"
+                          aria-label="Cerrar"
+                        >
+                          <X className="h-4 w-4" />
+                        </button>
+                      </div>
+
+                      {/* Lista de consumos */}
+                      {consumosMateriaPrima.length === 0 ? (
+                        <div className="py-6 text-center text-xs text-gray-500">
+                          <p className="font-medium">Sin consumos registrados</p>
+                          <p className="text-[11px] text-gray-400 mt-1">
+                            No hay órdenes de extrusión con formulación registrada mayor a 0 kg en este período.
+                          </p>
+                        </div>
+                      ) : (
+                        <div className="space-y-2.5 max-h-72 overflow-y-auto pr-1">
+                          {consumosMateriaPrima.map((item) => {
+                            const porcentajeSobreTotal = totalKgConsumidos > 0
+                              ? ((item.cantidadKg / totalKgConsumidos) * 100).toFixed(1)
+                              : '0.0';
+
+                            return (
+                              <div
+                                key={item.key}
+                                className="p-2.5 rounded-lg bg-gray-50 border border-gray-100 hover:bg-gray-100/70 transition-colors"
+                              >
+                                <div className="flex items-center justify-between text-xs mb-1.5">
+                                  <span className="font-semibold text-gray-800 flex items-center gap-1.5">
+                                    <span className={`w-2.5 h-2.5 rounded-full ${item.color}`} />
+                                    {item.name}
+                                  </span>
+                                  <div className="text-right">
+                                    <span className="font-bold text-gray-900 text-xs">
+                                      {formatNumber(item.cantidadKg, { minDecimals: 2, maxDecimals: 2 })} kg
+                                    </span>
+                                    <span className="text-[10px] text-gray-500 ml-1.5 font-medium">
+                                      ({porcentajeSobreTotal}%)
+                                    </span>
+                                  </div>
+                                </div>
+                                {/* Barra visual */}
+                                <div className="h-1.5 w-full bg-gray-200 rounded-full overflow-hidden">
+                                  <div
+                                    className={`h-full ${item.barColor} transition-all duration-300 rounded-full`}
+                                    style={{
+                                      width: `${Math.min(100, Math.max(2, Number(porcentajeSobreTotal)))}%`,
+                                    }}
+                                  />
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )}
+
+                      {/* Resumen footer */}
+                      {consumosMateriaPrima.length > 0 && (
+                        <div className="mt-3 pt-3 border-t border-gray-100 flex items-center justify-between text-xs">
+                          <span className="font-medium text-gray-500">Total formulado:</span>
+                          <span className="font-extrabold text-emerald-700 text-sm">
+                            {formatNumber(totalKgConsumidos, { minDecimals: 2, maxDecimals: 2 })} kg
+                          </span>
+                        </div>
+                      )}
+                    </motion.div>
+                  )}
+                </AnimatePresence>
               </div>
             </div>
           </motion.div>

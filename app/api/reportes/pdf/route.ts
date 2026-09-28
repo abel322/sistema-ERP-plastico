@@ -229,7 +229,7 @@ const generateHTML = (tipo: string, data: any, periodo: { inicio: string; fin: s
             <div class="data-item span-2">
               <div class="formulation-grid">
                 ${[
-                  {k: 'formFB7000', l: 'FB7000'}, {k: 'form3003', l: '3003'}, {k: 'formLineal', l: 'Lineal'}, {k: 'form0240', l: '0240'},
+                  {k: 'molido', l: 'Molido'}, {k: 'formFB7000', l: 'FB7000'}, {k: 'form3003', l: '3003'}, {k: 'formLineal', l: 'Lineal'}, {k: 'form0240', l: '0240'},
                   {k: 'form0348', l: '0348'}, {k: 'form7000F', l: '7000F'}, {k: 'formDeslizante', l: 'Deslizante'}, {k: 'formMasterbachBlanco', l: 'MB Blanco'}
                 ].map(f => data[f.k] ? `
                   <div class="form-tag"><span class="form-label">${f.l}</span><span class="form-val">${data[f.k]}%</span></div>
