@@ -169,11 +169,18 @@ export default function HistorialProduccionPage() {
         setShowConsumoDropdown(false);
       }
     }
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key === 'Escape') {
+        setShowConsumoDropdown(false);
+      }
+    }
     if (showConsumoDropdown) {
       document.addEventListener('mousedown', handleClickOutside);
+      document.addEventListener('keydown', handleKeyDown);
     }
     return () => {
       document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('keydown', handleKeyDown);
     };
   }, [showConsumoDropdown]);
   const [periodo, setPeriodo] = useState('semana');
@@ -487,156 +494,155 @@ export default function HistorialProduccionPage() {
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            className="relative rounded-xl bg-gradient-to-br from-emerald-500 to-teal-600 p-6 text-white shadow-lg overflow-visible"
+            className="relative rounded-xl bg-gradient-to-br from-emerald-500 to-teal-600 p-5 sm:p-6 text-white shadow-lg flex flex-col justify-between"
           >
-            <div className="flex items-start justify-between gap-3">
-              <div className="flex items-center gap-3">
-                <div className="rounded-lg bg-white/20 p-3 shrink-0">
-                  <Package className="h-6 w-6" />
+            {/* Header de la tarjeta: Título a la izquierda, Botón Consumo MP a la derecha */}
+            <div className="flex items-center justify-between gap-2 mb-3">
+              <div className="flex items-center gap-2.5 min-w-0">
+                <div className="rounded-lg bg-white/20 p-2 shrink-0">
+                  <Package className="h-5 w-5" />
                 </div>
-                <div>
-                  <p className="text-sm text-white/80">Total Producido</p>
-                  {!filterArea ? (
-                    <>
-                      <p className="text-2xl font-bold">
-                        {formatNumber(totales.totalProducidoExtrusion || 0, { minDecimals: 2, maxDecimals: 2 })} KG
-                      </p>
-                      <p className="text-sm text-white/90 mt-1">
-                        Terminado: {formatNumber(totales.totalProducidoSellado || 0, { minDecimals: 0, maxDecimals: 0 })} UND
-                      </p>
-                    </>
-                  ) : (
-                    <p className="text-2xl font-bold">
-                      {formatNumber(totales.totalProducido, {
-                        minDecimals: getUnidadForArea(filterArea) === 'UND' ? 0 : 2,
-                        maxDecimals: getUnidadForArea(filterArea) === 'UND' ? 0 : 2
-                      })} {getUnidadForArea(filterArea)}
-                    </p>
-                  )}
-                </div>
+                <p className="text-sm font-semibold text-white/90 truncate">Total Producido</p>
               </div>
 
-              {/* Botón interactivo para desplegar consumo de MP */}
-              <div className="relative shrink-0" ref={consumoDropdownRef}>
-                <button
-                  type="button"
-                  onClick={() => setShowConsumoDropdown((prev) => !prev)}
-                  className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-all shadow-sm ${
-                    showConsumoDropdown
-                      ? 'bg-white text-emerald-900 shadow-md ring-2 ring-white/50'
-                      : 'bg-white/20 hover:bg-white/30 text-white border border-white/25 active:scale-95'
-                  }`}
-                  title="Ver desglose de resinas y molido extruidos"
-                  aria-expanded={showConsumoDropdown}
-                  aria-label="Ver desglose de materias primas"
-                >
-                  <Layers className="h-3.5 w-3.5" />
-                  <span className="hidden sm:inline">Consumo MP</span>
-                  <ChevronDown
-                    className={`h-3.5 w-3.5 transition-transform duration-200 ${
-                      showConsumoDropdown ? 'rotate-180' : ''
-                    }`}
-                  />
-                </button>
+              {/* Botón Consumo MP compacto a la derecha */}
+              <button
+                type="button"
+                onClick={() => setShowConsumoDropdown(true)}
+                className="flex items-center gap-1.5 text-xs py-1 px-2.5 rounded-md font-medium shrink-0 bg-white/20 hover:bg-white/30 text-white border border-white/25 active:scale-95 transition-all shadow-sm"
+                title="Ver desglose de resinas y molido extruidos"
+                aria-label="Ver desglose de materias primas"
+              >
+                <Layers className="h-3.5 w-3.5 shrink-0" />
+                <span>Consumo MP</span>
+              </button>
+            </div>
 
-                {/* Popover / Dropdown con el resumen consolidado */}
-                <AnimatePresence>
-                  {showConsumoDropdown && (
-                    <motion.div
-                      initial={{ opacity: 0, y: 8, scale: 0.95 }}
-                      animate={{ opacity: 1, y: 0, scale: 1 }}
-                      exit={{ opacity: 0, y: 6, scale: 0.95 }}
-                      transition={{ duration: 0.15 }}
-                      className="absolute right-0 top-full mt-2 w-80 sm:w-96 rounded-2xl bg-white p-4 text-gray-900 shadow-2xl border border-gray-100 z-50"
-                      style={{ filter: 'drop-shadow(0 20px 25px rgba(0, 0, 0, 0.15))' }}
-                    >
-                      {/* Cabecera del popover */}
-                      <div className="flex items-center justify-between border-b border-gray-100 pb-3 mb-3">
-                        <div className="flex items-center gap-2">
-                          <div className="p-1.5 bg-emerald-100 text-emerald-700 rounded-lg">
-                            <Layers className="h-4 w-4" />
-                          </div>
-                          <div>
-                            <h4 className="text-sm font-bold text-gray-900">Consumo de Materia Prima</h4>
-                            <p className="text-[11px] text-gray-500">
-                              Extrusión · {periodo === 'semana' ? 'Esta Semana' : 'Este Mes'}
-                            </p>
-                          </div>
-                        </div>
-                        <button
-                          type="button"
-                          onClick={() => setShowConsumoDropdown(false)}
-                          className="p-1 rounded-md text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors"
-                          aria-label="Cerrar"
-                        >
-                          <X className="h-4 w-4" />
-                        </button>
-                      </div>
-
-                      {/* Lista de consumos */}
-                      {consumosMateriaPrima.length === 0 ? (
-                        <div className="py-6 text-center text-xs text-gray-500">
-                          <p className="font-medium">Sin consumos registrados</p>
-                          <p className="text-[11px] text-gray-400 mt-1">
-                            No hay órdenes de extrusión con formulación registrada mayor a 0 kg en este período.
-                          </p>
-                        </div>
-                      ) : (
-                        <div className="space-y-2.5 max-h-72 overflow-y-auto pr-1">
-                          {consumosMateriaPrima.map((item) => {
-                            const porcentajeSobreTotal = totalKgConsumidos > 0
-                              ? ((item.cantidadKg / totalKgConsumidos) * 100).toFixed(1)
-                              : '0.0';
-
-                            return (
-                              <div
-                                key={item.key}
-                                className="p-2.5 rounded-lg bg-gray-50 border border-gray-100 hover:bg-gray-100/70 transition-colors"
-                              >
-                                <div className="flex items-center justify-between text-xs mb-1.5">
-                                  <span className="font-semibold text-gray-800 flex items-center gap-1.5">
-                                    <span className={`w-2.5 h-2.5 rounded-full ${item.color}`} />
-                                    {item.name}
-                                  </span>
-                                  <div className="text-right">
-                                    <span className="font-bold text-gray-900 text-xs">
-                                      {formatNumber(item.cantidadKg, { minDecimals: 2, maxDecimals: 2 })} kg
-                                    </span>
-                                    <span className="text-[10px] text-gray-500 ml-1.5 font-medium">
-                                      ({porcentajeSobreTotal}%)
-                                    </span>
-                                  </div>
-                                </div>
-                                {/* Barra visual */}
-                                <div className="h-1.5 w-full bg-gray-200 rounded-full overflow-hidden">
-                                  <div
-                                    className={`h-full ${item.barColor} transition-all duration-300 rounded-full`}
-                                    style={{
-                                      width: `${Math.min(100, Math.max(2, Number(porcentajeSobreTotal)))}%`,
-                                    }}
-                                  />
-                                </div>
-                              </div>
-                            );
-                          })}
-                        </div>
-                      )}
-
-                      {/* Resumen footer */}
-                      {consumosMateriaPrima.length > 0 && (
-                        <div className="mt-3 pt-3 border-t border-gray-100 flex items-center justify-between text-xs">
-                          <span className="font-medium text-gray-500">Total formulado:</span>
-                          <span className="font-extrabold text-emerald-700 text-sm">
-                            {formatNumber(totalKgConsumidos, { minDecimals: 2, maxDecimals: 2 })} kg
-                          </span>
-                        </div>
-                      )}
-                    </motion.div>
-                  )}
-                </AnimatePresence>
-              </div>
+            {/* Valor en KG / UND debajo con espacio visual despejado */}
+            <div className="mt-1">
+              {!filterArea ? (
+                <>
+                  <p className="text-2xl sm:text-3xl font-bold tracking-tight text-white">
+                    {formatNumber(totales.totalProducidoExtrusion || 0, { minDecimals: 2, maxDecimals: 2 })} KG
+                  </p>
+                  <p className="text-xs text-white/90 mt-1 font-medium">
+                    Terminado: {formatNumber(totales.totalProducidoSellado || 0, { minDecimals: 0, maxDecimals: 0 })} UND
+                  </p>
+                </>
+              ) : (
+                <p className="text-2xl sm:text-3xl font-bold tracking-tight text-white">
+                  {formatNumber(totales.totalProducido, {
+                    minDecimals: getUnidadForArea(filterArea) === 'UND' ? 0 : 2,
+                    maxDecimals: getUnidadForArea(filterArea) === 'UND' ? 0 : 2
+                  })} {getUnidadForArea(filterArea)}
+                </p>
+              )}
             </div>
           </motion.div>
+
+          {/* Modal Centrado de Consumo de Materia Prima con Backdrop */}
+          <AnimatePresence>
+            {showConsumoDropdown && (
+              <div
+                className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm"
+                onClick={() => setShowConsumoDropdown(false)}
+              >
+                <motion.div
+                  initial={{ opacity: 0, scale: 0.95, y: 10 }}
+                  animate={{ opacity: 1, scale: 1, y: 0 }}
+                  exit={{ opacity: 0, scale: 0.95, y: 10 }}
+                  transition={{ duration: 0.18, ease: 'easeOut' }}
+                  ref={consumoDropdownRef}
+                  onClick={(e: React.MouseEvent) => e.stopPropagation()}
+                  className="bg-white dark:bg-slate-900 w-full max-w-md rounded-2xl p-5 sm:p-6 shadow-2xl border border-slate-200 dark:border-slate-800 text-gray-900 dark:text-gray-100 overflow-hidden"
+                >
+                  {/* Cabecera del Modal */}
+                  <div className="flex items-center justify-between border-b border-gray-100 dark:border-slate-800 pb-3.5 mb-4">
+                    <div className="flex items-center gap-3">
+                      <div className="p-2 bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-400 rounded-xl shrink-0">
+                        <Layers className="h-5 w-5" />
+                      </div>
+                      <div>
+                        <h4 className="text-base font-bold text-gray-900 dark:text-white leading-tight">
+                          Consumo de Materia Prima
+                        </h4>
+                        <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+                          Procesado en Extrusión · {periodo === 'semana' ? 'Esta Semana' : 'Este Mes'}
+                        </p>
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setShowConsumoDropdown(false)}
+                      className="p-1.5 rounded-lg text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-slate-800 transition-colors"
+                      aria-label="Cerrar modal"
+                    >
+                      <X className="h-5 w-5" />
+                    </button>
+                  </div>
+
+                  {/* Lista de consumos */}
+                  {consumosMateriaPrima.length === 0 ? (
+                    <div className="py-8 text-center text-xs text-gray-500 dark:text-gray-400">
+                      <p className="font-semibold text-sm text-gray-700 dark:text-gray-300">Sin consumos registrados</p>
+                      <p className="text-xs text-gray-400 dark:text-gray-500 mt-1 max-w-xs mx-auto">
+                        No hay órdenes de extrusión con formulación registrada mayor a 0 kg en este período.
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="space-y-3 max-h-80 overflow-y-auto pr-1">
+                      {consumosMateriaPrima.map((item) => {
+                        const porcentajeSobreTotal = totalKgConsumidos > 0
+                          ? ((item.cantidadKg / totalKgConsumidos) * 100).toFixed(1)
+                          : '0.0';
+
+                        return (
+                          <div
+                            key={item.key}
+                            className="p-3 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-800 hover:bg-slate-100/80 dark:hover:bg-slate-800 transition-colors"
+                          >
+                            <div className="flex items-center justify-between gap-3 text-xs mb-1.5">
+                              <span className="font-semibold text-gray-800 dark:text-gray-200 flex items-center gap-2 min-w-0">
+                                <span className={`w-2.5 h-2.5 rounded-full shrink-0 ${item.color}`} />
+                                <span className="truncate">{item.name}</span>
+                              </span>
+                              <div className="text-right shrink-0">
+                                <span className="font-bold text-gray-900 dark:text-white text-xs">
+                                  {formatNumber(item.cantidadKg, { minDecimals: 2, maxDecimals: 2 })} kg
+                                </span>
+                                <span className="text-[11px] text-gray-500 dark:text-gray-400 ml-1.5 font-medium">
+                                  ({porcentajeSobreTotal}%)
+                                </span>
+                              </div>
+                            </div>
+                            {/* Barra visual */}
+                            <div className="h-1.5 w-full bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden">
+                              <div
+                                className={`h-full ${item.barColor} transition-all duration-300 rounded-full`}
+                                style={{
+                                  width: `${Math.min(100, Math.max(2, Number(porcentajeSobreTotal)))}%`,
+                                }}
+                              />
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+
+                  {/* Resumen footer */}
+                  {consumosMateriaPrima.length > 0 && (
+                    <div className="mt-4 pt-3.5 border-t border-gray-100 dark:border-slate-800 flex items-center justify-between text-xs">
+                      <span className="font-medium text-gray-500 dark:text-gray-400">Total formulado:</span>
+                      <span className="font-extrabold text-emerald-600 dark:text-emerald-400 text-sm">
+                        {formatNumber(totalKgConsumidos, { minDecimals: 2, maxDecimals: 2 })} kg
+                      </span>
+                    </div>
+                  )}
+                </motion.div>
+              </div>
+            )}
+          </AnimatePresence>
 
           <motion.div
             initial={{ opacity: 0, y: 20 }}
