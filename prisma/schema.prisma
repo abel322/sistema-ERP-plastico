@@ -592,17 +592,22 @@ model Produccion {
   productoClienteId String?
   cantidadProducida Float
   unidad            UnidadVenta
-  merma             Float             @default(0)
-  mermaColor        Float             @default(0)
-  mermaCristal      Float             @default(0)
-  horaInicio        String?
-  horaFin           String?
-  observaciones     String?
-  estado            EstadoProduccion  @default(EnProceso)
-  finalizadoAt      DateTime?
-  consumoMpDescontado Boolean         @default(false)
-  createdAt         DateTime          @default(now())
-  updatedAt         DateTime          @updatedAt
+  merma                 Float             @default(0)
+  mermaColor            Float?            @default(0)
+  mermaCristal          Float?            @default(0)
+  mermaTransparenteAlta Float?            @default(0)
+  mermaBlancoPollo      Float?            @default(0)
+  mermaTransparenteBaja Float?            @default(0)
+  mermaBlancoPego       Float?            @default(0)
+  mermaInventarioSumada Boolean           @default(false)
+  horaInicio            String?
+  horaFin               String?
+  observaciones         String?
+  estado                EstadoProduccion  @default(EnProceso)
+  finalizadoAt          DateTime?
+  consumoMpDescontado   Boolean           @default(false)
+  createdAt             DateTime          @default(now())
+  updatedAt             DateTime          @updatedAt
 
   user                User?               @relation(fields: [userId], references: [id], onDelete: Cascade)
   maquina             Maquina             @relation(fields: [maquinaId], references: [id])
@@ -624,20 +629,25 @@ model Produccion {
 }
 
 model RegistroProduccion {
-  id                  String    @id @default(cuid())
-  produccionId        String
-  turno               Turno
-  fecha               DateTime  @default(now())
-  operario            String
-  cantidad            Float
-  reporte             String?
-  merma               Float     @default(0)
-  mermaColor          Float     @default(0)
-  mermaCristal        Float     @default(0)
-  mermaSinImpresion   Float?
-  mermaImpreso        Float?
-  createdAt           DateTime  @default(now())
-  updatedAt           DateTime  @updatedAt
+  id                    String    @id @default(cuid())
+  produccionId          String
+  turno                 Turno
+  fecha                 DateTime  @default(now())
+  operario              String
+  cantidad              Float
+  reporte               String?
+  merma                 Float     @default(0)
+  mermaColor            Float?    @default(0)
+  mermaCristal          Float?    @default(0)
+  mermaSinImpresion     Float?
+  mermaImpreso          Float?
+  mermaTransparenteAlta Float?    @default(0)
+  mermaBlancoPollo      Float?    @default(0)
+  mermaTransparenteBaja Float?    @default(0)
+  mermaBlancoPego       Float?    @default(0)
+  mermaInventarioSumada Boolean   @default(false)
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
 
   produccion Produccion @relation(fields: [produccionId], references: [id], onDelete: Cascade)
 

@@ -5,6 +5,7 @@ import { EstadoProduccion, TipoProducto, SiguienteArea, TipoMovimiento, Categori
 import { authOptions } from '@/lib/auth-options';
 import { determinarDestinoProducto, DestinoProducto, getNombreArea } from '@/lib/producto-terminado-logic';
 import { generarCodigoLoteUnico } from '@/lib/utils/lote';
+import { calcularDesgloseMerma, aplicarMermaAInventario, revertirMermaDeInventario } from '@/lib/merma-logic';
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
@@ -110,43 +111,37 @@ export async function PUT(
       cantidadFinal = 0;
     }
 
-    // Recalcular mermas si existen registros
+    // Recalcular mermas si existen registros o desde el payload
     const tieneRegistros = produccionActual.registros && produccionActual.registros.length > 0;
-    const sumaMermas = tieneRegistros
-      ? produccionActual.registros.reduce(
-          (sum, r) =>
-            sum +
-            (Number(r.merma) || (Number((r as any).mermaColor || r.mermaImpreso || 0) + Number((r as any).mermaCristal || r.mermaSinImpresion || 0))),
-          0
-        )
-      : updateData.merma !== undefined
-      ? Number(updateData.merma)
-      : Number(produccionActual.merma || 0);
 
-    const sumaMermaColor = tieneRegistros
-      ? produccionActual.registros.reduce(
-          (sum, r) => sum + (Number((r as any).mermaColor) || Number(r.mermaImpreso) || 0),
-          0
-        )
-      : updateData.mermaColor !== undefined
-      ? Number(updateData.mermaColor)
-      : Number((produccionActual as any).mermaColor || 0);
-
-    const sumaMermaCristal = tieneRegistros
-      ? produccionActual.registros.reduce(
-          (sum, r) => sum + (Number((r as any).mermaCristal) || Number(r.mermaSinImpresion) || 0),
-          0
-        )
-      : updateData.mermaCristal !== undefined
-      ? Number(updateData.mermaCristal)
-      : Number((produccionActual as any).mermaCristal || 0);
+    let mAlta = 0, mPollo = 0, mColor = 0, mBaja = 0, mPego = 0, mTotal = 0;
+    if (tieneRegistros) {
+      mAlta = produccionActual.registros.reduce((sum, r) => sum + ((r as any).mermaTransparenteAlta || (r as any).mermaCristal || r.mermaSinImpresion || 0), 0);
+      mPollo = produccionActual.registros.reduce((sum, r) => sum + ((r as any).mermaBlancoPollo || 0), 0);
+      mColor = produccionActual.registros.reduce((sum, r) => sum + ((r as any).mermaColor || r.mermaImpreso || 0), 0);
+      mBaja = produccionActual.registros.reduce((sum, r) => sum + ((r as any).mermaTransparenteBaja || 0), 0);
+      mPego = produccionActual.registros.reduce((sum, r) => sum + ((r as any).mermaBlancoPego || 0), 0);
+      mTotal = produccionActual.registros.reduce((sum, r) => sum + (r.merma || 0), 0);
+    } else {
+      const desglose = calcularDesgloseMerma(updateData);
+      mAlta = desglose.mermaTransparenteAlta;
+      mPollo = desglose.mermaBlancoPollo;
+      mColor = desglose.mermaColor;
+      mBaja = desglose.mermaTransparenteBaja;
+      mPego = desglose.mermaBlancoPego;
+      mTotal = desglose.mermaTotal;
+    }
 
     const produccionUpdatePayload: any = {
       ...updateData,
       cantidadProducida: cantidadFinal,
-      merma: isNaN(sumaMermas) ? 0 : sumaMermas,
-      mermaColor: isNaN(sumaMermaColor) ? 0 : sumaMermaColor,
-      mermaCristal: isNaN(sumaMermaCristal) ? 0 : sumaMermaCristal,
+      merma: isNaN(mTotal) ? 0 : mTotal,
+      mermaTransparenteAlta: isNaN(mAlta) ? 0 : mAlta,
+      mermaBlancoPollo: isNaN(mPollo) ? 0 : mPollo,
+      mermaColor: isNaN(mColor) ? 0 : mColor,
+      mermaTransparenteBaja: isNaN(mBaja) ? 0 : mBaja,
+      mermaBlancoPego: isNaN(mPego) ? 0 : mPego,
+      mermaCristal: isNaN(mAlta) ? 0 : mAlta,
     };
 
     // Asegurar que la producción cuente con un código de lote único
@@ -468,6 +463,36 @@ export async function PUT(
             });
             prodActualizada.consumoMpDescontado = true;
           }
+        }
+
+        // 6. Si la orden NO tiene registros individuales de turno y tiene merma registrada directamente,
+        // sumar la merma al inventario de Peletizado correspondiente.
+        if (!produccionActual.mermaInventarioSumada && mTotal > 0 && !tieneRegistros) {
+          const loteReferencia = prodActualizada.codigoLote || prodActualizada.id;
+          const responsableNombre = (session?.user as any)?.name || prodActualizada.operario || 'Sistema';
+
+          await aplicarMermaAInventario(
+            tx,
+            {
+              mermaTransparenteAlta: mAlta,
+              mermaBlancoPollo: mPollo,
+              mermaColor: mColor,
+              mermaTransparenteBaja: mBaja,
+              mermaBlancoPego: mPego,
+            },
+            {
+              area: prodActualizada.area,
+              ordenId: prodActualizada.id,
+              loteReferencia,
+              responsable: responsableNombre,
+            }
+          );
+
+          await tx.produccion.update({
+            where: { id: prodActualizada.id },
+            data: { mermaInventarioSumada: true },
+          });
+          prodActualizada.mermaInventarioSumada = true;
         }
 
         return {

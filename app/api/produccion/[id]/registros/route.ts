@@ -3,6 +3,7 @@ import { getServerSession } from 'next-auth';
 import { prisma } from '@/lib/db';
 import { authOptions } from '@/lib/auth-options';
 import { determinarDestinoProducto } from '@/lib/producto-terminado-logic';
+import { calcularDesgloseMerma, aplicarMermaAInventario } from '@/lib/merma-logic';
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
@@ -24,17 +25,25 @@ export async function GET(
       orderBy: { fecha: 'desc' },
     });
 
-    // Calcular total de cantidad y mermas
+    // Calcular total de cantidad y 5 clasificaciones de mermas
     const totalCantidad = registros.reduce((sum, r) => sum + r.cantidad, 0);
-    const totalMerma = registros.reduce((sum, r) => sum + r.merma, 0);
-    const totalMermaColor = registros.reduce((sum, r) => sum + ((r as any).mermaColor ?? r.mermaImpreso ?? 0), 0);
-    const totalMermaCristal = registros.reduce((sum, r) => sum + ((r as any).mermaCristal ?? r.mermaSinImpresion ?? 0), 0);
+    const totalMerma = registros.reduce((sum, r) => sum + (r.merma || 0), 0);
+    const totalMermaTransparenteAlta = registros.reduce((sum, r) => sum + ((r as any).mermaTransparenteAlta || (r as any).mermaCristal || r.mermaSinImpresion || 0), 0);
+    const totalMermaBlancoPollo = registros.reduce((sum, r) => sum + ((r as any).mermaBlancoPollo || 0), 0);
+    const totalMermaColor = registros.reduce((sum, r) => sum + ((r as any).mermaColor || r.mermaImpreso || 0), 0);
+    const totalMermaTransparenteBaja = registros.reduce((sum, r) => sum + ((r as any).mermaTransparenteBaja || 0), 0);
+    const totalMermaBlancoPego = registros.reduce((sum, r) => sum + ((r as any).mermaBlancoPego || 0), 0);
+    const totalMermaCristal = totalMermaTransparenteAlta;
 
     return NextResponse.json({
       registros,
       totalCantidad,
       totalMerma,
+      totalMermaTransparenteAlta,
+      totalMermaBlancoPollo,
       totalMermaColor,
+      totalMermaTransparenteBaja,
+      totalMermaBlancoPego,
       totalMermaCristal,
     });
   } catch (error) {
@@ -61,11 +70,6 @@ export async function POST(
       operario,
       cantidad,
       reporte,
-      merma,
-      mermaColor,
-      mermaCristal,
-      mermaSinImpresion,
-      mermaImpreso,
     } = body;
 
     if (!turno || !operario || cantidad === undefined) {
@@ -86,86 +90,67 @@ export async function POST(
       return NextResponse.json({ error: 'Producción no encontrada' }, { status: 404 });
     }
 
-    // Clasificación y segregación de desperdicio según área
-    let finalMermaColor = 0;
-    let finalMermaCristal = 0;
-    let finalMerma = 0;
+    // Desglose de merma tipificado en 5 variantes (MOLIDO 1 a MOLIDO 5)
+    const desglose = calcularDesgloseMerma(body);
 
-    const area = produccion.area;
-    if (area === 'Serigrafia' || area === 'Refilado') {
-      finalMermaColor = mermaColor !== undefined 
-        ? (parseFloat(mermaColor?.toString() || '0') || 0)
-        : (parseFloat(mermaImpreso?.toString() || '0') || 0);
+    const registro = await prisma.$transaction(async (tx) => {
+      // 1. Crear registro de turno
+      const reg = await tx.registroProduccion.create({
+        data: {
+          produccionId: id,
+          turno,
+          fecha: fecha ? new Date(fecha) : new Date(),
+          operario,
+          cantidad: parseFloat(cantidad.toString()),
+          reporte: reporte || null,
+          merma: desglose.mermaTotal,
+          mermaTransparenteAlta: desglose.mermaTransparenteAlta,
+          mermaBlancoPollo: desglose.mermaBlancoPollo,
+          mermaColor: desglose.mermaColor,
+          mermaTransparenteBaja: desglose.mermaTransparenteBaja,
+          mermaBlancoPego: desglose.mermaBlancoPego,
+          mermaCristal: desglose.mermaTransparenteAlta,
+          mermaSinImpresion: desglose.mermaTransparenteAlta,
+          mermaImpreso: desglose.mermaColor,
+          mermaInventarioSumada: true,
+        },
+      });
 
-      finalMermaCristal = mermaCristal !== undefined
-        ? (parseFloat(mermaCristal?.toString() || '0') || 0)
-        : (parseFloat(mermaSinImpresion?.toString() || '0') || 0);
+      // 2. Actualizar cantidad total y mermas acumuladas en la producción
+      const todosRegistros = await tx.registroProduccion.findMany({
+        where: { produccionId: id },
+      });
+      const totalCantidad = todosRegistros.reduce((sum, r) => sum + r.cantidad, 0);
+      const totalMerma = todosRegistros.reduce((sum, r) => sum + (r.merma || 0), 0);
+      const totalMermaAlta = todosRegistros.reduce((sum, r) => sum + ((r as any).mermaTransparenteAlta || (r as any).mermaCristal || r.mermaSinImpresion || 0), 0);
+      const totalMermaPollo = todosRegistros.reduce((sum, r) => sum + ((r as any).mermaBlancoPollo || 0), 0);
+      const totalMermaColor = todosRegistros.reduce((sum, r) => sum + ((r as any).mermaColor || r.mermaImpreso || 0), 0);
+      const totalMermaBaja = todosRegistros.reduce((sum, r) => sum + ((r as any).mermaTransparenteBaja || 0), 0);
+      const totalMermaPego = todosRegistros.reduce((sum, r) => sum + ((r as any).mermaBlancoPego || 0), 0);
 
-      finalMerma = finalMermaColor + finalMermaCristal;
-    } else if (area === 'Sellado') {
-      const rawMerma = merma !== undefined 
-        ? (parseFloat(merma?.toString() || '0') || 0)
-        : ((parseFloat(mermaColor?.toString() || '0') || 0) + (parseFloat(mermaCristal?.toString() || '0') || 0));
+      await tx.produccion.update({
+        where: { id },
+        data: {
+          cantidadProducida: totalCantidad,
+          merma: totalMerma,
+          mermaTransparenteAlta: totalMermaAlta,
+          mermaBlancoPollo: totalMermaPollo,
+          mermaColor: totalMermaColor,
+          mermaTransparenteBaja: totalMermaBaja,
+          mermaBlancoPego: totalMermaPego,
+          mermaCristal: totalMermaAlta,
+        },
+      });
 
-      const conImpresion = Boolean(
-        produccion.pedido?.productoCliente?.conImpresion ||
-        produccion.productoCliente?.conImpresion ||
-        (produccion.pedido?.cliente as any)?.conImpresion
-      );
+      // 3. Sumar automáticamente los kilos de merma al stock del ítem de PELETIZADO correspondiente
+      await aplicarMermaAInventario(tx, desglose, {
+        area: produccion.area,
+        ordenId: produccion.id,
+        codigoLote: produccion.codigoLote,
+        responsable: operario,
+      });
 
-      if (conImpresion) {
-        finalMermaColor = rawMerma;
-        finalMermaCristal = 0;
-      } else {
-        finalMermaCristal = rawMerma;
-        finalMermaColor = 0;
-      }
-      finalMerma = rawMerma;
-    } else {
-      // Extrusión o default
-      const rawMerma = merma !== undefined 
-        ? (parseFloat(merma?.toString() || '0') || 0)
-        : ((parseFloat(mermaColor?.toString() || '0') || 0) + (parseFloat(mermaCristal?.toString() || '0') || 0));
-
-      finalMermaCristal = rawMerma;
-      finalMermaColor = 0;
-      finalMerma = rawMerma;
-    }
-
-    // Crear registro
-    const registro = await prisma.registroProduccion.create({
-      data: {
-        produccionId: id,
-        turno,
-        fecha: fecha ? new Date(fecha) : new Date(),
-        operario,
-        cantidad: parseFloat(cantidad.toString()),
-        reporte: reporte || null,
-        merma: finalMerma,
-        mermaColor: finalMermaColor,
-        mermaCristal: finalMermaCristal,
-        mermaSinImpresion: finalMermaCristal,
-        mermaImpreso: finalMermaColor,
-      } as any,
-    });
-
-    // Actualizar cantidad total en la producción
-    const todosRegistros = await prisma.registroProduccion.findMany({
-      where: { produccionId: id },
-    });
-    const totalCantidad = todosRegistros.reduce((sum, r) => sum + r.cantidad, 0);
-    const totalMerma = todosRegistros.reduce((sum, r) => sum + r.merma, 0);
-    const totalMermaColor = todosRegistros.reduce((sum, r) => sum + ((r as any).mermaColor ?? r.mermaImpreso ?? 0), 0);
-    const totalMermaCristal = todosRegistros.reduce((sum, r) => sum + ((r as any).mermaCristal ?? r.mermaSinImpresion ?? 0), 0);
-
-    await prisma.produccion.update({
-      where: { id },
-      data: {
-        cantidadProducida: totalCantidad,
-        merma: totalMerma,
-        mermaColor: totalMermaColor,
-        mermaCristal: totalMermaCristal,
-      } as any,
+      return reg;
     });
 
     // Actualizar o crear ProductoTerminado dinámicamente ("En proceso")

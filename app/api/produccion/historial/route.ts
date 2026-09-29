@@ -3,6 +3,7 @@ import { getServerSession } from 'next-auth';
 import { prisma } from '@/lib/db';
 import { AreaProduccion, EstadoProduccion } from '@prisma/client';
 import { authOptions } from '@/lib/auth-options';
+import { calcularDesgloseMerma, CLASIFICACIONES_MERMA } from '@/lib/merma-logic';
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
@@ -75,6 +76,11 @@ export async function GET(request: Request) {
         _sum: {
           cantidadProducida: true,
           merma: true,
+          mermaTransparenteAlta: true,
+          mermaBlancoPollo: true,
+          mermaColor: true,
+          mermaTransparenteBaja: true,
+          mermaBlancoPego: true,
         },
         _count: true,
       }),
@@ -198,38 +204,62 @@ export async function GET(request: Request) {
       consumoConsolidadoExtrusion.formMasterbachAmarillo += kgExtrusion * ((Number(f.formMasterbachAmarillo ?? f.masterbachAmarillo ?? 0)) / 100);
     });
 
-    // Asegurar cálculo consolidado de mermaColor y mermaCristal por orden
+    // Asegurar cálculo consolidado de las 5 variantes de merma por orden
     const produccionesConMermas = producciones.map((prod) => {
-      const mermaColor = prod.registros && prod.registros.length > 0
-        ? prod.registros.reduce((acc, r) => acc + ((r as any).mermaColor ?? r.mermaImpreso ?? 0), 0)
-        : ((prod as any).mermaColor || 0);
-
-      const mermaCristal = prod.registros && prod.registros.length > 0
-        ? prod.registros.reduce((acc, r) => acc + ((r as any).mermaCristal ?? r.mermaSinImpresion ?? 0), 0)
-        : ((prod as any).mermaCristal || 0);
-
-      const mermaTotal = prod.registros && prod.registros.length > 0
-        ? prod.registros.reduce((acc, r) => acc + (r.merma || (((r as any).mermaColor ?? r.mermaImpreso ?? 0) + ((r as any).mermaCristal ?? r.mermaSinImpresion ?? 0))), 0)
-        : (prod.merma || (mermaColor + mermaCristal));
+      const datosMerma = prod.registros && prod.registros.length > 0 ? prod.registros : prod;
+      const desglose = calcularDesgloseMerma(datosMerma);
 
       return {
         ...prod,
-        merma: mermaTotal,
-        mermaColor,
-        mermaCristal,
+        merma: desglose.mermaTotal,
+        mermaTransparenteAlta: desglose.mermaTransparenteAlta,
+        mermaBlancoPollo: desglose.mermaBlancoPollo,
+        mermaColor: desglose.mermaColor,
+        mermaTransparenteBaja: desglose.mermaTransparenteBaja,
+        mermaBlancoPego: desglose.mermaBlancoPego,
+        mermaCristal: desglose.mermaTransparenteAlta, // retrocompatibilidad
       };
     });
 
-    // Calcular totales generales
-    const totalMermaColor = produccionesConMermas.reduce((acc, p) => acc + (p.mermaColor || 0), 0);
-    const totalMermaCristal = produccionesConMermas.reduce((acc, p) => acc + (p.mermaCristal || 0), 0);
-    const totalMerma = resumen.reduce((acc, r) => acc + (r._sum.merma || 0), 0) || (totalMermaColor + totalMermaCristal);
+    // Calcular totales generales para las 5 variantes de merma
+    const sumMermaAlta = resumen.reduce((acc, r) => acc + ((r._sum as any).mermaTransparenteAlta || 0), 0);
+    const sumMermaPollo = resumen.reduce((acc, r) => acc + ((r._sum as any).mermaBlancoPollo || 0), 0);
+    const sumMermaColor = resumen.reduce((acc, r) => acc + ((r._sum as any).mermaColor || 0), 0);
+    const sumMermaBaja = resumen.reduce((acc, r) => acc + ((r._sum as any).mermaTransparenteBaja || 0), 0);
+    const sumMermaPego = resumen.reduce((acc, r) => acc + ((r._sum as any).mermaBlancoPego || 0), 0);
+    const sumMermaTotal = resumen.reduce((acc, r) => acc + (r._sum.merma || 0), 0);
+
+    const mermasTotalesMap = {
+      mermaTransparenteAlta: sumMermaAlta || produccionesConMermas.reduce((acc, p) => acc + (p.mermaTransparenteAlta || 0), 0),
+      mermaBlancoPollo: sumMermaPollo || produccionesConMermas.reduce((acc, p) => acc + (p.mermaBlancoPollo || 0), 0),
+      mermaColor: sumMermaColor || produccionesConMermas.reduce((acc, p) => acc + (p.mermaColor || 0), 0),
+      mermaTransparenteBaja: sumMermaBaja || produccionesConMermas.reduce((acc, p) => acc + (p.mermaTransparenteBaja || 0), 0),
+      mermaBlancoPego: sumMermaPego || produccionesConMermas.reduce((acc, p) => acc + (p.mermaBlancoPego || 0), 0),
+    };
+
+    const desgloseMermas = CLASIFICACIONES_MERMA.map((item) => ({
+      key: item.key,
+      label: item.label,
+      shortLabel: item.shortLabel,
+      codigo: item.codigo,
+      cantidadKg: mermasTotalesMap[item.key] || 0,
+      color: item.color,
+      badgeClass: item.badgeClass,
+    }));
+
+    const totalMerma = sumMermaTotal || Object.values(mermasTotalesMap).reduce((a, b) => a + b, 0);
 
     const totales = {
       totalProducido: resumen.reduce((acc, r) => acc + (r._sum.cantidadProducida || 0), 0),
       totalMerma,
-      totalMermaColor,
-      totalMermaCristal,
+      mermaTransparenteAlta: mermasTotalesMap.mermaTransparenteAlta,
+      mermaBlancoPollo: mermasTotalesMap.mermaBlancoPollo,
+      mermaColor: mermasTotalesMap.mermaColor,
+      mermaTransparenteBaja: mermasTotalesMap.mermaTransparenteBaja,
+      mermaBlancoPego: mermasTotalesMap.mermaBlancoPego,
+      desgloseMermas,
+      totalMermaColor: mermasTotalesMap.mermaColor,
+      totalMermaCristal: mermasTotalesMap.mermaTransparenteAlta,
       totalRegistros: resumen.reduce((acc, r) => acc + r._count, 0),
       totalProducidoExtrusion: resumen.find(r => r.area === 'Extrusion')?._sum.cantidadProducida || 0,
       totalProducidoSellado: resumen.find(r => r.area === 'Sellado')?._sum.cantidadProducida || 0,

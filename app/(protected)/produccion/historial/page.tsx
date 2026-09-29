@@ -27,6 +27,7 @@ import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import { formatNumber } from '@/lib/utils';
 import { calcularDesperdicioInfo } from '@/lib/utils/merma';
 import { agruparProduccionesPorLote } from '@/lib/utils/agrupar-producciones';
+import { CLASIFICACIONES_MERMA, calcularDesgloseMerma } from '@/lib/merma-logic';
 
 const AREAS = [
   { value: 'Extrusion', label: 'Extrusión', color: 'bg-blue-500', gradient: 'from-blue-600 via-blue-500 to-indigo-500' },
@@ -51,7 +52,11 @@ interface RegistroProduccion {
   cantidad: number;
   reporte?: string;
   merma: number;
+  mermaTransparenteAlta?: number;
+  mermaBlancoPollo?: number;
   mermaColor?: number;
+  mermaTransparenteBaja?: number;
+  mermaBlancoPego?: number;
   mermaCristal?: number;
   mermaSinImpresion?: number;
   mermaImpreso?: number;
@@ -129,7 +134,11 @@ interface Produccion {
   cantidadProducida: number;
   unidad: string;
   merma: number;
+  mermaTransparenteAlta?: number;
+  mermaBlancoPollo?: number;
   mermaColor?: number;
+  mermaTransparenteBaja?: number;
+  mermaBlancoPego?: number;
   mermaCristal?: number;
   finalizadoAt: string;
   maquina: { nombre: string };
@@ -158,6 +167,20 @@ export default function HistorialProduccionPage() {
     totalMerma: number;
     totalMermaColor: number;
     totalMermaCristal: number;
+    mermaTransparenteAlta?: number;
+    mermaBlancoPollo?: number;
+    mermaColor?: number;
+    mermaTransparenteBaja?: number;
+    mermaBlancoPego?: number;
+    desgloseMermas?: Array<{
+      key: string;
+      label: string;
+      shortLabel: string;
+      codigo: string;
+      cantidadKg: number;
+      color: string;
+      badgeClass: string;
+    }>;
     totalRegistros: number;
     totalProducidoExtrusion: number;
     totalProducidoSellado: number;
@@ -338,12 +361,11 @@ export default function HistorialProduccionPage() {
       ? calcularTotalCantidad(ultimaFase.registros)
       : ultimaFase.cantidadProducida;
 
-    const mermaColor = grupo.reduce((acc, p) => acc + (p.mermaColor || p.registros?.reduce((a, r) => a + ((r as any).mermaColor ?? r.mermaImpreso ?? 0), 0) || 0), 0);
-    const mermaCristal = grupo.reduce((acc, p) => acc + (p.mermaCristal || p.registros?.reduce((a, r) => a + ((r as any).mermaCristal ?? r.mermaSinImpresion ?? 0), 0) || 0), 0);
-    const mermaTotal = grupo.reduce((acc, p) => {
-      let rMerma = p.registros?.reduce((a, r) => a + (r.merma || (((r as any).mermaColor ?? r.mermaImpreso ?? 0) + ((r as any).mermaCristal ?? r.mermaSinImpresion ?? 0))), 0) || 0;
-      return acc + (p.merma || rMerma);
-    }, 0);
+    const itemsParaMerma = grupo.flatMap(p => (p.registros && p.registros.length > 0 ? p.registros : [p]));
+    const desgloseGrupo = calcularDesgloseMerma(itemsParaMerma);
+    const mermaTotal = desgloseGrupo.mermaTotal;
+    const mermaColor = desgloseGrupo.mermaColor;
+    const mermaCristal = desgloseGrupo.mermaTransparenteAlta;
 
     // Obtener datos del pedido o producto para el título
     const pedido = grupo.find(p => p.pedido)?.pedido;
@@ -551,6 +573,19 @@ export default function HistorialProduccionPage() {
       totalGeneralMaterial,
     };
   }, [totales.consumoMateriasPrimasExtrusion, totales.consumoPeletizados, producciones]);
+
+  // Clasificaciones de merma activas (> 0 kg) en el período filtrado para la tarjeta roja
+  const mermasActivasPeriodo = useMemo(() => {
+    if (totales.desgloseMermas && totales.desgloseMermas.length > 0) {
+      return totales.desgloseMermas.filter((m) => (m.cantidadKg || 0) > 0);
+    }
+    return CLASIFICACIONES_MERMA.map((c) => ({
+      key: c.key,
+      label: c.label,
+      shortLabel: c.shortLabel,
+      cantidadKg: Number((totales as any)[c.key]) || 0,
+    })).filter((m) => m.cantidadKg > 0);
+  }, [totales]);
 
   return (
     <>
@@ -911,23 +946,34 @@ export default function HistorialProduccionPage() {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.1 }}
-            className="rounded-xl bg-gradient-to-br from-rose-500 to-red-600 p-6 text-white shadow-lg"
+            className="rounded-xl bg-gradient-to-br from-rose-500 to-red-600 p-6 text-white shadow-lg flex flex-col justify-between"
           >
             <div className="flex items-center gap-3">
-              <div className="rounded-lg bg-white/20 p-3">
+              <div className="rounded-lg bg-white/20 p-3 shrink-0">
                 <AlertTriangle className="h-6 w-6" />
               </div>
-              <div className="flex-1">
-                <p className="text-sm text-white/80">Total Merma</p>
-                <p className="text-2xl font-bold">
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium text-white/90">Total Merma</p>
+                <p className="text-2xl font-bold tracking-tight text-white">
                   {formatNumber(totales.totalMerma, { minDecimals: 2, maxDecimals: 2 })} kg
                 </p>
-                <div className="mt-1 flex flex-wrap items-center gap-2 text-[11px] font-semibold text-white/90">
-                  <span>Color: <strong>{formatNumber(totales.totalMermaColor, { minDecimals: 2, maxDecimals: 2 })} kg</strong></span>
-                  <span>·</span>
-                  <span>Cristal: <strong>{formatNumber(totales.totalMermaCristal, { minDecimals: 2, maxDecimals: 2 })} kg</strong></span>
-                </div>
               </div>
+            </div>
+
+            {/* Subtítulo: Filtra y muestra únicamente clasificaciones con > 0 kg en el período */}
+            <div className="mt-2 text-xs opacity-90 truncate max-w-full font-medium" title={mermasActivasPeriodo.map(m => `${m.label}: ${formatNumber(m.cantidadKg, { minDecimals: 2, maxDecimals: 2 })} kg`).join(' · ')}>
+              {mermasActivasPeriodo.length > 0 ? (
+                <span>
+                  {mermasActivasPeriodo.map((m, idx) => (
+                    <span key={m.key}>
+                      {m.shortLabel || m.label}: <strong className="font-semibold">{formatNumber(m.cantidadKg, { minDecimals: 2, maxDecimals: 2 })} kg</strong>
+                      {idx < mermasActivasPeriodo.length - 1 ? ' · ' : ''}
+                    </span>
+                  ))}
+                </span>
+              ) : (
+                <span>0,00 kg</span>
+              )}
             </div>
           </motion.div>
 
@@ -1182,13 +1228,14 @@ export default function HistorialProduccionPage() {
                                                   {prod.area === 'Sellado' ? 'Cantidad (Und)' : 'Cantidad'}
                                                 </th>
                                                 <th className="px-3 py-2 text-left font-semibold text-gray-700">Reporte</th>
-                                                <th className="px-3 py-2 text-right font-semibold text-purple-700">Merma Color (kg)</th>
-                                                <th className="px-3 py-2 text-right font-semibold text-cyan-700">Merma Cristal (kg)</th>
+                                                 <th className="px-3 py-2 text-left font-semibold text-gray-700">Clasificación Merma</th>
                                                 <th className="px-3 py-2 text-right font-semibold text-gray-900">Total Merma</th>
                                               </tr>
                                             </thead>
                                             <tbody className="divide-y divide-gray-100">
                                               {prod.registros.map((reg) => {
+                                                 const desgloseReg = calcularDesgloseMerma(reg);
+                                                 const activasReg = CLASIFICACIONES_MERMA.filter(c => desgloseReg[c.key] > 0);
                                                 const regColor = (reg.mermaColor !== undefined && reg.mermaColor !== null) ? reg.mermaColor : (reg.mermaImpreso || 0);
                                                 const regCristal = (reg.mermaCristal !== undefined && reg.mermaCristal !== null) ? reg.mermaCristal : (reg.mermaSinImpresion || 0);
                                                 const regTotal = reg.merma || (regColor + regCristal);
@@ -1201,12 +1248,19 @@ export default function HistorialProduccionPage() {
                                                       {formatNumber(reg.cantidad, { minDecimals: isUnidades ? 0 : 2, maxDecimals: 2 })}
                                                     </td>
                                                     <td className="px-3 py-2 text-gray-600">{reg.reporte || '-'}</td>
-                                                    <td className="px-3 py-2 text-right font-medium text-purple-700">
-                                                      {formatNumber(regColor, { minDecimals: 2, maxDecimals: 2 })}
-                                                    </td>
-                                                    <td className="px-3 py-2 text-right font-medium text-cyan-700">
-                                                      {formatNumber(regCristal, { minDecimals: 2, maxDecimals: 2 })}
-                                                    </td>
+                                                     <td className="px-3 py-2 text-left">
+                                                       {activasReg.length > 0 ? (
+                                                         <div className="flex flex-wrap gap-1.5">
+                                                           {activasReg.map(c => (
+                                                             <span key={c.key} className={`inline-flex items-center gap-1 rounded px-2 py-0.5 text-[11px] font-semibold border ${c.badgeClass}`}>
+                                                               {c.shortLabel}: {formatNumber(desgloseReg[c.key], { minDecimals: 2, maxDecimals: 2 })} kg
+                                                             </span>
+                                                           ))}
+                                                         </div>
+                                                       ) : (
+                                                         <span className="text-gray-400 text-xs">-</span>
+                                                       )}
+                                                     </td>
                                                     <td className="px-3 py-2 text-right font-bold text-red-600">
                                                       {formatNumber(regTotal, { minDecimals: 2, maxDecimals: 2 })}
                                                     </td>
@@ -1228,12 +1282,22 @@ export default function HistorialProduccionPage() {
                                                     </span>
                                                   )}
                                                 </td>
-                                                <td className="px-3 py-2 text-right font-bold text-purple-700">
-                                                  {formatNumber(prod.registros.reduce((acc, r) => acc + ((r as any).mermaColor ?? r.mermaImpreso ?? 0), 0), { minDecimals: 2, maxDecimals: 2 })}
-                                                </td>
-                                                <td className="px-3 py-2 text-right font-bold text-cyan-700">
-                                                  {formatNumber(prod.registros.reduce((acc, r) => acc + ((r as any).mermaCristal ?? r.mermaSinImpresion ?? 0), 0), { minDecimals: 2, maxDecimals: 2 })}
-                                                </td>
+                                                 <td className="px-3 py-2 text-left">
+                                                   {(() => {
+                                                     const desgloseFase = calcularDesgloseMerma(prod.registros);
+                                                     const activasFase = CLASIFICACIONES_MERMA.filter(c => desgloseFase[c.key] > 0);
+                                                     if (activasFase.length === 0) return <span className="text-gray-400 font-normal text-xs">-</span>;
+                                                     return (
+                                                       <div className="flex flex-wrap gap-1.5">
+                                                         {activasFase.map(c => (
+                                                           <span key={c.key} className={`inline-flex items-center gap-1 rounded px-2 py-0.5 text-[11px] font-bold border ${c.badgeClass}`}>
+                                                             {c.shortLabel}: {formatNumber(desgloseFase[c.key], { minDecimals: 2, maxDecimals: 2 })} kg
+                                                           </span>
+                                                         ))}
+                                                       </div>
+                                                     );
+                                                   })()}
+                                                 </td>
                                                 <td className="px-3 py-2 text-right font-bold text-red-600">
                                                   {formatNumber(prod.merma, { minDecimals: 2, maxDecimals: 2 })}
                                                 </td>
@@ -1265,14 +1329,22 @@ export default function HistorialProduccionPage() {
                                     <span className="text-gray-700">
                                       Total Merma: <strong className="text-gray-900 font-bold">{formatNumber(prod.merma, { minDecimals: 2, maxDecimals: 2 })} kg</strong>
                                     </span>
-                                    <span className="text-gray-300">|</span>
-                                    <span className="text-purple-700">
-                                      Color: <strong>{formatNumber(prod.mermaColor || prod.registros?.reduce((acc, r) => acc + ((r as any).mermaColor ?? r.mermaImpreso ?? 0), 0) || 0, { minDecimals: 2, maxDecimals: 2 })} kg</strong>
-                                    </span>
-                                    <span className="text-gray-300">|</span>
-                                    <span className="text-cyan-700">
-                                      Cristal: <strong>{formatNumber(prod.mermaCristal || prod.registros?.reduce((acc, r) => acc + ((r as any).mermaCristal ?? r.mermaSinImpresion ?? 0), 0) || 0, { minDecimals: 2, maxDecimals: 2 })} kg</strong>
-                                    </span>
+                                    {(() => {
+                                      const desglose = calcularDesgloseMerma(prod.registros && prod.registros.length > 0 ? prod.registros : prod);
+                                      const activas = CLASIFICACIONES_MERMA.filter(c => desglose[c.key] > 0);
+                                      if (activas.length === 0) return null;
+                                      return (
+                                        <>
+                                          <span className="text-gray-300">|</span>
+                                          {activas.map((c, i) => (
+                                            <span key={c.key} className="text-gray-600">
+                                              {c.shortLabel}: <strong className="text-gray-900">{formatNumber(desglose[c.key], { minDecimals: 2, maxDecimals: 2 })} kg</strong>
+                                              {i < activas.length - 1 ? ' · ' : ''}
+                                            </span>
+                                          ))}
+                                        </>
+                                      );
+                                    })()}
                                   </div>
                                   {desperdicio.tienePorcentaje && desperdicio.porcentaje !== null && (
                                     <span className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-bold border shadow-sm ${desperdicio.semaforo.badgeClass}`}>
