@@ -3,7 +3,7 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth-options';
 import { prisma } from '@/lib/db';
 import { revalidatePath } from 'next/cache';
-import { parseParametrosSellado } from '@/app/actions/parametros-sellado';
+import { parseParametrosSellado } from '@/lib/utils/parametros-sellado';
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
