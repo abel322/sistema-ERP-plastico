@@ -151,14 +151,14 @@ export default function HistorialProduccionPage() {
     totalProducidoExtrusion: number;
     totalProducidoSellado: number;
     consumoMateriasPrimasExtrusion?: Record<string, number>;
-  }>({ 
-    totalProducido: 0, 
-    totalMerma: 0, 
-    totalMermaColor: 0, 
-    totalMermaCristal: 0, 
-    totalRegistros: 0, 
-    totalProducidoExtrusion: 0, 
-    totalProducidoSellado: 0 
+  }>({
+    totalProducido: 0,
+    totalMerma: 0,
+    totalMermaColor: 0,
+    totalMermaCristal: 0,
+    totalRegistros: 0,
+    totalProducidoExtrusion: 0,
+    totalProducidoSellado: 0
   });
   const [showConsumoDropdown, setShowConsumoDropdown] = useState(false);
   const consumoDropdownRef = useRef<HTMLDivElement>(null);
@@ -299,7 +299,7 @@ export default function HistorialProduccionPage() {
     return area === 'Serigrafia' || area === 'Refilado';
   };
 
-    const getUnidadForArea = (areaName: string) => {
+  const getUnidadForArea = (areaName: string) => {
     if (areaName === 'Sellado') return 'UND'; // Default fallback
     const prods = producciones.filter(p => p.area === areaName);
     if (prods.length > 0 && prods[0].unidad) {
@@ -494,22 +494,24 @@ export default function HistorialProduccionPage() {
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            className="relative rounded-xl bg-gradient-to-br from-emerald-500 to-teal-600 p-5 sm:p-6 text-white shadow-lg flex flex-col justify-between"
+            className="relative rounded-xl bg-gradient-to-br from-emerald-500 to-teal-600 p-6 text-white shadow-lg flex flex-col justify-between"
           >
-            {/* Header de la tarjeta: Título a la izquierda, Botón Consumo MP a la derecha */}
-            <div className="flex items-center justify-between gap-2 mb-3">
-              <div className="flex items-center gap-2.5 min-w-0">
-                <div className="rounded-lg bg-white/20 p-2 shrink-0">
-                  <Package className="h-5 w-5" />
+            {/* Fila superior: Icono + Título completo y botón solo en móvil (< sm) */}
+            <div className="flex items-center justify-between gap-2">
+              <div className="flex items-center gap-3 min-w-0">
+                <div className="rounded-lg bg-white/20 p-3 shrink-0">
+                  <Package className="h-6 w-6" />
                 </div>
-                <p className="text-sm font-semibold text-white/90 truncate">Total Producido</p>
+                <div>
+                  <p className="text-sm font-medium text-white/90 whitespace-nowrap">Total Producido</p>
+                </div>
               </div>
 
-              {/* Botón Consumo MP compacto a la derecha */}
+              {/* Botón arriba exclusivamente en móvil (< sm) */}
               <button
                 type="button"
                 onClick={() => setShowConsumoDropdown(true)}
-                className="flex items-center gap-1.5 text-xs py-1 px-2.5 rounded-md font-medium shrink-0 bg-white/20 hover:bg-white/30 text-white border border-white/25 active:scale-95 transition-all shadow-sm"
+                className="flex sm:hidden items-center gap-1 text-xs py-1 px-2.5 rounded-md font-medium shrink-0 bg-white/20 hover:bg-white/30 text-white border border-white/25 active:scale-95 transition-all shadow-sm"
                 title="Ver desglose de resinas y molido extruidos"
                 aria-label="Ver desglose de materias primas"
               >
@@ -518,19 +520,19 @@ export default function HistorialProduccionPage() {
               </button>
             </div>
 
-            {/* Valor en KG / UND debajo con espacio visual despejado */}
-            <div className="mt-1">
+            {/* Valor en KG / UND con espacio visual amplio */}
+            <div className="mt-2 flex-1">
               {!filterArea ? (
                 <>
-                  <p className="text-2xl sm:text-3xl font-bold tracking-tight text-white">
+                  <p className="text-2xl font-bold tracking-tight text-white">
                     {formatNumber(totales.totalProducidoExtrusion || 0, { minDecimals: 2, maxDecimals: 2 })} KG
                   </p>
-                  <p className="text-xs text-white/90 mt-1 font-medium">
+                  <p className="text-xs text-white/90 mt-0.5 font-medium">
                     Terminado: {formatNumber(totales.totalProducidoSellado || 0, { minDecimals: 0, maxDecimals: 0 })} UND
                   </p>
                 </>
               ) : (
-                <p className="text-2xl sm:text-3xl font-bold tracking-tight text-white">
+                <p className="text-2xl font-bold tracking-tight text-white">
                   {formatNumber(totales.totalProducido, {
                     minDecimals: getUnidadForArea(filterArea) === 'UND' ? 0 : 2,
                     maxDecimals: getUnidadForArea(filterArea) === 'UND' ? 0 : 2
@@ -538,6 +540,18 @@ export default function HistorialProduccionPage() {
                 </p>
               )}
             </div>
+
+            {/* Botón Consumo MP al pie en pantallas sm, md y lg */}
+            <button
+              type="button"
+              onClick={() => setShowConsumoDropdown(true)}
+              className="hidden sm:flex items-center justify-center gap-1.5 w-full mt-2.5 py-1 px-2.5 rounded-lg text-xs font-semibold bg-white/20 hover:bg-white/30 text-white border border-white/25 active:scale-95 transition-all shadow-sm"
+              title="Ver desglose de resinas y molido extruidos"
+              aria-label="Ver desglose de materias primas"
+            >
+              <Layers className="h-3.5 w-3.5 shrink-0" />
+              <span>Consumo MP</span>
+            </button>
           </motion.div>
 
           {/* Modal Centrado de Consumo de Materia Prima con Backdrop */}
@@ -803,220 +817,220 @@ export default function HistorialProduccionPage() {
                         className="bg-gray-100 p-4 space-y-4"
                       >
                         {grupo.map((prod, indexFase) => {
-              const cantidadTotal = prod.registros && prod.registros.length > 0
-                ? calcularTotalCantidad(prod.registros)
-                : prod.cantidadProducida;
+                          const cantidadTotal = prod.registros && prod.registros.length > 0
+                            ? calcularTotalCantidad(prod.registros)
+                            : prod.cantidadProducida;
 
-              const isUnidades = prod.area === 'Sellado' || prod.unidad?.toLowerCase().startsWith('un') || prod.unidad?.toLowerCase().startsWith('ud');
+                          const isUnidades = prod.area === 'Sellado' || prod.unidad?.toLowerCase().startsWith('un') || prod.unidad?.toLowerCase().startsWith('ud');
 
-              const desperdicio = calcularDesperdicioInfo({
-                area: prod.area,
-                merma: prod.merma,
-                producido: cantidadTotal,
-                unidad: isUnidades ? 'und' : prod.unidad,
-                productoCliente: prod.pedido?.productoCliente || prod.productoCliente,
-                esOrdenFinalizada: true,
-              });
+                          const desperdicio = calcularDesperdicioInfo({
+                            area: prod.area,
+                            merma: prod.merma,
+                            producido: cantidadTotal,
+                            unidad: isUnidades ? 'und' : prod.unidad,
+                            productoCliente: prod.pedido?.productoCliente || prod.productoCliente,
+                            esOrdenFinalizada: true,
+                          });
 
-              return (
-                <motion.div
-                  key={prod.id}
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: indexFase * 0.03 }}
-                  className="overflow-hidden rounded-xl bg-gradient-to-br from-emerald-50 via-white to-gray-50 shadow-lg border border-emerald-100"
-                >
-                  {/* Encabezado */}
-                  <div className={`bg-gradient-to-r ${getAreaInfo(prod.area).gradient || 'from-gray-600 to-gray-400'} p-4`}>
-                    <div className="flex flex-wrap items-center justify-between gap-3">
-                      <div className="flex items-center gap-3 flex-wrap">
-                        <h3 className="text-xl font-bold text-white">
-                          Fase {indexFase + 1}: {getAreaInfo(prod.area).label}
-                        </h3>
-                        {prod.codigoLote && (
-                          <span className="rounded-lg bg-black/40 border border-white/20 px-2.5 py-0.5 text-xs font-mono font-bold text-white shadow-sm">
-                            Lote: {prod.codigoLote}
-                          </span>
-                        )}
-                        {prod.loteOrigen && (
-                          <span className="rounded-lg bg-amber-500/80 border border-amber-300/40 px-2.5 py-0.5 text-xs font-mono font-bold text-white shadow-sm">
-                            Bobina Origen: {prod.loteOrigen}
-                          </span>
-                        )}
-                      </div>
-                      <div className="flex flex-wrap items-center gap-2">
-                        <span className="rounded-full bg-white/20 px-3 py-1 text-sm font-medium text-white">
-                          {formatDate(prod.finalizadoAt)}
-                        </span>
-                        <span className={`rounded-full px-3 py-1 text-sm font-medium text-white ${getAreaInfo(prod.area).color}`}>
-                          {getAreaInfo(prod.area).label}
-                        </span>
-                        <span className="inline-flex items-center gap-1 rounded-full bg-green-400 px-3 py-1 text-sm font-medium text-green-900">
-                          <CheckCircle className="h-3 w-3" />
-                          Finalizado
-                        </span>
-                        {desperdicio.tienePorcentaje && desperdicio.porcentaje !== null && (
-                          <span className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-bold shadow-sm ${desperdicio.semaforo.badgeClass}`}>
-                            <span className={`w-2 h-2 rounded-full ${desperdicio.semaforo.dotColor}`} />
-                            Merma: {formatNumber(desperdicio.porcentaje, { minDecimals: 1, maxDecimals: 1 })}% · {desperdicio.semaforo.label}
-                          </span>
-                        )}
-                        <button
-                          onClick={() => toggleExpand(prod.id)}
-                          className="flex items-center gap-1 rounded-lg bg-white/20 px-3 py-1.5 text-sm font-medium text-white hover:bg-white/30"
-                        >
-                          {expandedCards.has(prod.id) ? (
-                            <><ChevronUp className="h-4 w-4" /> Ocultar Tablas</>) : (
-                            <><ChevronDown className="h-4 w-4" /> Ver Registros</>)}
-                        </button>
-                        <button
-                          onClick={() => handleActionClick(prod.id, 'editar')}
-                          className="flex items-center gap-1 rounded-lg bg-white/20 px-2 py-1.5 text-sm font-medium text-white hover:bg-white/30 transition-colors"
-                          title="Editar"
-                        >
-                          <Pencil className="h-4 w-4" />
-                        </button>
-                        <button
-                          onClick={() => handleActionClick(prod.id, 'eliminar')}
-                          disabled={eliminando === prod.id}
-                          className="flex items-center gap-1 rounded-lg bg-red-500/80 px-2 py-1.5 text-sm font-medium text-white hover:bg-red-500 transition-colors disabled:opacity-50"
-                          title="Eliminar"
-                        >
-                          {eliminando === prod.id ? <LoadingSpinner /> : <Trash2 className="h-4 w-4" />}
-                        </button>
-                      </div>
-                    </div>
-                    <div className="mt-2 flex flex-wrap gap-4 text-sm text-white/90">
-                      <span>Máquina: <strong>{prod.maquina.nombre}</strong></span>
-                      <span>Cliente: <strong>{prod.pedido?.cliente?.nombre || 'Sin pedido'}</strong></span>
-                    </div>
-                  </div>
+                          return (
+                            <motion.div
+                              key={prod.id}
+                              initial={{ opacity: 0, y: 20 }}
+                              animate={{ opacity: 1, y: 0 }}
+                              transition={{ delay: indexFase * 0.03 }}
+                              className="overflow-hidden rounded-xl bg-gradient-to-br from-emerald-50 via-white to-gray-50 shadow-lg border border-emerald-100"
+                            >
+                              {/* Encabezado */}
+                              <div className={`bg-gradient-to-r ${getAreaInfo(prod.area).gradient || 'from-gray-600 to-gray-400'} p-4`}>
+                                <div className="flex flex-wrap items-center justify-between gap-3">
+                                  <div className="flex items-center gap-3 flex-wrap">
+                                    <h3 className="text-xl font-bold text-white">
+                                      Fase {indexFase + 1}: {getAreaInfo(prod.area).label}
+                                    </h3>
+                                    {prod.codigoLote && (
+                                      <span className="rounded-lg bg-black/40 border border-white/20 px-2.5 py-0.5 text-xs font-mono font-bold text-white shadow-sm">
+                                        Lote: {prod.codigoLote}
+                                      </span>
+                                    )}
+                                    {prod.loteOrigen && (
+                                      <span className="rounded-lg bg-amber-500/80 border border-amber-300/40 px-2.5 py-0.5 text-xs font-mono font-bold text-white shadow-sm">
+                                        Bobina Origen: {prod.loteOrigen}
+                                      </span>
+                                    )}
+                                  </div>
+                                  <div className="flex flex-wrap items-center gap-2">
+                                    <span className="rounded-full bg-white/20 px-3 py-1 text-sm font-medium text-white">
+                                      {formatDate(prod.finalizadoAt)}
+                                    </span>
+                                    <span className={`rounded-full px-3 py-1 text-sm font-medium text-white ${getAreaInfo(prod.area).color}`}>
+                                      {getAreaInfo(prod.area).label}
+                                    </span>
+                                    <span className="inline-flex items-center gap-1 rounded-full bg-green-400 px-3 py-1 text-sm font-medium text-green-900">
+                                      <CheckCircle className="h-3 w-3" />
+                                      Finalizado
+                                    </span>
+                                    {desperdicio.tienePorcentaje && desperdicio.porcentaje !== null && (
+                                      <span className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-bold shadow-sm ${desperdicio.semaforo.badgeClass}`}>
+                                        <span className={`w-2 h-2 rounded-full ${desperdicio.semaforo.dotColor}`} />
+                                        Merma: {formatNumber(desperdicio.porcentaje, { minDecimals: 1, maxDecimals: 1 })}% · {desperdicio.semaforo.label}
+                                      </span>
+                                    )}
+                                    <button
+                                      onClick={() => toggleExpand(prod.id)}
+                                      className="flex items-center gap-1 rounded-lg bg-white/20 px-3 py-1.5 text-sm font-medium text-white hover:bg-white/30"
+                                    >
+                                      {expandedCards.has(prod.id) ? (
+                                        <><ChevronUp className="h-4 w-4" /> Ocultar Tablas</>) : (
+                                        <><ChevronDown className="h-4 w-4" /> Ver Registros</>)}
+                                    </button>
+                                    <button
+                                      onClick={() => handleActionClick(prod.id, 'editar')}
+                                      className="flex items-center gap-1 rounded-lg bg-white/20 px-2 py-1.5 text-sm font-medium text-white hover:bg-white/30 transition-colors"
+                                      title="Editar"
+                                    >
+                                      <Pencil className="h-4 w-4" />
+                                    </button>
+                                    <button
+                                      onClick={() => handleActionClick(prod.id, 'eliminar')}
+                                      disabled={eliminando === prod.id}
+                                      className="flex items-center gap-1 rounded-lg bg-red-500/80 px-2 py-1.5 text-sm font-medium text-white hover:bg-red-500 transition-colors disabled:opacity-50"
+                                      title="Eliminar"
+                                    >
+                                      {eliminando === prod.id ? <LoadingSpinner /> : <Trash2 className="h-4 w-4" />}
+                                    </button>
+                                  </div>
+                                </div>
+                                <div className="mt-2 flex flex-wrap gap-4 text-sm text-white/90">
+                                  <span>Máquina: <strong>{prod.maquina.nombre}</strong></span>
+                                  <span>Cliente: <strong>{prod.pedido?.cliente?.nombre || 'Sin pedido'}</strong></span>
+                                </div>
+                              </div>
 
-                  {/* Body - Tabla de Registros (Colapsable) */}
-                  <AnimatePresence>
-                    {expandedCards.has(prod.id) && (
-                      <motion.div
-                        initial={{ height: 0, opacity: 0 }}
-                        animate={{ height: 'auto', opacity: 1 }}
-                        exit={{ height: 0, opacity: 0 }}
-                        className="overflow-hidden"
-                      >
-                        <div className="p-4">
-                          {prod.registros && prod.registros.length > 0 ? (
-                            <div className="overflow-x-auto">
-                              <table className="w-full text-sm">
-                                <thead>
-                                  <tr className="border-b border-gray-200 bg-gray-50">
-                                    <th className="px-3 py-2 text-left font-semibold text-gray-700">Turno</th>
-                                    <th className="px-3 py-2 text-left font-semibold text-gray-700">Día</th>
-                                    <th className="px-3 py-2 text-left font-semibold text-gray-700">Operario</th>
-                                    <th className="px-3 py-2 text-right font-semibold text-gray-700">
-                                      {prod.area === 'Sellado' ? 'Cantidad (Und)' : 'Cantidad'}
-                                    </th>
-                                    <th className="px-3 py-2 text-left font-semibold text-gray-700">Reporte</th>
-                                    <th className="px-3 py-2 text-right font-semibold text-purple-700">Merma Color (kg)</th>
-                                    <th className="px-3 py-2 text-right font-semibold text-cyan-700">Merma Cristal (kg)</th>
-                                    <th className="px-3 py-2 text-right font-semibold text-gray-900">Total Merma</th>
-                                  </tr>
-                                </thead>
-                                <tbody className="divide-y divide-gray-100">
-                                  {prod.registros.map((reg) => {
-                                    const regColor = (reg.mermaColor !== undefined && reg.mermaColor !== null) ? reg.mermaColor : (reg.mermaImpreso || 0);
-                                    const regCristal = (reg.mermaCristal !== undefined && reg.mermaCristal !== null) ? reg.mermaCristal : (reg.mermaSinImpresion || 0);
-                                    const regTotal = reg.merma || (regColor + regCristal);
-                                    return (
-                                      <tr key={reg.id} className="hover:bg-emerald-50/50">
-                                        <td className="px-3 py-2 text-gray-600">{getTurnoLabel(reg.turno)}</td>
-                                        <td className="px-3 py-2 text-gray-600">{formatDayOfWeek(reg.fecha)}</td>
-                                        <td className="px-3 py-2 text-gray-900">{reg.operario}</td>
-                                        <td className="px-3 py-2 text-right font-medium text-gray-900">
-                                          {formatNumber(reg.cantidad, { minDecimals: isUnidades ? 0 : 2, maxDecimals: 2 })}
-                                        </td>
-                                        <td className="px-3 py-2 text-gray-600">{reg.reporte || '-'}</td>
-                                        <td className="px-3 py-2 text-right font-medium text-purple-700">
-                                          {formatNumber(regColor, { minDecimals: 2, maxDecimals: 2 })}
-                                        </td>
-                                        <td className="px-3 py-2 text-right font-medium text-cyan-700">
-                                          {formatNumber(regCristal, { minDecimals: 2, maxDecimals: 2 })}
-                                        </td>
-                                        <td className="px-3 py-2 text-right font-bold text-red-600">
-                                          {formatNumber(regTotal, { minDecimals: 2, maxDecimals: 2 })}
-                                        </td>
-                                      </tr>
-                                    );
-                                  })}
-                                </tbody>
-                                <tfoot className="border-t-2 border-gray-200 bg-gray-50/80 font-bold">
-                                  <tr>
-                                    <td colSpan={3} className="px-3 py-2 text-gray-700">Total Producción</td>
-                                    <td className="px-3 py-2 text-right text-gray-900">
-                                      {formatNumber(cantidadTotal, { minDecimals: isUnidades ? 0 : 2, maxDecimals: 2 })}
-                                    </td>
-                                    <td className="px-3 py-2">
-                                      {desperdicio.tienePorcentaje && desperdicio.porcentaje !== null && (
-                                        <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-bold border ${desperdicio.semaforo.badgeClass}`}>
-                                          <span className={`w-1.5 h-1.5 rounded-full ${desperdicio.semaforo.dotColor}`} />
-                                          {formatNumber(desperdicio.porcentaje, { minDecimals: 1, maxDecimals: 1 })}% · {desperdicio.semaforo.label}
-                                        </span>
+                              {/* Body - Tabla de Registros (Colapsable) */}
+                              <AnimatePresence>
+                                {expandedCards.has(prod.id) && (
+                                  <motion.div
+                                    initial={{ height: 0, opacity: 0 }}
+                                    animate={{ height: 'auto', opacity: 1 }}
+                                    exit={{ height: 0, opacity: 0 }}
+                                    className="overflow-hidden"
+                                  >
+                                    <div className="p-4">
+                                      {prod.registros && prod.registros.length > 0 ? (
+                                        <div className="overflow-x-auto">
+                                          <table className="w-full text-sm">
+                                            <thead>
+                                              <tr className="border-b border-gray-200 bg-gray-50">
+                                                <th className="px-3 py-2 text-left font-semibold text-gray-700">Turno</th>
+                                                <th className="px-3 py-2 text-left font-semibold text-gray-700">Día</th>
+                                                <th className="px-3 py-2 text-left font-semibold text-gray-700">Operario</th>
+                                                <th className="px-3 py-2 text-right font-semibold text-gray-700">
+                                                  {prod.area === 'Sellado' ? 'Cantidad (Und)' : 'Cantidad'}
+                                                </th>
+                                                <th className="px-3 py-2 text-left font-semibold text-gray-700">Reporte</th>
+                                                <th className="px-3 py-2 text-right font-semibold text-purple-700">Merma Color (kg)</th>
+                                                <th className="px-3 py-2 text-right font-semibold text-cyan-700">Merma Cristal (kg)</th>
+                                                <th className="px-3 py-2 text-right font-semibold text-gray-900">Total Merma</th>
+                                              </tr>
+                                            </thead>
+                                            <tbody className="divide-y divide-gray-100">
+                                              {prod.registros.map((reg) => {
+                                                const regColor = (reg.mermaColor !== undefined && reg.mermaColor !== null) ? reg.mermaColor : (reg.mermaImpreso || 0);
+                                                const regCristal = (reg.mermaCristal !== undefined && reg.mermaCristal !== null) ? reg.mermaCristal : (reg.mermaSinImpresion || 0);
+                                                const regTotal = reg.merma || (regColor + regCristal);
+                                                return (
+                                                  <tr key={reg.id} className="hover:bg-emerald-50/50">
+                                                    <td className="px-3 py-2 text-gray-600">{getTurnoLabel(reg.turno)}</td>
+                                                    <td className="px-3 py-2 text-gray-600">{formatDayOfWeek(reg.fecha)}</td>
+                                                    <td className="px-3 py-2 text-gray-900">{reg.operario}</td>
+                                                    <td className="px-3 py-2 text-right font-medium text-gray-900">
+                                                      {formatNumber(reg.cantidad, { minDecimals: isUnidades ? 0 : 2, maxDecimals: 2 })}
+                                                    </td>
+                                                    <td className="px-3 py-2 text-gray-600">{reg.reporte || '-'}</td>
+                                                    <td className="px-3 py-2 text-right font-medium text-purple-700">
+                                                      {formatNumber(regColor, { minDecimals: 2, maxDecimals: 2 })}
+                                                    </td>
+                                                    <td className="px-3 py-2 text-right font-medium text-cyan-700">
+                                                      {formatNumber(regCristal, { minDecimals: 2, maxDecimals: 2 })}
+                                                    </td>
+                                                    <td className="px-3 py-2 text-right font-bold text-red-600">
+                                                      {formatNumber(regTotal, { minDecimals: 2, maxDecimals: 2 })}
+                                                    </td>
+                                                  </tr>
+                                                );
+                                              })}
+                                            </tbody>
+                                            <tfoot className="border-t-2 border-gray-200 bg-gray-50/80 font-bold">
+                                              <tr>
+                                                <td colSpan={3} className="px-3 py-2 text-gray-700">Total Producción</td>
+                                                <td className="px-3 py-2 text-right text-gray-900">
+                                                  {formatNumber(cantidadTotal, { minDecimals: isUnidades ? 0 : 2, maxDecimals: 2 })}
+                                                </td>
+                                                <td className="px-3 py-2">
+                                                  {desperdicio.tienePorcentaje && desperdicio.porcentaje !== null && (
+                                                    <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-bold border ${desperdicio.semaforo.badgeClass}`}>
+                                                      <span className={`w-1.5 h-1.5 rounded-full ${desperdicio.semaforo.dotColor}`} />
+                                                      {formatNumber(desperdicio.porcentaje, { minDecimals: 1, maxDecimals: 1 })}% · {desperdicio.semaforo.label}
+                                                    </span>
+                                                  )}
+                                                </td>
+                                                <td className="px-3 py-2 text-right font-bold text-purple-700">
+                                                  {formatNumber(prod.registros.reduce((acc, r) => acc + ((r as any).mermaColor ?? r.mermaImpreso ?? 0), 0), { minDecimals: 2, maxDecimals: 2 })}
+                                                </td>
+                                                <td className="px-3 py-2 text-right font-bold text-cyan-700">
+                                                  {formatNumber(prod.registros.reduce((acc, r) => acc + ((r as any).mermaCristal ?? r.mermaSinImpresion ?? 0), 0), { minDecimals: 2, maxDecimals: 2 })}
+                                                </td>
+                                                <td className="px-3 py-2 text-right font-bold text-red-600">
+                                                  {formatNumber(prod.merma, { minDecimals: 2, maxDecimals: 2 })}
+                                                </td>
+                                              </tr>
+                                            </tfoot>
+                                          </table>
+                                        </div>
+                                      ) : (
+                                        <div className="py-4 text-center text-gray-400">
+                                          No hay registros detallados para esta producción
+                                        </div>
                                       )}
-                                    </td>
-                                    <td className="px-3 py-2 text-right font-bold text-purple-700">
-                                      {formatNumber(prod.registros.reduce((acc, r) => acc + ((r as any).mermaColor ?? r.mermaImpreso ?? 0), 0), { minDecimals: 2, maxDecimals: 2 })}
-                                    </td>
-                                    <td className="px-3 py-2 text-right font-bold text-cyan-700">
-                                      {formatNumber(prod.registros.reduce((acc, r) => acc + ((r as any).mermaCristal ?? r.mermaSinImpresion ?? 0), 0), { minDecimals: 2, maxDecimals: 2 })}
-                                    </td>
-                                    <td className="px-3 py-2 text-right font-bold text-red-600">
-                                      {formatNumber(prod.merma, { minDecimals: 2, maxDecimals: 2 })}
-                                    </td>
-                                  </tr>
-                                </tfoot>
-                              </table>
-                            </div>
-                          ) : (
-                            <div className="py-4 text-center text-gray-400">
-                              No hay registros detallados para esta producción
-                            </div>
-                          )}
-                        </div>
-                      </motion.div>
-                    )}
-                  </AnimatePresence>
+                                    </div>
+                                  </motion.div>
+                                )}
+                              </AnimatePresence>
 
-                  {/* Footer - Total y Semáforo de Merma */}
-                  <div className="flex flex-wrap items-center justify-between gap-3 border-t border-emerald-100 bg-gradient-to-r from-emerald-50 to-gray-50 px-4 py-3">
-                    <div className="text-lg font-bold text-gray-800">
-                      Total:{' '}
-                      <span className="text-emerald-600">
-                        {formatNumber(cantidadTotal, { minDecimals: isUnidades ? 0 : 2, maxDecimals: 2 })}
-                      </span>{' '}
-                      {prod.area === 'Sellado' ? 'unidades' : prod.unidad}
-                    </div>
-                    <div className="flex flex-wrap items-center gap-3">
-                      <div className="flex flex-wrap items-center gap-2 bg-white/90 dark:bg-slate-800 px-3 py-1.5 rounded-xl border border-gray-200 text-xs font-semibold">
-                        <span className="text-gray-700">
-                          Total Merma: <strong className="text-gray-900 font-bold">{formatNumber(prod.merma, { minDecimals: 2, maxDecimals: 2 })} kg</strong>
-                        </span>
-                        <span className="text-gray-300">|</span>
-                        <span className="text-purple-700">
-                          Color: <strong>{formatNumber(prod.mermaColor || prod.registros?.reduce((acc, r) => acc + ((r as any).mermaColor ?? r.mermaImpreso ?? 0), 0) || 0, { minDecimals: 2, maxDecimals: 2 })} kg</strong>
-                        </span>
-                        <span className="text-gray-300">|</span>
-                        <span className="text-cyan-700">
-                          Cristal: <strong>{formatNumber(prod.mermaCristal || prod.registros?.reduce((acc, r) => acc + ((r as any).mermaCristal ?? r.mermaSinImpresion ?? 0), 0) || 0, { minDecimals: 2, maxDecimals: 2 })} kg</strong>
-                        </span>
-                      </div>
-                      {desperdicio.tienePorcentaje && desperdicio.porcentaje !== null && (
-                        <span className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-bold border shadow-sm ${desperdicio.semaforo.badgeClass}`}>
-                          <span className={`w-1.5 h-1.5 rounded-full ${desperdicio.semaforo.dotColor}`} />
-                          Merma: {formatNumber(desperdicio.porcentaje, { minDecimals: 1, maxDecimals: 1 })}% · {desperdicio.semaforo.label}
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                </motion.div>
-              );
-            })}
+                              {/* Footer - Total y Semáforo de Merma */}
+                              <div className="flex flex-wrap items-center justify-between gap-3 border-t border-emerald-100 bg-gradient-to-r from-emerald-50 to-gray-50 px-4 py-3">
+                                <div className="text-lg font-bold text-gray-800">
+                                  Total:{' '}
+                                  <span className="text-emerald-600">
+                                    {formatNumber(cantidadTotal, { minDecimals: isUnidades ? 0 : 2, maxDecimals: 2 })}
+                                  </span>{' '}
+                                  {prod.area === 'Sellado' ? 'unidades' : prod.unidad}
+                                </div>
+                                <div className="flex flex-wrap items-center gap-3">
+                                  <div className="flex flex-wrap items-center gap-2 bg-white/90 dark:bg-slate-800 px-3 py-1.5 rounded-xl border border-gray-200 text-xs font-semibold">
+                                    <span className="text-gray-700">
+                                      Total Merma: <strong className="text-gray-900 font-bold">{formatNumber(prod.merma, { minDecimals: 2, maxDecimals: 2 })} kg</strong>
+                                    </span>
+                                    <span className="text-gray-300">|</span>
+                                    <span className="text-purple-700">
+                                      Color: <strong>{formatNumber(prod.mermaColor || prod.registros?.reduce((acc, r) => acc + ((r as any).mermaColor ?? r.mermaImpreso ?? 0), 0) || 0, { minDecimals: 2, maxDecimals: 2 })} kg</strong>
+                                    </span>
+                                    <span className="text-gray-300">|</span>
+                                    <span className="text-cyan-700">
+                                      Cristal: <strong>{formatNumber(prod.mermaCristal || prod.registros?.reduce((acc, r) => acc + ((r as any).mermaCristal ?? r.mermaSinImpresion ?? 0), 0) || 0, { minDecimals: 2, maxDecimals: 2 })} kg</strong>
+                                    </span>
+                                  </div>
+                                  {desperdicio.tienePorcentaje && desperdicio.porcentaje !== null && (
+                                    <span className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-bold border shadow-sm ${desperdicio.semaforo.badgeClass}`}>
+                                      <span className={`w-1.5 h-1.5 rounded-full ${desperdicio.semaforo.dotColor}`} />
+                                      Merma: {formatNumber(desperdicio.porcentaje, { minDecimals: 1, maxDecimals: 1 })}% · {desperdicio.semaforo.label}
+                                    </span>
+                                  )}
+                                </div>
+                              </div>
+                            </motion.div>
+                          );
+                        })}
                       </motion.div>
                     )}
                   </AnimatePresence>
