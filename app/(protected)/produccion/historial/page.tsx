@@ -380,7 +380,11 @@ export default function HistorialProduccionPage() {
     resinasConsumidas,
     peletizadosConsumidos,
     aditivosConsumidos,
-    totalKgConsumidos,
+    subtotalResinas,
+    subtotalPeletizados,
+    subtotalAditivos,
+    totalBaseExtruida,
+    totalGeneralMaterial,
   } = useMemo(() => {
     const totalesCalc: Record<string, number> = {
       formFB7000: 0,
@@ -448,9 +452,10 @@ export default function HistorialProduccionPage() {
         const f = ord.productoCliente || ord.pedido?.productoCliente;
         if (!f) return;
 
+        // 1. Balance Base Polímero: Peletizado
         const peletizadoPct = Number(f.peletizadoPorcentaje ?? f.molido ?? f.formMolido ?? 0);
-        if (peletizadoPct > 0) {
-          const kgPel = kgExtrusion * (peletizadoPct / 100);
+        const kgPel = peletizadoPct > 0 ? kgExtrusion * (peletizadoPct / 100) : 0;
+        if (kgPel > 0) {
           const pelNombre = f.peletizado?.nombre || 'Material Recuperado / Molido';
           const pelId = f.peletizadoId || pelNombre;
           if (!peletizadosMap[pelId]) {
@@ -463,29 +468,35 @@ export default function HistorialProduccionPage() {
           peletizadosMap[pelId].cantidadKg += kgPel;
         }
 
-        const fb7000Pct = Number(f.formFB7000 ?? f.fb7000 ?? 0);
-        const p3003Pct = Number(f.form3003 ?? f.p3003 ?? 0);
-        const linealPct = Number(f.formLineal ?? f.lineal ?? 0);
-        const p0240Pct = Number(f.form0240 ?? f.p0240 ?? 0);
-        const p0348Pct = Number(f.form0348 ?? f.p0348 ?? 0);
-        const p7000FPct = Number(f.form7000F ?? f.p7000F ?? 0);
-        const deslizantePct = Number(f.formDeslizante ?? f.deslizante ?? 0);
-        const mbBlancoPct = Number(f.formMasterbachBlanco ?? f.masterbachBlanco ?? 0);
-        const mbNegroPct = Number(f.formMasterbachNegro ?? f.masterbachNegro ?? 0);
-        const mbAzulPct = Number(f.formMasterbachAzul ?? f.masterbachAzul ?? 0);
-        const mbAmarilloPct = Number(f.formMasterbachAmarillo ?? f.masterbachAmarillo ?? 0);
+        // 2. Balance Base Polímero: Resinas Vírgenes (distribución proporcional sobre kgVirgenTotal)
+        const kgVirgenTotal = Math.max(0, kgExtrusion - kgPel);
 
-        totalesCalc.formFB7000 += kgExtrusion * (fb7000Pct / 100);
-        totalesCalc.form3003 += kgExtrusion * (p3003Pct / 100);
-        totalesCalc.formLineal += kgExtrusion * (linealPct / 100);
-        totalesCalc.form0240 += kgExtrusion * (p0240Pct / 100);
-        totalesCalc.form0348 += kgExtrusion * (p0348Pct / 100);
-        totalesCalc.form7000F += kgExtrusion * (p7000FPct / 100);
-        totalesCalc.formDeslizante += kgExtrusion * (deslizantePct / 100);
-        totalesCalc.formMasterbachBlanco += kgExtrusion * (mbBlancoPct / 100);
-        totalesCalc.formMasterbachNegro += kgExtrusion * (mbNegroPct / 100);
-        totalesCalc.formMasterbachAzul += kgExtrusion * (mbAzulPct / 100);
-        totalesCalc.formMasterbachAmarillo += kgExtrusion * (mbAmarilloPct / 100);
+        const resinaPcts = {
+          formFB7000: Number(f.formFB7000 ?? f.fb7000 ?? 0),
+          form3003: Number(f.form3003 ?? f.p3003 ?? 0),
+          formLineal: Number(f.formLineal ?? f.lineal ?? 0),
+          form0240: Number(f.form0240 ?? f.p0240 ?? 0),
+          form0348: Number(f.form0348 ?? f.p0348 ?? 0),
+          form7000F: Number(f.form7000F ?? f.p7000F ?? 0),
+        };
+
+        const sumaVirgen = Object.values(resinaPcts).reduce((acc, val) => acc + val, 0);
+
+        if (kgVirgenTotal > 0 && sumaVirgen > 0) {
+          totalesCalc.formFB7000 += kgVirgenTotal * (resinaPcts.formFB7000 / sumaVirgen);
+          totalesCalc.form3003 += kgVirgenTotal * (resinaPcts.form3003 / sumaVirgen);
+          totalesCalc.formLineal += kgVirgenTotal * (resinaPcts.formLineal / sumaVirgen);
+          totalesCalc.form0240 += kgVirgenTotal * (resinaPcts.form0240 / sumaVirgen);
+          totalesCalc.form0348 += kgVirgenTotal * (resinaPcts.form0348 / sumaVirgen);
+          totalesCalc.form7000F += kgVirgenTotal * (resinaPcts.form7000F / sumaVirgen);
+        }
+
+        // 3. Aditivos: dosificación externa al 100% sobre kgExtrusion
+        totalesCalc.formDeslizante += kgExtrusion * ((Number(f.formDeslizante ?? f.deslizante ?? 0)) / 100);
+        totalesCalc.formMasterbachBlanco += kgExtrusion * ((Number(f.formMasterbachBlanco ?? f.masterbachBlanco ?? 0)) / 100);
+        totalesCalc.formMasterbachNegro += kgExtrusion * ((Number(f.formMasterbachNegro ?? f.masterbachNegro ?? 0)) / 100);
+        totalesCalc.formMasterbachAzul += kgExtrusion * ((Number(f.formMasterbachAzul ?? f.masterbachAzul ?? 0)) / 100);
+        totalesCalc.formMasterbachAmarillo += kgExtrusion * ((Number(f.formMasterbachAmarillo ?? f.masterbachAmarillo ?? 0)) / 100);
       });
     }
 
@@ -521,15 +532,25 @@ export default function HistorialProduccionPage() {
       }))
       .filter((m) => m.cantidadKg > 0.001);
 
+    const subtotalResinas = resinas.reduce((acc, m) => acc + m.cantidadKg, 0);
+    const subtotalPeletizados = peletizados.reduce((acc, m) => acc + m.cantidadKg, 0);
+    const subtotalAditivos = aditivos.reduce((acc, m) => acc + m.cantidadKg, 0);
+
+    // Base extruida (100% de polímero = Resinas + Peletizado)
+    const totalBaseExtruida = subtotalResinas + subtotalPeletizados;
     const todos = [...resinas, ...peletizados, ...aditivos];
-    const totalKg = todos.reduce((acc, m) => acc + m.cantidadKg, 0);
+    const totalGeneralMaterial = totalBaseExtruida + subtotalAditivos;
 
     return {
       consumosMateriaPrima: todos,
       resinasConsumidas: resinas,
       peletizadosConsumidos: peletizados,
       aditivosConsumidos: aditivos,
-      totalKgConsumidos: totalKg,
+      subtotalResinas,
+      subtotalPeletizados,
+      subtotalAditivos,
+      totalBaseExtruida,
+      totalGeneralMaterial,
     };
   }, [totales.consumoMateriasPrimasExtrusion, totales.consumoPeletizados, producciones]);
 
@@ -710,13 +731,14 @@ export default function HistorialProduccionPage() {
                               Resinas Vírgenes
                             </span>
                             <span className="text-[11px] font-bold text-gray-500 dark:text-gray-400">
-                              {formatNumber(resinasConsumidas.reduce((a, b) => a + b.cantidadKg, 0), { minDecimals: 2, maxDecimals: 2 })} kg
+                              {formatNumber(subtotalResinas, { minDecimals: 2, maxDecimals: 2 })} kg
+                              {totalBaseExtruida > 0 && ` (${((subtotalResinas / totalBaseExtruida) * 100).toFixed(1)}%)`}
                             </span>
                           </div>
                           <div className="space-y-2">
                             {resinasConsumidas.map((item) => {
-                              const pct = totalKgConsumidos > 0
-                                ? ((item.cantidadKg / totalKgConsumidos) * 100).toFixed(1)
+                              const pct = totalBaseExtruida > 0
+                                ? ((item.cantidadKg / totalBaseExtruida) * 100).toFixed(1)
                                 : '0.0';
                               return (
                                 <div
@@ -759,13 +781,14 @@ export default function HistorialProduccionPage() {
                               Peletizado / Recuperado
                             </span>
                             <span className="text-[11px] font-bold text-gray-500 dark:text-gray-400">
-                              {formatNumber(peletizadosConsumidos.reduce((a, b) => a + b.cantidadKg, 0), { minDecimals: 2, maxDecimals: 2 })} kg
+                              {formatNumber(subtotalPeletizados, { minDecimals: 2, maxDecimals: 2 })} kg
+                              {totalBaseExtruida > 0 && ` (${((subtotalPeletizados / totalBaseExtruida) * 100).toFixed(1)}%)`}
                             </span>
                           </div>
                           <div className="space-y-2">
                             {peletizadosConsumidos.map((item) => {
-                              const pct = totalKgConsumidos > 0
-                                ? ((item.cantidadKg / totalKgConsumidos) * 100).toFixed(1)
+                              const pct = totalBaseExtruida > 0
+                                ? ((item.cantidadKg / totalBaseExtruida) * 100).toFixed(1)
                                 : '0.0';
                               return (
                                 <div
@@ -808,16 +831,16 @@ export default function HistorialProduccionPage() {
                           <div className="flex items-center justify-between px-1 mb-2">
                             <span className="text-xs font-bold uppercase tracking-wider text-fuchsia-700 dark:text-fuchsia-400 flex items-center gap-1.5">
                               <Sparkles className="h-3.5 w-3.5" />
-                              Aditivos (Masterbatch y Deslizante)
+                              Aditivos (Dosificación Adicional)
                             </span>
                             <span className="text-[11px] font-bold text-gray-500 dark:text-gray-400">
-                              {formatNumber(aditivosConsumidos.reduce((a, b) => a + b.cantidadKg, 0), { minDecimals: 2, maxDecimals: 2 })} kg
+                              {formatNumber(subtotalAditivos, { minDecimals: 2, maxDecimals: 2 })} kg
                             </span>
                           </div>
                           <div className="space-y-2">
                             {aditivosConsumidos.map((item) => {
-                              const pct = totalKgConsumidos > 0
-                                ? ((item.cantidadKg / totalKgConsumidos) * 100).toFixed(1)
+                              const pct = totalBaseExtruida > 0
+                                ? ((item.cantidadKg / totalBaseExtruida) * 100).toFixed(1)
                                 : '0.0';
                               return (
                                 <div
@@ -836,15 +859,15 @@ export default function HistorialProduccionPage() {
                                       <span className="font-bold text-gray-900 dark:text-white text-xs">
                                         {formatNumber(item.cantidadKg, { minDecimals: 2, maxDecimals: 2 })} kg
                                       </span>
-                                      <span className="text-[11px] text-gray-500 dark:text-gray-400 ml-1.5 font-medium">
-                                        ({pct}%)
+                                      <span className="text-[11px] text-fuchsia-600 dark:text-fuchsia-400 ml-1.5 font-semibold">
+                                        ({pct}% dosificado)
                                       </span>
                                     </div>
                                   </div>
                                   <div className="h-1.5 w-full bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden">
                                     <div
                                       className={`h-full ${item.barColor} transition-all duration-300 rounded-full`}
-                                      style={{ width: `${Math.min(100, Math.max(2, Number(pct)))}%` }}
+                                      style={{ width: `${Math.min(100, Math.max(4, Number(pct) * 10))}%` }}
                                     />
                                   </div>
                                 </div>
@@ -858,11 +881,33 @@ export default function HistorialProduccionPage() {
 
                   {/* Resumen footer */}
                   {consumosMateriaPrima.length > 0 && (
-                    <div className="mt-4 pt-3.5 border-t border-gray-100 dark:border-slate-800 flex items-center justify-between text-xs">
-                      <span className="font-medium text-gray-500 dark:text-gray-400">Total formulado:</span>
-                      <span className="font-extrabold text-emerald-600 dark:text-emerald-400 text-sm">
-                        {formatNumber(totalKgConsumidos, { minDecimals: 2, maxDecimals: 2 })} kg
-                      </span>
+                    <div className="mt-4 pt-3.5 border-t border-gray-100 dark:border-slate-800 space-y-2 text-xs">
+                      <div className="flex items-center justify-between">
+                        <span className="font-semibold text-gray-700 dark:text-gray-300 flex items-center gap-1.5">
+                          <span className="w-2 h-2 rounded-full bg-emerald-500 shrink-0" />
+                          Base Extruida (100%):
+                        </span>
+                        <span className="font-extrabold text-emerald-600 dark:text-emerald-400 text-sm">
+                          {formatNumber(totalBaseExtruida, { minDecimals: 2, maxDecimals: 2 })} kg
+                        </span>
+                      </div>
+                      {subtotalAditivos > 0 && (
+                        <div className="flex items-center justify-between">
+                          <span className="font-semibold text-gray-700 dark:text-gray-300 flex items-center gap-1.5">
+                            <span className="w-2 h-2 rounded-full bg-fuchsia-500 shrink-0" />
+                            Aditivos dosificados:
+                          </span>
+                          <span className="font-extrabold text-fuchsia-600 dark:text-fuchsia-400 text-sm">
+                            {formatNumber(subtotalAditivos, { minDecimals: 2, maxDecimals: 2 })} kg
+                          </span>
+                        </div>
+                      )}
+                      <div className="pt-2 border-t border-dashed border-gray-200 dark:border-slate-800 flex items-center justify-between text-[11px] text-gray-500 dark:text-gray-400">
+                        <span>Total Material Procesado:</span>
+                        <span className="font-bold text-gray-800 dark:text-gray-200">
+                          {formatNumber(totalGeneralMaterial, { minDecimals: 2, maxDecimals: 2 })} kg
+                        </span>
+                      </div>
                     </div>
                   )}
                 </motion.div>

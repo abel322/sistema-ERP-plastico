@@ -146,9 +146,10 @@ export async function GET(request: Request) {
       const f = ord.productoCliente || ord.pedido?.productoCliente;
       if (!f || kgExtrusion <= 0) return;
 
+      // 1. Balance Base Polímero: Peletizado
       const peletizadoPct = Number(f.peletizadoPorcentaje ?? f.molido ?? f.formMolido ?? 0);
-      if (peletizadoPct > 0) {
-        const kgPel = kgExtrusion * (peletizadoPct / 100);
+      const kgPel = peletizadoPct > 0 ? kgExtrusion * (peletizadoPct / 100) : 0;
+      if (kgPel > 0) {
         consumoConsolidadoExtrusion.molido += kgPel;
 
         const pelId = f.peletizadoId || 'general';
@@ -165,17 +166,35 @@ export async function GET(request: Request) {
         consumoPeletizadosDetalle[pelId].cantidadKg += kgPel;
       }
 
-      consumoConsolidadoExtrusion.formFB7000 += kgExtrusion * ((Number(f.formFB7000) || 0) / 100);
-      consumoConsolidadoExtrusion.form3003 += kgExtrusion * ((Number(f.form3003) || 0) / 100);
-      consumoConsolidadoExtrusion.formLineal += kgExtrusion * ((Number(f.formLineal) || 0) / 100);
-      consumoConsolidadoExtrusion.form0240 += kgExtrusion * ((Number(f.form0240) || 0) / 100);
-      consumoConsolidadoExtrusion.form0348 += kgExtrusion * ((Number(f.form0348) || 0) / 100);
-      consumoConsolidadoExtrusion.form7000F += kgExtrusion * ((Number(f.form7000F) || 0) / 100);
-      consumoConsolidadoExtrusion.formDeslizante += kgExtrusion * ((Number(f.formDeslizante) || 0) / 100);
-      consumoConsolidadoExtrusion.formMasterbachBlanco += kgExtrusion * ((Number(f.formMasterbachBlanco) || 0) / 100);
-      consumoConsolidadoExtrusion.formMasterbachNegro += kgExtrusion * ((Number(f.formMasterbachNegro) || 0) / 100);
-      consumoConsolidadoExtrusion.formMasterbachAzul += kgExtrusion * ((Number(f.formMasterbachAzul) || 0) / 100);
-      consumoConsolidadoExtrusion.formMasterbachAmarillo += kgExtrusion * ((Number(f.formMasterbachAmarillo) || 0) / 100);
+      // 2. Balance Base Polímero: Resinas Vírgenes (distribución proporcional sobre kgVirgenTotal)
+      const kgVirgenTotal = Math.max(0, kgExtrusion - kgPel);
+
+      const resinaPcts = {
+        formFB7000: Number(f.formFB7000 ?? f.fb7000 ?? 0),
+        form3003: Number(f.form3003 ?? f.p3003 ?? 0),
+        formLineal: Number(f.formLineal ?? f.lineal ?? 0),
+        form0240: Number(f.form0240 ?? f.p0240 ?? 0),
+        form0348: Number(f.form0348 ?? f.p0348 ?? 0),
+        form7000F: Number(f.form7000F ?? f.p7000F ?? 0),
+      };
+
+      const sumaVirgen = Object.values(resinaPcts).reduce((acc, val) => acc + val, 0);
+
+      if (kgVirgenTotal > 0 && sumaVirgen > 0) {
+        consumoConsolidadoExtrusion.formFB7000 += kgVirgenTotal * (resinaPcts.formFB7000 / sumaVirgen);
+        consumoConsolidadoExtrusion.form3003 += kgVirgenTotal * (resinaPcts.form3003 / sumaVirgen);
+        consumoConsolidadoExtrusion.formLineal += kgVirgenTotal * (resinaPcts.formLineal / sumaVirgen);
+        consumoConsolidadoExtrusion.form0240 += kgVirgenTotal * (resinaPcts.form0240 / sumaVirgen);
+        consumoConsolidadoExtrusion.form0348 += kgVirgenTotal * (resinaPcts.form0348 / sumaVirgen);
+        consumoConsolidadoExtrusion.form7000F += kgVirgenTotal * (resinaPcts.form7000F / sumaVirgen);
+      }
+
+      // 3. Aditivos: dosificación externa al 100% sobre kgExtrusion
+      consumoConsolidadoExtrusion.formDeslizante += kgExtrusion * ((Number(f.formDeslizante ?? f.deslizante ?? 0)) / 100);
+      consumoConsolidadoExtrusion.formMasterbachBlanco += kgExtrusion * ((Number(f.formMasterbachBlanco ?? f.masterbachBlanco ?? 0)) / 100);
+      consumoConsolidadoExtrusion.formMasterbachNegro += kgExtrusion * ((Number(f.formMasterbachNegro ?? f.masterbachNegro ?? 0)) / 100);
+      consumoConsolidadoExtrusion.formMasterbachAzul += kgExtrusion * ((Number(f.formMasterbachAzul ?? f.masterbachAzul ?? 0)) / 100);
+      consumoConsolidadoExtrusion.formMasterbachAmarillo += kgExtrusion * ((Number(f.formMasterbachAmarillo ?? f.masterbachAmarillo ?? 0)) / 100);
     });
 
     // Asegurar cálculo consolidado de mermaColor y mermaCristal por orden

@@ -316,12 +316,13 @@ export async function PUT(
             const loteReferencia = prodActualizada.codigoLote || prodActualizada.id;
             const responsableNombre = (session?.user as any)?.name || prodActualizada.operario || 'Sistema';
 
-            // A. Descuento de Peletizado si fue asignado
+            // 1. Balance Base Polímero (100% = kgExtrusion)
+            // A. Peletizado
             const peletizadoId = formulacion.peletizadoId;
             const peletizadoPct = Number(formulacion.peletizadoPorcentaje) || 0;
+            const kgPeletizado = peletizadoPct > 0 ? kgExtrusion * (peletizadoPct / 100) : 0;
 
-            if (peletizadoId && peletizadoPct > 0) {
-              const kgPeletizado = kgExtrusion * (peletizadoPct / 100);
+            if (peletizadoId && kgPeletizado > 0) {
               const itemPeletizado = await tx.inventario.findUnique({
                 where: { id: peletizadoId },
               });
@@ -347,53 +348,62 @@ export async function PUT(
               }
             }
 
-            // B. Descuento de Resinas Vírgenes (Categoría MATERIA PRIMA)
+            // B. Materia Prima Virgen Disponible y Distribución Proporcional
+            const kgVirgenTotal = Math.max(0, kgExtrusion - kgPeletizado);
+
             const resinasFormulacion = [
-              { key: 'formFB7000', label: 'FB7000', searchTerms: ['FB7000', 'FB 7000', '7000'] },
-              { key: 'form3003', label: '3003', searchTerms: ['3003', 'PEBD 3003'] },
-              { key: 'formLineal', label: 'Lineal', searchTerms: ['Lineal', 'LLDPE'] },
-              { key: 'form0240', label: '0240', searchTerms: ['0240'] },
-              { key: 'form0348', label: '0348', searchTerms: ['0348'] },
-              { key: 'form7000F', label: '7000F', searchTerms: ['7000F', '7000 F'] },
+              { key: 'formFB7000', altKey: 'fb7000', label: 'FB7000', searchTerms: ['FB7000', 'FB 7000', '7000'] },
+              { key: 'form3003', altKey: 'p3003', label: '3003', searchTerms: ['3003', 'PEBD 3003'] },
+              { key: 'formLineal', altKey: 'lineal', label: 'Lineal', searchTerms: ['Lineal', 'LLDPE'] },
+              { key: 'form0240', altKey: 'p0240', label: '0240', searchTerms: ['0240'] },
+              { key: 'form0348', altKey: 'p0348', label: '0348', searchTerms: ['0348'] },
+              { key: 'form7000F', altKey: 'p7000F', label: '7000F', searchTerms: ['7000F', '7000 F'] },
             ];
 
-            for (const resina of resinasFormulacion) {
-              const resinaPct = Number((formulacion as any)[resina.key]) || 0;
-              if (resinaPct > 0) {
-                const kgResina = kgExtrusion * (resinaPct / 100);
+            const sumaVirgen = resinasFormulacion.reduce((sum, r) => {
+              const pct = Number((formulacion as any)[r.key] ?? (formulacion as any)[r.altKey]) || 0;
+              return sum + pct;
+            }, 0);
 
-                let itemMp: any = null;
-                for (const term of resina.searchTerms) {
-                  itemMp = await tx.inventario.findFirst({
-                    where: {
-                      categoria: CategoriaInventario.MateriaPrima,
-                      OR: [
-                        { codigo: { contains: term, mode: 'insensitive' } },
-                        { nombre: { contains: term, mode: 'insensitive' } },
-                      ],
-                    },
-                  });
-                  if (itemMp) break;
-                }
+            if (kgVirgenTotal > 0 && sumaVirgen > 0) {
+              for (const resina of resinasFormulacion) {
+                const resinaPct = Number((formulacion as any)[resina.key] ?? (formulacion as any)[resina.altKey]) || 0;
+                if (resinaPct > 0) {
+                  const kgResina = kgVirgenTotal * (resinaPct / sumaVirgen);
 
-                if (itemMp) {
-                  await tx.inventario.update({
-                    where: { id: itemMp.id },
-                    data: {
-                      cantidad: { decrement: kgResina },
-                    },
-                  });
+                  let itemMp: any = null;
+                  for (const term of resina.searchTerms) {
+                    itemMp = await tx.inventario.findFirst({
+                      where: {
+                        categoria: CategoriaInventario.MateriaPrima,
+                        OR: [
+                          { codigo: { contains: term, mode: 'insensitive' } },
+                          { nombre: { contains: term, mode: 'insensitive' } },
+                        ],
+                      },
+                    });
+                    if (itemMp) break;
+                  }
 
-                  await tx.movimientoInventario.create({
-                    data: {
-                      inventarioId: itemMp.id,
-                      tipo: TipoMovimiento.Salida,
-                      cantidad: kgResina,
-                      motivo: `Consumo Resina (${resina.label}) en Extrusión - Lote ${loteReferencia}`,
-                      referencia: loteReferencia,
-                      responsable: responsableNombre,
-                    },
-                  });
+                  if (itemMp) {
+                    await tx.inventario.update({
+                      where: { id: itemMp.id },
+                      data: {
+                        cantidad: { decrement: kgResina },
+                      },
+                    });
+
+                    await tx.movimientoInventario.create({
+                      data: {
+                        inventarioId: itemMp.id,
+                        tipo: TipoMovimiento.Salida,
+                        cantidad: kgResina,
+                        motivo: `Consumo Resina (${resina.label}) en Extrusión - Lote ${loteReferencia}`,
+                        referencia: loteReferencia,
+                        responsable: responsableNombre,
+                      },
+                    });
+                  }
                 }
               }
             }
