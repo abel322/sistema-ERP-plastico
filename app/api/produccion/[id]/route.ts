@@ -306,9 +306,8 @@ export async function PUT(
 
         // 5. Descuento Automático en Inventario para Extrusión (Idempotente)
         if (produccionActual.area === 'Extrusion' && !produccionActual.consumoMpDescontado) {
-          const kgBobinasTerminadas = Number(cantidadFinal) || 0;
-          const kgMermaExtrusion = Number(produccionUpdatePayload.merma) || 0;
-          const kgExtrusion = kgBobinasTerminadas + kgMermaExtrusion;
+          // La base de formulación y consumo de materias primas son estrictamente los kilos netos de bobinas producidas (sin merma)
+          const kgExtrusion = Number(cantidadFinal) || 0;
 
           const formulacion = prodCli;
 

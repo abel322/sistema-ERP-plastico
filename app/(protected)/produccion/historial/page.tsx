@@ -442,10 +442,8 @@ export default function HistorialProduccionPage() {
         const kgBobinas = ord.registros && ord.registros.length > 0
           ? ord.registros.reduce((acc, r) => acc + (Number(r.cantidad) || 0), 0)
           : (Number(ord.cantidadProducida) || 0);
-        const kgMermas = ord.registros && ord.registros.length > 0
-          ? ord.registros.reduce((acc, r) => acc + (Number((r as any).merma) || 0), 0)
-          : (Number(ord.merma) || 0);
-        const kgExtrusion = kgBobinas + kgMermas;
+        // La base de consumo son estrictamente los kilos netos de bobinas producidas (sin merma)
+        const kgExtrusion = kgBobinas;
 
         if (kgExtrusion <= 0) return;
 
@@ -902,12 +900,6 @@ export default function HistorialProduccionPage() {
                           </span>
                         </div>
                       )}
-                      <div className="pt-2 border-t border-dashed border-gray-200 dark:border-slate-800 flex items-center justify-between text-[11px] text-gray-500 dark:text-gray-400">
-                        <span>Total Material Procesado:</span>
-                        <span className="font-bold text-gray-800 dark:text-gray-200">
-                          {formatNumber(totalGeneralMaterial, { minDecimals: 2, maxDecimals: 2 })} kg
-                        </span>
-                      </div>
                     </div>
                   )}
                 </motion.div>

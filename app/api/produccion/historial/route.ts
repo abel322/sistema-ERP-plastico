@@ -141,7 +141,8 @@ export async function GET(request: Request) {
         ? ord.registros.reduce((sum, r) => sum + (r.merma || 0), 0)
         : (ord.merma || 0);
 
-      const kgExtrusion = kgBobinas + kgMermas;
+      // La base de consumo son estrictamente los kilos netos de bobinas producidas (sin merma)
+      const kgExtrusion = kgBobinas;
 
       const f = ord.productoCliente || ord.pedido?.productoCliente;
       if (!f || kgExtrusion <= 0) return;
