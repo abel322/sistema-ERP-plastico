@@ -181,7 +181,7 @@ export default function EditarInventarioPage() {
                 options={[
                   { value: 'MateriaPrima', label: 'Materia Prima' },
                   { value: 'ProductoTerminado', label: 'Producto Terminado' },
-                  { value: 'Insumo', label: 'Insumo' },
+                  { value: 'Aditivo', label: 'Aditivo' },
                   { value: 'Peletizado', label: 'Peletizado' }
                 ]}
               />

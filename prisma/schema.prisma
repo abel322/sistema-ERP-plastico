@@ -148,7 +148,7 @@ enum TipoMovimiento {
 enum CategoriaInventario {
   MateriaPrima
   ProductoTerminado
-  Insumo
+  Aditivo
   Peletizado
 }
 

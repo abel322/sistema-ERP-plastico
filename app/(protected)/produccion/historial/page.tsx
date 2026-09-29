@@ -18,6 +18,8 @@ import {
   Trash2,
   Layers,
   X,
+  Droplets,
+  Sparkles,
 } from 'lucide-react';
 import { ActionPasswordModal } from '@/components/modals/ActionPasswordModal';
 import { EditarProduccionModal } from '@/components/modals/EditarProduccionModal';
@@ -99,18 +101,21 @@ interface ProductoEspecificacion {
   [key: string]: any;
 }
 
-const RESINAS_VIRGENES_FORMULACION = [
+const RESINAS_VIRGENES_ITEMS = [
   { key: 'formFB7000', label: 'FB7000 (%)', name: 'FB7000', color: 'bg-blue-500', barColor: 'bg-blue-500', badgeClass: 'bg-blue-100 text-blue-900 border-blue-200' },
   { key: 'form3003', label: '3003 (%)', name: '3003', color: 'bg-cyan-500', barColor: 'bg-cyan-500', badgeClass: 'bg-cyan-100 text-cyan-900 border-cyan-200' },
   { key: 'formLineal', label: 'Lineal (%)', name: 'Lineal', color: 'bg-sky-500', barColor: 'bg-sky-500', badgeClass: 'bg-sky-100 text-sky-900 border-sky-200' },
   { key: 'form0240', label: '0240 (%)', name: '0240', color: 'bg-indigo-500', barColor: 'bg-indigo-500', badgeClass: 'bg-indigo-100 text-indigo-900 border-indigo-200' },
   { key: 'form0348', label: '0348 (%)', name: '0348', color: 'bg-violet-500', barColor: 'bg-violet-500', badgeClass: 'bg-violet-100 text-violet-900 border-violet-200' },
   { key: 'form7000F', label: '7000F (%)', name: '7000F', color: 'bg-purple-500', barColor: 'bg-purple-500', badgeClass: 'bg-purple-100 text-purple-900 border-purple-200' },
-  { key: 'formDeslizante', label: 'Aditivo Deslizante (%)', name: 'Deslizante', color: 'bg-fuchsia-500', barColor: 'bg-fuchsia-500', badgeClass: 'bg-fuchsia-100 text-fuchsia-900 border-fuchsia-200' },
-  { key: 'formMasterbachBlanco', label: 'MB Blanco (%)', name: 'MB Blanco', color: 'bg-slate-400', barColor: 'bg-slate-400', badgeClass: 'bg-slate-100 text-slate-900 border-slate-300' },
-  { key: 'formMasterbachNegro', label: 'MB Negro (%)', name: 'MB Negro', color: 'bg-zinc-800', barColor: 'bg-zinc-800', badgeClass: 'bg-zinc-100 text-zinc-900 border-zinc-300' },
-  { key: 'formMasterbachAzul', label: 'MB Azul (%)', name: 'MB Azul', color: 'bg-blue-700', barColor: 'bg-blue-700', badgeClass: 'bg-blue-100 text-blue-900 border-blue-300' },
-  { key: 'formMasterbachAmarillo', label: 'MB Amarillo (%)', name: 'MB Amarillo', color: 'bg-amber-400', barColor: 'bg-amber-400', badgeClass: 'bg-yellow-100 text-yellow-900 border-yellow-300' },
+];
+
+const ADITIVOS_ITEMS = [
+  { key: 'formDeslizante', label: 'Deslizante (MB-3)', name: 'Deslizante (MB-3)', color: 'bg-fuchsia-500', barColor: 'bg-fuchsia-500', badgeClass: 'bg-fuchsia-100 text-fuchsia-900 border-fuchsia-200' },
+  { key: 'formMasterbachBlanco', label: 'MB Blanco (MB-1)', name: 'Masterbach Blanco (MB-1)', color: 'bg-slate-400', barColor: 'bg-slate-400', badgeClass: 'bg-slate-100 text-slate-900 border-slate-300' },
+  { key: 'formMasterbachNegro', label: 'MB Negro (MB-2)', name: 'Masterbach Negro (MB-2)', color: 'bg-zinc-800', barColor: 'bg-zinc-800', badgeClass: 'bg-zinc-100 text-zinc-900 border-zinc-300' },
+  { key: 'formMasterbachAzul', label: 'MB Azul (MB-4)', name: 'Masterbach Azul (MB-4)', color: 'bg-blue-700', barColor: 'bg-blue-700', badgeClass: 'bg-blue-100 text-blue-900 border-blue-300' },
+  { key: 'formMasterbachAmarillo', label: 'MB Amarillo (MB-5)', name: 'Masterbach Amarillo (MB-5)', color: 'bg-amber-400', barColor: 'bg-amber-400', badgeClass: 'bg-yellow-100 text-yellow-900 border-yellow-300' },
 ];
 
 interface Produccion {
@@ -370,7 +375,13 @@ export default function HistorialProduccionPage() {
   };
 
   // Consolidado de consumo de materias primas procesadas en Extrusión
-  const consumosMateriaPrima = useMemo(() => {
+  const {
+    consumosMateriaPrima,
+    resinasConsumidas,
+    peletizadosConsumidos,
+    aditivosConsumidos,
+    totalKgConsumidos,
+  } = useMemo(() => {
     const totalesCalc: Record<string, number> = {
       formFB7000: 0,
       form3003: 0,
@@ -403,7 +414,7 @@ export default function HistorialProduccionPage() {
       });
     }
 
-    // 2. Procesar resinas vírgenes desde totales
+    // 2. Procesar resinas y aditivos desde totales
     if (totales.consumoMateriasPrimasExtrusion && Object.keys(totales.consumoMateriasPrimasExtrusion).length > 0) {
       Object.entries(totales.consumoMateriasPrimasExtrusion).forEach(([k, v]) => {
         if (k !== 'molido') {
@@ -478,35 +489,49 @@ export default function HistorialProduccionPage() {
       });
     }
 
-    // Convertir peletizados específicos a items con nombre real
-    const peletizadosItems = Object.values(peletizadosMap)
+    // 1. Resinas Vírgenes
+    const resinas = RESINAS_VIRGENES_ITEMS
+      .map((m) => ({
+        ...m,
+        cantidadKg: totalesCalc[m.key] || 0,
+        tipo: 'resina' as const,
+      }))
+      .filter((m) => m.cantidadKg > 0.001);
+
+    // 2. Peletizados
+    const peletizados = Object.values(peletizadosMap)
       .filter((p) => p.cantidadKg > 0.001)
       .map((p, idx) => ({
         key: `pel_${p.id}_${idx}`,
         label: `${p.name} (%)`,
-        name: `Peletizado: ${p.name}`,
+        name: p.name,
         cantidadKg: p.cantidadKg,
         color: 'bg-amber-500',
         barColor: 'bg-amber-500',
         badgeClass: 'bg-amber-100 text-amber-900 border-amber-300',
-        isPeletizado: true,
+        tipo: 'peletizado' as const,
       }));
 
-    // Convertir resinas vírgenes
-    const resinasItems = RESINAS_VIRGENES_FORMULACION
+    // 3. Aditivos
+    const aditivos = ADITIVOS_ITEMS
       .map((m) => ({
         ...m,
         cantidadKg: totalesCalc[m.key] || 0,
-        isPeletizado: false,
+        tipo: 'aditivo' as const,
       }))
       .filter((m) => m.cantidadKg > 0.001);
 
-    return [...peletizadosItems, ...resinasItems];
-  }, [totales.consumoMateriasPrimasExtrusion, totales.consumoPeletizados, producciones]);
+    const todos = [...resinas, ...peletizados, ...aditivos];
+    const totalKg = todos.reduce((acc, m) => acc + m.cantidadKg, 0);
 
-  const totalKgConsumidos = useMemo(() => {
-    return consumosMateriaPrima.reduce((acc, m) => acc + m.cantidadKg, 0);
-  }, [consumosMateriaPrima]);
+    return {
+      consumosMateriaPrima: todos,
+      resinasConsumidas: resinas,
+      peletizadosConsumidos: peletizados,
+      aditivosConsumidos: aditivos,
+      totalKgConsumidos: totalKg,
+    };
+  }, [totales.consumoMateriasPrimasExtrusion, totales.consumoPeletizados, producciones]);
 
   return (
     <>
@@ -666,7 +691,7 @@ export default function HistorialProduccionPage() {
                     </button>
                   </div>
 
-                  {/* Lista de consumos */}
+                  {/* Lista de consumos agrupada */}
                   {consumosMateriaPrima.length === 0 ? (
                     <div className="py-8 text-center text-xs text-gray-500 dark:text-gray-400">
                       <p className="font-semibold text-sm text-gray-700 dark:text-gray-300">Sin consumos registrados</p>
@@ -675,48 +700,159 @@ export default function HistorialProduccionPage() {
                       </p>
                     </div>
                   ) : (
-                    <div className="space-y-3 max-h-80 overflow-y-auto pr-1">
-                      {consumosMateriaPrima.map((item) => {
-                        const porcentajeSobreTotal = totalKgConsumidos > 0
-                          ? ((item.cantidadKg / totalKgConsumidos) * 100).toFixed(1)
-                          : '0.0';
-
-                        return (
-                          <div
-                            key={item.key}
-                            className="p-3 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-800 hover:bg-slate-100/80 dark:hover:bg-slate-800 transition-colors"
-                          >
-                            <div className="flex items-center justify-between gap-3 text-xs mb-1.5">
-                              <span className="font-semibold text-gray-800 dark:text-gray-200 flex items-center gap-2 min-w-0">
-                                <span className={`w-2.5 h-2.5 rounded-full shrink-0 ${item.color}`} />
-                                <span className="truncate">{item.name}</span>
-                                {(item as any).isPeletizado && (
-                                  <span className="text-[10px] uppercase font-bold tracking-wider px-1.5 py-0.5 rounded bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300 shrink-0">
-                                    Recuperado
-                                  </span>
-                                )}
-                              </span>
-                              <div className="text-right shrink-0">
-                                <span className="font-bold text-gray-900 dark:text-white text-xs">
-                                  {formatNumber(item.cantidadKg, { minDecimals: 2, maxDecimals: 2 })} kg
-                                </span>
-                                <span className="text-[11px] text-gray-500 dark:text-gray-400 ml-1.5 font-medium">
-                                  ({porcentajeSobreTotal}%)
-                                </span>
-                              </div>
-                            </div>
-                            {/* Barra visual */}
-                            <div className="h-1.5 w-full bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden">
-                              <div
-                                className={`h-full ${item.barColor} transition-all duration-300 rounded-full`}
-                                style={{
-                                  width: `${Math.min(100, Math.max(2, Number(porcentajeSobreTotal)))}%`,
-                                }}
-                              />
-                            </div>
+                    <div className="space-y-4 max-h-[22rem] overflow-y-auto pr-1">
+                      {/* Grupo 1: Resinas Vírgenes */}
+                      {resinasConsumidas.length > 0 && (
+                        <div>
+                          <div className="flex items-center justify-between px-1 mb-2">
+                            <span className="text-xs font-bold uppercase tracking-wider text-blue-700 dark:text-blue-400 flex items-center gap-1.5">
+                              <Package className="h-3.5 w-3.5" />
+                              Resinas Vírgenes
+                            </span>
+                            <span className="text-[11px] font-bold text-gray-500 dark:text-gray-400">
+                              {formatNumber(resinasConsumidas.reduce((a, b) => a + b.cantidadKg, 0), { minDecimals: 2, maxDecimals: 2 })} kg
+                            </span>
                           </div>
-                        );
-                      })}
+                          <div className="space-y-2">
+                            {resinasConsumidas.map((item) => {
+                              const pct = totalKgConsumidos > 0
+                                ? ((item.cantidadKg / totalKgConsumidos) * 100).toFixed(1)
+                                : '0.0';
+                              return (
+                                <div
+                                  key={item.key}
+                                  className="p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-800 hover:bg-slate-100/80 dark:hover:bg-slate-800 transition-colors"
+                                >
+                                  <div className="flex items-center justify-between gap-3 text-xs mb-1.5">
+                                    <span className="font-semibold text-gray-800 dark:text-gray-200 flex items-center gap-2 min-w-0">
+                                      <span className={`w-2 h-2 rounded-full shrink-0 ${item.color}`} />
+                                      <span className="truncate">{item.name}</span>
+                                    </span>
+                                    <div className="text-right shrink-0">
+                                      <span className="font-bold text-gray-900 dark:text-white text-xs">
+                                        {formatNumber(item.cantidadKg, { minDecimals: 2, maxDecimals: 2 })} kg
+                                      </span>
+                                      <span className="text-[11px] text-gray-500 dark:text-gray-400 ml-1.5 font-medium">
+                                        ({pct}%)
+                                      </span>
+                                    </div>
+                                  </div>
+                                  <div className="h-1.5 w-full bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden">
+                                    <div
+                                      className={`h-full ${item.barColor} transition-all duration-300 rounded-full`}
+                                      style={{ width: `${Math.min(100, Math.max(2, Number(pct)))}%` }}
+                                    />
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Grupo 2: Peletizado / Recuperado */}
+                      {peletizadosConsumidos.length > 0 && (
+                        <div>
+                          <div className="flex items-center justify-between px-1 mb-2">
+                            <span className="text-xs font-bold uppercase tracking-wider text-amber-700 dark:text-amber-400 flex items-center gap-1.5">
+                              <Droplets className="h-3.5 w-3.5" />
+                              Peletizado / Recuperado
+                            </span>
+                            <span className="text-[11px] font-bold text-gray-500 dark:text-gray-400">
+                              {formatNumber(peletizadosConsumidos.reduce((a, b) => a + b.cantidadKg, 0), { minDecimals: 2, maxDecimals: 2 })} kg
+                            </span>
+                          </div>
+                          <div className="space-y-2">
+                            {peletizadosConsumidos.map((item) => {
+                              const pct = totalKgConsumidos > 0
+                                ? ((item.cantidadKg / totalKgConsumidos) * 100).toFixed(1)
+                                : '0.0';
+                              return (
+                                <div
+                                  key={item.key}
+                                  className="p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-800 hover:bg-slate-100/80 dark:hover:bg-slate-800 transition-colors"
+                                >
+                                  <div className="flex items-center justify-between gap-3 text-xs mb-1.5">
+                                    <span className="font-semibold text-gray-800 dark:text-gray-200 flex items-center gap-2 min-w-0">
+                                      <span className={`w-2 h-2 rounded-full shrink-0 ${item.color}`} />
+                                      <span className="truncate">{item.name}</span>
+                                      <span className="text-[10px] uppercase font-bold tracking-wider px-1.5 py-0.5 rounded bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300 shrink-0">
+                                        Recuperado
+                                      </span>
+                                    </span>
+                                    <div className="text-right shrink-0">
+                                      <span className="font-bold text-gray-900 dark:text-white text-xs">
+                                        {formatNumber(item.cantidadKg, { minDecimals: 2, maxDecimals: 2 })} kg
+                                      </span>
+                                      <span className="text-[11px] text-gray-500 dark:text-gray-400 ml-1.5 font-medium">
+                                        ({pct}%)
+                                      </span>
+                                    </div>
+                                  </div>
+                                  <div className="h-1.5 w-full bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden">
+                                    <div
+                                      className={`h-full ${item.barColor} transition-all duration-300 rounded-full`}
+                                      style={{ width: `${Math.min(100, Math.max(2, Number(pct)))}%` }}
+                                    />
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Grupo 3: Aditivos */}
+                      {aditivosConsumidos.length > 0 && (
+                        <div>
+                          <div className="flex items-center justify-between px-1 mb-2">
+                            <span className="text-xs font-bold uppercase tracking-wider text-fuchsia-700 dark:text-fuchsia-400 flex items-center gap-1.5">
+                              <Sparkles className="h-3.5 w-3.5" />
+                              Aditivos (Masterbatch y Deslizante)
+                            </span>
+                            <span className="text-[11px] font-bold text-gray-500 dark:text-gray-400">
+                              {formatNumber(aditivosConsumidos.reduce((a, b) => a + b.cantidadKg, 0), { minDecimals: 2, maxDecimals: 2 })} kg
+                            </span>
+                          </div>
+                          <div className="space-y-2">
+                            {aditivosConsumidos.map((item) => {
+                              const pct = totalKgConsumidos > 0
+                                ? ((item.cantidadKg / totalKgConsumidos) * 100).toFixed(1)
+                                : '0.0';
+                              return (
+                                <div
+                                  key={item.key}
+                                  className="p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-800 hover:bg-slate-100/80 dark:hover:bg-slate-800 transition-colors"
+                                >
+                                  <div className="flex items-center justify-between gap-3 text-xs mb-1.5">
+                                    <span className="font-semibold text-gray-800 dark:text-gray-200 flex items-center gap-2 min-w-0">
+                                      <span className={`w-2 h-2 rounded-full shrink-0 ${item.color}`} />
+                                      <span className="truncate">{item.name}</span>
+                                      <span className="text-[10px] uppercase font-bold tracking-wider px-1.5 py-0.5 rounded bg-fuchsia-100 text-fuchsia-800 dark:bg-fuchsia-950 dark:text-fuchsia-300 shrink-0">
+                                        Aditivo
+                                      </span>
+                                    </span>
+                                    <div className="text-right shrink-0">
+                                      <span className="font-bold text-gray-900 dark:text-white text-xs">
+                                        {formatNumber(item.cantidadKg, { minDecimals: 2, maxDecimals: 2 })} kg
+                                      </span>
+                                      <span className="text-[11px] text-gray-500 dark:text-gray-400 ml-1.5 font-medium">
+                                        ({pct}%)
+                                      </span>
+                                    </div>
+                                  </div>
+                                  <div className="h-1.5 w-full bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden">
+                                    <div
+                                      className={`h-full ${item.barColor} transition-all duration-300 rounded-full`}
+                                      style={{ width: `${Math.min(100, Math.max(2, Number(pct)))}%` }}
+                                    />
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      )}
                     </div>
                   )}
 

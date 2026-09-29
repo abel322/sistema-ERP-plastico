@@ -26,7 +26,7 @@ interface Inventario {
 const categoriaLabels: Record<string, string> = {
   MateriaPrima: 'Materia Prima',
   ProductoTerminado: 'Producto Terminado',
-  Insumo: 'Insumo',
+  Aditivo: 'Aditivo',
   Peletizado: 'Peletizado'
 };
 
@@ -98,7 +98,7 @@ export default function InventarioPage() {
             <div>
               <h1 className="text-2xl md:text-3xl font-black text-slate-900 dark:text-white leading-tight">Inventario</h1>
               <div className="flex items-center gap-2 mt-1">
-                <span className="px-2 py-0.5 bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 text-[10px] font-bold uppercase tracking-widest rounded">Suministros e Insumos</span>
+                <span className="px-2 py-0.5 bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 text-[10px] font-bold uppercase tracking-widest rounded">Suministros y Aditivos</span>
                 <span className="w-1 h-1 bg-slate-300 dark:bg-slate-700 rounded-full" />
                 <span className="text-slate-400 dark:text-slate-500 text-xs font-medium">{inventarios.length} artículos registrados</span>
               </div>
@@ -194,7 +194,7 @@ export default function InventarioPage() {
                 <option value="">Todas</option>
                 <option value="MateriaPrima">Materia Prima</option>
                 <option value="ProductoTerminado">Producto Terminado</option>
-                <option value="Insumo">Insumo</option>
+                <option value="Aditivo">Aditivo</option>
                 <option value="Peletizado">Peletizado</option>
               </select>
             </div>

@@ -347,7 +347,7 @@ export async function PUT(
               }
             }
 
-            // B. Descuento de Resinas Vírgenes y Aditivos
+            // B. Descuento de Resinas Vírgenes (Categoría MATERIA PRIMA)
             const resinasFormulacion = [
               { key: 'formFB7000', label: 'FB7000', searchTerms: ['FB7000', 'FB 7000', '7000'] },
               { key: 'form3003', label: '3003', searchTerms: ['3003', 'PEBD 3003'] },
@@ -355,11 +355,6 @@ export async function PUT(
               { key: 'form0240', label: '0240', searchTerms: ['0240'] },
               { key: 'form0348', label: '0348', searchTerms: ['0348'] },
               { key: 'form7000F', label: '7000F', searchTerms: ['7000F', '7000 F'] },
-              { key: 'formDeslizante', label: 'Deslizante', searchTerms: ['Deslizante'] },
-              { key: 'formMasterbachBlanco', label: 'Masterbach Blanco', searchTerms: ['Masterbach Blanco', 'Pigmento Blanco', 'Blanco'] },
-              { key: 'formMasterbachNegro', label: 'Masterbach Negro', searchTerms: ['Masterbach Negro', 'Pigmento Negro', 'Negro'] },
-              { key: 'formMasterbachAzul', label: 'Masterbach Azul', searchTerms: ['Masterbach Azul', 'Pigmento Azul', 'Azul'] },
-              { key: 'formMasterbachAmarillo', label: 'Masterbach Amarillo', searchTerms: ['Masterbach Amarillo', 'Pigmento Amarillo', 'Amarillo'] },
             ];
 
             for (const resina of resinasFormulacion) {
@@ -395,6 +390,60 @@ export async function PUT(
                       tipo: TipoMovimiento.Salida,
                       cantidad: kgResina,
                       motivo: `Consumo Resina (${resina.label}) en Extrusión - Lote ${loteReferencia}`,
+                      referencia: loteReferencia,
+                      responsable: responsableNombre,
+                    },
+                  });
+                }
+              }
+            }
+
+            // C. Descuento de Aditivos (Categoría ADITIVO, códigos MB-1 a MB-5)
+            const aditivosFormulacion = [
+              { key: 'formDeslizante', altKey: 'deslizante', label: 'Deslizante', codigo: 'mb-3', nombre: 'deslizante' },
+              { key: 'formMasterbachBlanco', altKey: 'masterbachBlanco', label: 'Masterbach Blanco', codigo: 'mb-1', nombre: 'masterbach blanco' },
+              { key: 'formMasterbachNegro', altKey: 'masterbachNegro', label: 'Masterbach Negro', codigo: 'mb-2', nombre: 'masterbach negro' },
+              { key: 'formMasterbachAzul', altKey: 'masterbachAzul', label: 'Masterbach Azul', codigo: 'mb-4', nombre: 'masterbach azul' },
+              { key: 'formMasterbachAmarillo', altKey: 'masterbachAmarillo', label: 'Masterbach Amarillo', codigo: 'mb-5', nombre: 'masterbach amarillo' },
+            ];
+
+            for (const aditivo of aditivosFormulacion) {
+              const aditivoPct = Number((formulacion as any)[aditivo.key] ?? (formulacion as any)[aditivo.altKey]) || 0;
+              if (aditivoPct > 0) {
+                const kgAditivo = kgExtrusion * (aditivoPct / 100);
+
+                let itemAditivo = await tx.inventario.findFirst({
+                  where: {
+                    categoria: CategoriaInventario.Aditivo,
+                    OR: [
+                      { codigo: { equals: aditivo.codigo, mode: 'insensitive' } },
+                      { nombre: { contains: aditivo.nombre, mode: 'insensitive' } },
+                    ],
+                  },
+                });
+
+                if (!itemAditivo) {
+                  itemAditivo = await tx.inventario.findFirst({
+                    where: {
+                      codigo: { equals: aditivo.codigo, mode: 'insensitive' },
+                    },
+                  });
+                }
+
+                if (itemAditivo) {
+                  await tx.inventario.update({
+                    where: { id: itemAditivo.id },
+                    data: {
+                      cantidad: { decrement: kgAditivo },
+                    },
+                  });
+
+                  await tx.movimientoInventario.create({
+                    data: {
+                      inventarioId: itemAditivo.id,
+                      tipo: TipoMovimiento.Salida,
+                      cantidad: kgAditivo,
+                      motivo: `Consumo Aditivo (${itemAditivo.nombre}) en Extrusión - Lote ${loteReferencia}`,
                       referencia: loteReferencia,
                       responsable: responsableNombre,
                     },
