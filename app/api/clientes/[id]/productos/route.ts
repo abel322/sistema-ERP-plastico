@@ -118,6 +118,8 @@ export async function POST(
         
         // Formulación
         molido: body.molido !== undefined && body.molido !== null && body.molido !== '' ? parseFloat(body.molido) : 0,
+        peletizadoId: body.peletizadoId && body.peletizadoId !== '' ? body.peletizadoId : null,
+        peletizadoPorcentaje: body.peletizadoPorcentaje !== undefined && body.peletizadoPorcentaje !== null && body.peletizadoPorcentaje !== '' ? parseFloat(body.peletizadoPorcentaje) : 0,
         formFB7000: body.formFB7000 || null,
         form3003: body.form3003 || null,
         formLineal: body.formLineal || null,

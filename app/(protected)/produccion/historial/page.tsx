@@ -89,11 +89,17 @@ interface ProductoEspecificacion {
   masterbachAzul?: number | null;
   formMasterbachAmarillo?: number | null;
   masterbachAmarillo?: number | null;
+  peletizadoId?: string | null;
+  peletizadoPorcentaje?: number | null;
+  peletizado?: {
+    id: string;
+    nombre: string;
+    codigo?: string;
+  } | null;
   [key: string]: any;
 }
 
-const MATERIALES_FORMULACION = [
-  { key: 'molido', label: 'Molido (%)', name: 'Molido', color: 'bg-amber-500', barColor: 'bg-amber-500', badgeClass: 'bg-amber-100 text-amber-900 border-amber-200' },
+const RESINAS_VIRGENES_FORMULACION = [
   { key: 'formFB7000', label: 'FB7000 (%)', name: 'FB7000', color: 'bg-blue-500', barColor: 'bg-blue-500', badgeClass: 'bg-blue-100 text-blue-900 border-blue-200' },
   { key: 'form3003', label: '3003 (%)', name: '3003', color: 'bg-cyan-500', barColor: 'bg-cyan-500', badgeClass: 'bg-cyan-100 text-cyan-900 border-cyan-200' },
   { key: 'formLineal', label: 'Lineal (%)', name: 'Lineal', color: 'bg-sky-500', barColor: 'bg-sky-500', badgeClass: 'bg-sky-100 text-sky-900 border-sky-200' },
@@ -151,6 +157,7 @@ export default function HistorialProduccionPage() {
     totalProducidoExtrusion: number;
     totalProducidoSellado: number;
     consumoMateriasPrimasExtrusion?: Record<string, number>;
+    consumoPeletizados?: Array<{ id: string; nombre: string; codigo?: string; cantidadKg: number }>;
   }>({
     totalProducido: 0,
     totalMerma: 0,
@@ -365,7 +372,6 @@ export default function HistorialProduccionPage() {
   // Consolidado de consumo de materias primas procesadas en Extrusión
   const consumosMateriaPrima = useMemo(() => {
     const totalesCalc: Record<string, number> = {
-      molido: 0,
       formFB7000: 0,
       form3003: 0,
       formLineal: 0,
@@ -379,24 +385,73 @@ export default function HistorialProduccionPage() {
       formMasterbachAmarillo: 0,
     };
 
+    // Mapa de peletizados específicos { id: { name, cantidadKg } }
+    const peletizadosMap: Record<string, { id: string; name: string; cantidadKg: number }> = {};
+
+    // 1. Si el backend envió consumoPeletizados específico
+    if (totales.consumoPeletizados && Array.isArray(totales.consumoPeletizados) && totales.consumoPeletizados.length > 0) {
+      totales.consumoPeletizados.forEach((pel: any) => {
+        const kg = Number(pel.cantidadKg) || 0;
+        if (kg > 0.001) {
+          const key = pel.id || pel.nombre;
+          peletizadosMap[key] = {
+            id: key,
+            name: pel.nombre || 'Material Recuperado',
+            cantidadKg: (peletizadosMap[key]?.cantidadKg || 0) + kg,
+          };
+        }
+      });
+    }
+
+    // 2. Procesar resinas vírgenes desde totales
     if (totales.consumoMateriasPrimasExtrusion && Object.keys(totales.consumoMateriasPrimasExtrusion).length > 0) {
       Object.entries(totales.consumoMateriasPrimasExtrusion).forEach(([k, v]) => {
-        totalesCalc[k] = (totalesCalc[k] || 0) + (Number(v) || 0);
+        if (k !== 'molido') {
+          totalesCalc[k] = (totalesCalc[k] || 0) + (Number(v) || 0);
+        }
       });
+
+      // Si hubo molido pero ningún peletizado específico en consumoPeletizados:
+      const molidoBackend = Number(totales.consumoMateriasPrimasExtrusion.molido) || 0;
+      if (Object.keys(peletizadosMap).length === 0 && molidoBackend > 0.001) {
+        peletizadosMap['general'] = {
+          id: 'general',
+          name: 'Material Recuperado / Molido',
+          cantidadKg: molidoBackend,
+        };
+      }
     } else {
-      // Filtrar órdenes de Extrusión del listado
+      // Cálculo de respaldo directamente desde las producciones cargadas
       const ordenesExtrusion = producciones.filter((p) => p.area === 'Extrusion');
       ordenesExtrusion.forEach((ord) => {
-        const kgExtrusion = ord.registros && ord.registros.length > 0
+        const kgBobinas = ord.registros && ord.registros.length > 0
           ? ord.registros.reduce((acc, r) => acc + (Number(r.cantidad) || 0), 0)
           : (Number(ord.cantidadProducida) || 0);
+        const kgMermas = ord.registros && ord.registros.length > 0
+          ? ord.registros.reduce((acc, r) => acc + (Number((r as any).merma) || 0), 0)
+          : (Number(ord.merma) || 0);
+        const kgExtrusion = kgBobinas + kgMermas;
 
         if (kgExtrusion <= 0) return;
 
         const f = ord.productoCliente || ord.pedido?.productoCliente;
         if (!f) return;
 
-        const molidoPct = Number(f.molido ?? f.formMolido ?? 0);
+        const peletizadoPct = Number(f.peletizadoPorcentaje ?? f.molido ?? f.formMolido ?? 0);
+        if (peletizadoPct > 0) {
+          const kgPel = kgExtrusion * (peletizadoPct / 100);
+          const pelNombre = f.peletizado?.nombre || 'Material Recuperado / Molido';
+          const pelId = f.peletizadoId || pelNombre;
+          if (!peletizadosMap[pelId]) {
+            peletizadosMap[pelId] = {
+              id: pelId,
+              name: pelNombre,
+              cantidadKg: 0,
+            };
+          }
+          peletizadosMap[pelId].cantidadKg += kgPel;
+        }
+
         const fb7000Pct = Number(f.formFB7000 ?? f.fb7000 ?? 0);
         const p3003Pct = Number(f.form3003 ?? f.p3003 ?? 0);
         const linealPct = Number(f.formLineal ?? f.lineal ?? 0);
@@ -409,7 +464,6 @@ export default function HistorialProduccionPage() {
         const mbAzulPct = Number(f.formMasterbachAzul ?? f.masterbachAzul ?? 0);
         const mbAmarilloPct = Number(f.formMasterbachAmarillo ?? f.masterbachAmarillo ?? 0);
 
-        totalesCalc.molido += kgExtrusion * (molidoPct / 100);
         totalesCalc.formFB7000 += kgExtrusion * (fb7000Pct / 100);
         totalesCalc.form3003 += kgExtrusion * (p3003Pct / 100);
         totalesCalc.formLineal += kgExtrusion * (linealPct / 100);
@@ -424,14 +478,31 @@ export default function HistorialProduccionPage() {
       });
     }
 
-    // Filtrar únicamente los materiales cuyo consumo acumulado sea mayor a 0 kg
-    return MATERIALES_FORMULACION
+    // Convertir peletizados específicos a items con nombre real
+    const peletizadosItems = Object.values(peletizadosMap)
+      .filter((p) => p.cantidadKg > 0.001)
+      .map((p, idx) => ({
+        key: `pel_${p.id}_${idx}`,
+        label: `${p.name} (%)`,
+        name: `Peletizado: ${p.name}`,
+        cantidadKg: p.cantidadKg,
+        color: 'bg-amber-500',
+        barColor: 'bg-amber-500',
+        badgeClass: 'bg-amber-100 text-amber-900 border-amber-300',
+        isPeletizado: true,
+      }));
+
+    // Convertir resinas vírgenes
+    const resinasItems = RESINAS_VIRGENES_FORMULACION
       .map((m) => ({
         ...m,
         cantidadKg: totalesCalc[m.key] || 0,
+        isPeletizado: false,
       }))
       .filter((m) => m.cantidadKg > 0.001);
-  }, [totales.consumoMateriasPrimasExtrusion, producciones]);
+
+    return [...peletizadosItems, ...resinasItems];
+  }, [totales.consumoMateriasPrimasExtrusion, totales.consumoPeletizados, producciones]);
 
   const totalKgConsumidos = useMemo(() => {
     return consumosMateriaPrima.reduce((acc, m) => acc + m.cantidadKg, 0);
@@ -619,6 +690,11 @@ export default function HistorialProduccionPage() {
                               <span className="font-semibold text-gray-800 dark:text-gray-200 flex items-center gap-2 min-w-0">
                                 <span className={`w-2.5 h-2.5 rounded-full shrink-0 ${item.color}`} />
                                 <span className="truncate">{item.name}</span>
+                                {(item as any).isPeletizado && (
+                                  <span className="text-[10px] uppercase font-bold tracking-wider px-1.5 py-0.5 rounded bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300 shrink-0">
+                                    Recuperado
+                                  </span>
+                                )}
                               </span>
                               <div className="text-right shrink-0">
                                 <span className="font-bold text-gray-900 dark:text-white text-xs">
@@ -900,9 +976,14 @@ export default function HistorialProduccionPage() {
                                     </button>
                                   </div>
                                 </div>
-                                <div className="mt-2 flex flex-wrap gap-4 text-sm text-white/90">
+                                <div className="mt-2 flex flex-wrap items-center gap-4 text-sm text-white/90">
                                   <span>Máquina: <strong>{prod.maquina.nombre}</strong></span>
                                   <span>Cliente: <strong>{prod.pedido?.cliente?.nombre || 'Sin pedido'}</strong></span>
+                                  {prod.area === 'Extrusion' && (prod.productoCliente?.peletizado || prod.pedido?.productoCliente?.peletizado) && (
+                                    <span className="inline-flex items-center gap-1 rounded bg-amber-400/25 px-2 py-0.5 text-xs font-semibold text-amber-100 border border-amber-300/30">
+                                      Peletizado: {prod.productoCliente?.peletizado?.nombre || prod.pedido?.productoCliente?.peletizado?.nombre} ({prod.productoCliente?.peletizadoPorcentaje || prod.pedido?.productoCliente?.peletizadoPorcentaje}%)
+                                    </span>
+                                  )}
                                 </div>
                               </div>
 

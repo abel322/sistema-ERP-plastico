@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { prisma } from '@/lib/db';
-import { EstadoProduccion, TipoProducto, SiguienteArea } from '@prisma/client';
+import { EstadoProduccion, TipoProducto, SiguienteArea, TipoMovimiento, CategoriaInventario } from '@prisma/client';
 import { authOptions } from '@/lib/auth-options';
 import { determinarDestinoProducto, DestinoProducto, getNombreArea } from '@/lib/producto-terminado-logic';
 import { generarCodigoLoteUnico } from '@/lib/utils/lote';
@@ -63,12 +63,15 @@ export async function PUT(
         pedido: {
           include: {
             cliente: true,
-            productoCliente: true,
+            productoCliente: {
+              include: { peletizado: true },
+            },
           },
         },
         productoCliente: {
           include: {
             cliente: true,
+            peletizado: true,
           },
         },
         productoTerminado: true,
@@ -299,6 +302,114 @@ export async function PUT(
               cantidadProducida: cantidadFinal,
             },
           });
+        }
+
+        // 5. Descuento Automático en Inventario para Extrusión (Idempotente)
+        if (produccionActual.area === 'Extrusion' && !produccionActual.consumoMpDescontado) {
+          const kgBobinasTerminadas = Number(cantidadFinal) || 0;
+          const kgMermaExtrusion = Number(produccionUpdatePayload.merma) || 0;
+          const kgExtrusion = kgBobinasTerminadas + kgMermaExtrusion;
+
+          const formulacion = prodCli;
+
+          if (formulacion && kgExtrusion > 0) {
+            const loteReferencia = prodActualizada.codigoLote || prodActualizada.id;
+            const responsableNombre = (session?.user as any)?.name || prodActualizada.operario || 'Sistema';
+
+            // A. Descuento de Peletizado si fue asignado
+            const peletizadoId = formulacion.peletizadoId;
+            const peletizadoPct = Number(formulacion.peletizadoPorcentaje) || 0;
+
+            if (peletizadoId && peletizadoPct > 0) {
+              const kgPeletizado = kgExtrusion * (peletizadoPct / 100);
+              const itemPeletizado = await tx.inventario.findUnique({
+                where: { id: peletizadoId },
+              });
+
+              if (itemPeletizado) {
+                await tx.inventario.update({
+                  where: { id: itemPeletizado.id },
+                  data: {
+                    cantidad: { decrement: kgPeletizado },
+                  },
+                });
+
+                await tx.movimientoInventario.create({
+                  data: {
+                    inventarioId: itemPeletizado.id,
+                    tipo: TipoMovimiento.Salida,
+                    cantidad: kgPeletizado,
+                    motivo: `Consumo Peletizado (${itemPeletizado.nombre}) en Extrusión - Lote ${loteReferencia}`,
+                    referencia: loteReferencia,
+                    responsable: responsableNombre,
+                  },
+                });
+              }
+            }
+
+            // B. Descuento de Resinas Vírgenes y Aditivos
+            const resinasFormulacion = [
+              { key: 'formFB7000', label: 'FB7000', searchTerms: ['FB7000', 'FB 7000', '7000'] },
+              { key: 'form3003', label: '3003', searchTerms: ['3003', 'PEBD 3003'] },
+              { key: 'formLineal', label: 'Lineal', searchTerms: ['Lineal', 'LLDPE'] },
+              { key: 'form0240', label: '0240', searchTerms: ['0240'] },
+              { key: 'form0348', label: '0348', searchTerms: ['0348'] },
+              { key: 'form7000F', label: '7000F', searchTerms: ['7000F', '7000 F'] },
+              { key: 'formDeslizante', label: 'Deslizante', searchTerms: ['Deslizante'] },
+              { key: 'formMasterbachBlanco', label: 'Masterbach Blanco', searchTerms: ['Masterbach Blanco', 'Pigmento Blanco', 'Blanco'] },
+              { key: 'formMasterbachNegro', label: 'Masterbach Negro', searchTerms: ['Masterbach Negro', 'Pigmento Negro', 'Negro'] },
+              { key: 'formMasterbachAzul', label: 'Masterbach Azul', searchTerms: ['Masterbach Azul', 'Pigmento Azul', 'Azul'] },
+              { key: 'formMasterbachAmarillo', label: 'Masterbach Amarillo', searchTerms: ['Masterbach Amarillo', 'Pigmento Amarillo', 'Amarillo'] },
+            ];
+
+            for (const resina of resinasFormulacion) {
+              const resinaPct = Number((formulacion as any)[resina.key]) || 0;
+              if (resinaPct > 0) {
+                const kgResina = kgExtrusion * (resinaPct / 100);
+
+                let itemMp: any = null;
+                for (const term of resina.searchTerms) {
+                  itemMp = await tx.inventario.findFirst({
+                    where: {
+                      categoria: CategoriaInventario.MateriaPrima,
+                      OR: [
+                        { codigo: { contains: term, mode: 'insensitive' } },
+                        { nombre: { contains: term, mode: 'insensitive' } },
+                      ],
+                    },
+                  });
+                  if (itemMp) break;
+                }
+
+                if (itemMp) {
+                  await tx.inventario.update({
+                    where: { id: itemMp.id },
+                    data: {
+                      cantidad: { decrement: kgResina },
+                    },
+                  });
+
+                  await tx.movimientoInventario.create({
+                    data: {
+                      inventarioId: itemMp.id,
+                      tipo: TipoMovimiento.Salida,
+                      cantidad: kgResina,
+                      motivo: `Consumo Resina (${resina.label}) en Extrusión - Lote ${loteReferencia}`,
+                      referencia: loteReferencia,
+                      responsable: responsableNombre,
+                    },
+                  });
+                }
+              }
+            }
+
+            // Marcar como descontado para idempotencia
+            await tx.produccion.update({
+              where: { id: prodActualizada.id },
+              data: { consumoMpDescontado: true },
+            });
+            prodActualizada.consumoMpDescontado = true;
+          }
         }
 
         return {

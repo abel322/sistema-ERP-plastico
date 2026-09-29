@@ -33,14 +33,34 @@ export default function EditarCompletoPage() {
   const [saving, setSaving] = useState(false);
   const [activeTab, setActiveTab] = useState<TabType>('basico');
   const [formData, setFormData] = useState<any>({});
+  const [peletizadosInventario, setPeletizadosInventario] = useState<any[]>([]);
 
   useEffect(() => {
     if (status === 'unauthenticated') {
       router.push('/login');
     } else if (status === 'authenticated') {
       fetchProducto();
+      fetchPeletizados();
     }
   }, [status, router, clienteId, productoId]);
+
+  const fetchPeletizados = async () => {
+    try {
+      const res = await fetch('/api/inventario?limit=250');
+      if (res.ok) {
+        const data = await res.json();
+        const items = (data.inventarios || []).filter((item: any) => 
+          item.categoria === 'Peletizado' ||
+          (item.nombre && item.nombre.toLowerCase().includes('peletizad')) ||
+          (item.nombre && item.nombre.toLowerCase().includes('molido')) ||
+          (item.codigo && item.codigo.toLowerCase().includes('pel'))
+        );
+        setPeletizadosInventario(items);
+      }
+    } catch (err) {
+      console.error('Error al cargar artículos de peletizado:', err);
+    }
+  };
 
   const fetchProducto = async () => {
     try {
@@ -62,6 +82,10 @@ export default function EditarCompletoPage() {
         const formDataWithVirtuals = {
           ...data,
           molido: data.molido !== null && data.molido !== undefined ? data.molido : 0,
+          peletizadoId: data.peletizadoId || '',
+          peletizadoPorcentaje: data.peletizadoPorcentaje !== null && data.peletizadoPorcentaje !== undefined 
+            ? data.peletizadoPorcentaje 
+            : (data.molido || 0),
           tipoBolsa: data.tipoBolsa || inferredTipoBolsa,
           // Calcular esBolsaPego si tiene anchoValvula
           esBolsaPego: !!(data.anchoValvula),
@@ -858,39 +882,123 @@ export default function EditarCompletoPage() {
           {/* Tab: Formulación */}
           {activeTab === 'formulacion' && (
             <div className="space-y-6">
-              <h2 className="text-xl font-bold text-gray-900 mb-4">Formulación de Materia Prima (%)</h2>
-              
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                {[
-                  { key: 'molido', label: 'Molido' },
-                  { key: 'formFB7000', label: 'FB7000' },
-                  { key: 'form3003', label: '3003' },
-                  { key: 'formLineal', label: 'Lineal' },
-                  { key: 'form0240', label: '0240' },
-                  { key: 'form0348', label: '0348' },
-                  { key: 'form7000F', label: '7000F' },
-                  { key: 'formDeslizante', label: 'Deslizante' },
-                  { key: 'formMasterbachBlanco', label: 'Masterbach Blanco' },
-                  { key: 'formMasterbachNegro', label: 'Masterbach Negro' },
-                  { key: 'formMasterbachAzul', label: 'Masterbach Azul' },
-                  { key: 'formMasterbachAmarillo', label: 'Masterbach Amarillo' },
-                ].map((field) => (
-                  <div key={field.key}>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      {field.label} (%)
-                    </label>
-                    <input
-                      type="number"
-                      step="0.01"
-                      min="0"
-                      max="100"
-                      placeholder="0"
-                      value={formData[field.key] !== undefined && formData[field.key] !== null ? formData[field.key] : ''}
-                      onChange={(e) => handleChange(field.key, e.target.value !== '' ? parseFloat(e.target.value) : (field.key === 'molido' ? 0 : null))}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                    />
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 border-b pb-3">
+                <div>
+                  <h2 className="text-xl font-bold text-gray-900">Formulación de Materia Prima (%)</h2>
+                  <p className="text-xs text-gray-500 mt-0.5">
+                    Define la combinación de peletizado de inventario y resinas vírgenes para este producto.
+                  </p>
+                </div>
+              </div>
+
+              {/* Selector y Porcentaje de Peletizado (Inventario) */}
+              <div className="p-4 sm:p-5 bg-gradient-to-r from-amber-50 to-emerald-50 rounded-xl border border-amber-200/80 shadow-sm">
+                <div className="flex items-center gap-2 mb-3">
+                  <span className="p-1.5 bg-amber-500/10 text-amber-700 rounded-lg">
+                    <Droplets className="w-4 h-4" />
+                  </span>
+                  <div>
+                    <h3 className="text-sm font-bold text-gray-900">
+                      Peletizado / Material Recuperado (Inventario)
+                    </h3>
+                    <p className="text-xs text-gray-500">
+                      Selecciona el material de inventario que se descontará automáticamente en Extrusión.
+                    </p>
                   </div>
-                ))}
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  {/* Selector de Peletizado */}
+                  <div className="md:col-span-2">
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Tipo de Peletizado en Inventario
+                    </label>
+                    <select
+                      value={formData.peletizadoId || ''}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        handleChange('peletizadoId', val || null);
+                        if (!val) {
+                          handleChange('peletizadoPorcentaje', 0);
+                          handleChange('molido', 0);
+                        }
+                      }}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-white text-gray-900 focus:ring-2 focus:ring-purple-500 focus:border-transparent text-sm"
+                    >
+                      <option value="">Sin Peletizado / 100% Virgen</option>
+                      {peletizadosInventario.map((item) => (
+                        <option key={item.id} value={item.id}>
+                          {item.nombre} ({item.codigo}) — Stock: {item.cantidad ?? 0} {item.unidad || 'kg'}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {/* Input Porcentaje Peletizado */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Peletizado (%)
+                    </label>
+                    <div className="relative">
+                      <input
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        max="100"
+                        placeholder="0"
+                        disabled={!formData.peletizadoId}
+                        value={formData.peletizadoPorcentaje !== undefined && formData.peletizadoPorcentaje !== null ? formData.peletizadoPorcentaje : ''}
+                        onChange={(e) => {
+                          const val = e.target.value !== '' ? parseFloat(e.target.value) : 0;
+                          handleChange('peletizadoPorcentaje', val);
+                          handleChange('molido', val);
+                        }}
+                        className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent text-sm ${
+                          !formData.peletizadoId 
+                            ? 'bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed' 
+                            : 'bg-white border-gray-300 text-gray-900 font-semibold'
+                        }`}
+                      />
+                      <span className="absolute right-3 top-2 text-xs text-gray-400 font-semibold">%</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Materias Primas Vírgenes y Masterbatch */}
+              <div>
+                <h3 className="text-sm font-bold text-gray-800 mb-3">Resinas Vírgenes y Aditivos (%)</h3>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  {[
+                    { key: 'formFB7000', label: 'FB7000' },
+                    { key: 'form3003', label: '3003' },
+                    { key: 'formLineal', label: 'Lineal' },
+                    { key: 'form0240', label: '0240' },
+                    { key: 'form0348', label: '0348' },
+                    { key: 'form7000F', label: '7000F' },
+                    { key: 'formDeslizante', label: 'Deslizante' },
+                    { key: 'formMasterbachBlanco', label: 'Masterbach Blanco' },
+                    { key: 'formMasterbachNegro', label: 'Masterbach Negro' },
+                    { key: 'formMasterbachAzul', label: 'Masterbach Azul' },
+                    { key: 'formMasterbachAmarillo', label: 'Masterbach Amarillo' },
+                  ].map((field) => (
+                    <div key={field.key}>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        {field.label} (%)
+                      </label>
+                      <input
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        max="100"
+                        placeholder="0"
+                        value={formData[field.key] !== undefined && formData[field.key] !== null ? formData[field.key] : ''}
+                        onChange={(e) => handleChange(field.key, e.target.value !== '' ? parseFloat(e.target.value) : null)}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                      />
+                    </div>
+                  ))}
+                </div>
               </div>
 
               {/* Materia Prima Principal */}

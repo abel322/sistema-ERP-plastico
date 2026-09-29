@@ -332,6 +332,9 @@ model ProductoCliente {
 
   // Formulación de materia prima en porcentaje
   molido               Float?         @default(0)
+  peletizadoId         String?
+  peletizadoPorcentaje Float?         @default(0)
+  peletizado           Inventario?    @relation("ProductoClientePeletizado", fields: [peletizadoId], references: [id])
   formFB7000           Float?
   form3003             Float?
   formLineal           Float?
@@ -495,6 +498,7 @@ model ProductoCliente {
   @@index([userId])
   @@index([clienteId])
   @@index([activo])
+  @@index([peletizadoId])
 }
 
 model Pedido {
@@ -596,6 +600,7 @@ model Produccion {
   observaciones     String?
   estado            EstadoProduccion  @default(EnProceso)
   finalizadoAt      DateTime?
+  consumoMpDescontado Boolean         @default(false)
   createdAt         DateTime          @default(now())
   updatedAt         DateTime          @updatedAt
 
@@ -797,6 +802,7 @@ model Inventario {
 
   user        User?                  @relation(fields: [userId], references: [id], onDelete: Cascade)
   movimientos MovimientoInventario[]
+  productosPeletizado ProductoCliente[] @relation("ProductoClientePeletizado")
 
   @@index([userId])
   @@index([categoria])

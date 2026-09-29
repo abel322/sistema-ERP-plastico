@@ -49,9 +49,16 @@ export async function GET(request: Request) {
         include: {
           maquina: true,
           pedido: {
-            include: { cliente: true, productoCliente: true },
+            include: {
+              cliente: true,
+              productoCliente: {
+                include: { peletizado: true },
+              },
+            },
           },
-          productoCliente: true,
+          productoCliente: {
+            include: { peletizado: true },
+          },
           registros: {
             orderBy: { fecha: 'asc' },
           },
@@ -81,13 +88,18 @@ export async function GET(request: Request) {
         select: {
           id: true,
           cantidadProducida: true,
+          merma: true,
           registros: {
-            select: { cantidad: true },
+            select: { cantidad: true, merma: true },
           },
-          productoCliente: true,
+          productoCliente: {
+            include: { peletizado: true },
+          },
           pedido: {
             select: {
-              productoCliente: true,
+              productoCliente: {
+                include: { peletizado: true },
+              },
             },
           },
         },
@@ -110,23 +122,49 @@ export async function GET(request: Request) {
       formMasterbachAmarillo: 0,
     };
 
+    const consumoPeletizadosDetalle: Record<string, { id: string; nombre: string; codigo?: string; cantidadKg: number }> = {};
+
     const produccionesExtrusionPeriodo = (produccionesExtrusionRaw || []) as Array<{
       cantidadProducida: number;
-      registros: Array<{ cantidad: number }>;
+      merma?: number;
+      registros: Array<{ cantidad: number; merma?: number }>;
       productoCliente: any;
       pedido?: { productoCliente: any } | null;
     }>;
 
     produccionesExtrusionPeriodo.forEach((ord) => {
-      const kgExtrusion = ord.registros && ord.registros.length > 0
+      const kgBobinas = ord.registros && ord.registros.length > 0
         ? ord.registros.reduce((sum, r) => sum + (r.cantidad || 0), 0)
         : (ord.cantidadProducida || 0);
+
+      const kgMermas = ord.registros && ord.registros.length > 0
+        ? ord.registros.reduce((sum, r) => sum + (r.merma || 0), 0)
+        : (ord.merma || 0);
+
+      const kgExtrusion = kgBobinas + kgMermas;
 
       const f = ord.productoCliente || ord.pedido?.productoCliente;
       if (!f || kgExtrusion <= 0) return;
 
-      const molidoPct = Number(f.molido ?? f.formMolido ?? 0);
-      consumoConsolidadoExtrusion.molido += kgExtrusion * (molidoPct / 100);
+      const peletizadoPct = Number(f.peletizadoPorcentaje ?? f.molido ?? f.formMolido ?? 0);
+      if (peletizadoPct > 0) {
+        const kgPel = kgExtrusion * (peletizadoPct / 100);
+        consumoConsolidadoExtrusion.molido += kgPel;
+
+        const pelId = f.peletizadoId || 'general';
+        const pelNombre = f.peletizado?.nombre || 'Material Recuperado / Molido';
+
+        if (!consumoPeletizadosDetalle[pelId]) {
+          consumoPeletizadosDetalle[pelId] = {
+            id: pelId,
+            nombre: pelNombre,
+            codigo: f.peletizado?.codigo || '',
+            cantidadKg: 0,
+          };
+        }
+        consumoPeletizadosDetalle[pelId].cantidadKg += kgPel;
+      }
+
       consumoConsolidadoExtrusion.formFB7000 += kgExtrusion * ((Number(f.formFB7000) || 0) / 100);
       consumoConsolidadoExtrusion.form3003 += kgExtrusion * ((Number(f.form3003) || 0) / 100);
       consumoConsolidadoExtrusion.formLineal += kgExtrusion * ((Number(f.formLineal) || 0) / 100);
@@ -176,6 +214,7 @@ export async function GET(request: Request) {
       totalProducidoExtrusion: resumen.find(r => r.area === 'Extrusion')?._sum.cantidadProducida || 0,
       totalProducidoSellado: resumen.find(r => r.area === 'Sellado')?._sum.cantidadProducida || 0,
       consumoMateriasPrimasExtrusion: consumoConsolidadoExtrusion,
+      consumoPeletizados: Object.values(consumoPeletizadosDetalle),
     };
 
     return NextResponse.json({
