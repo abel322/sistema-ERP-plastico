@@ -1,9 +1,9 @@
 'use client';
 
-import { useState, useEffect, useMemo, FormEvent } from 'react';
+import { useState, useEffect, useMemo, FormEvent, Suspense } from 'react';
 import { useSession } from 'next-auth/react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useToast } from '@/hooks/use-toast';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
@@ -150,9 +150,11 @@ interface Pedido {
   cliente: { nombre: string; tipoProducto: string; conImpresion?: boolean; pesoPorUnidad?: number };
 }
 
-export default function ProduccionPage() {
+export function ProduccionContent() {
   const { data: session } = useSession() || {};
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const pedidoIdParam = searchParams.get('pedidoId');
   const { toast } = useToast();
   const [producciones, setProducciones] = useState<Produccion[]>([]);
   const [loading, setLoading] = useState(true);
@@ -240,7 +242,7 @@ export default function ProduccionPage() {
 
   useEffect(() => {
     fetchProducciones();
-  }, [page, filters]);
+  }, [page, filters, pedidoIdParam]);
 
   useEffect(() => {
     fetchMaquinas();
@@ -254,14 +256,24 @@ export default function ProduccionPage() {
         limit: '20',
         estado: 'EnProceso',
       });
+      if (pedidoIdParam) params.append('pedidoId', pedidoIdParam);
       if (filters.area) params.append('area', filters.area);
       if (filters.fechaInicio) params.append('fechaInicio', filters.fechaInicio);
       if (filters.fechaFin) params.append('fechaFin', filters.fechaFin);
 
       const res = await fetch(`/api/produccion?${params}`);
       const data = await res.json();
-      setProducciones(data.data || []);
+      const list = data.data || [];
+      setProducciones(list);
       setTotalPages(data.totalPages || 1);
+
+      if (pedidoIdParam && list.length === 0) {
+        setFormData(prev => ({
+          ...prev,
+          pedidoId: pedidoIdParam,
+        }));
+        setShowCrearModal(true);
+      }
     } catch (error) {
       console.error('Error:', error);
     } finally {
@@ -745,6 +757,33 @@ export default function ProduccionPage() {
           </div>
         </div>
       </div>
+
+      {/* Filtro activo por Pedido */}
+      {pedidoIdParam && (
+        <div className="mb-6 flex flex-wrap items-center justify-between gap-3 rounded-2xl bg-indigo-50 border border-indigo-200/80 dark:bg-indigo-950/40 dark:border-indigo-800/60 p-4 transition-all">
+          <div className="flex items-center gap-3">
+            <div className="p-2.5 rounded-xl bg-indigo-600 text-white shadow-sm">
+              <Factory className="h-5 w-5" />
+            </div>
+            <div>
+              <p className="text-sm font-bold text-indigo-950 dark:text-indigo-100">
+                Mostrando producción vinculada al Pedido #{pedidoIdParam.slice(-6).toUpperCase()}
+              </p>
+              <p className="text-xs text-indigo-700/80 dark:text-indigo-300/80">
+                {producciones.length > 0 
+                  ? `Se encontraron ${producciones.length} orden(es) de producción en proceso para este pedido.` 
+                  : 'No se encontraron órdenes de producción en proceso para este pedido.'}
+              </p>
+            </div>
+          </div>
+          <button
+            onClick={() => router.push('/produccion')}
+            className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-bold text-indigo-700 dark:text-indigo-300 bg-white dark:bg-slate-900 border border-indigo-200 dark:border-indigo-800 hover:bg-indigo-100/60 dark:hover:bg-indigo-900/40 shadow-sm transition-all"
+          >
+            Ver todas las órdenes
+          </button>
+        </div>
+      )}
 
       {/* Tablero Kanban */}
       <div className="flex gap-4 sm:gap-6 overflow-x-auto pb-8 -mx-4 sm:-mx-6 lg:-mx-8 px-4 sm:px-6 lg:px-8 w-auto max-w-full">
@@ -1538,5 +1577,20 @@ export default function ProduccionPage() {
         )}
       </AnimatePresence>
     </div>
+  );
+}
+
+export default function ProduccionPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen flex items-center justify-center bg-slate-50 dark:bg-slate-950">
+        <div className="flex flex-col items-center gap-3">
+          <div className="h-10 w-10 animate-spin rounded-full border-4 border-indigo-600 border-t-transparent" />
+          <p className="text-sm font-medium text-slate-500 dark:text-slate-400">Cargando producción...</p>
+        </div>
+      </div>
+    }>
+      <ProduccionContent />
+    </Suspense>
   );
 }

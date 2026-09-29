@@ -23,6 +23,7 @@ export async function GET(request: Request) {
     const fechaInicio = searchParams.get('fechaInicio');
     const fechaFin = searchParams.get('fechaFin');
     const maquinaId = searchParams.get('maquinaId');
+    const pedidoId = searchParams.get('pedidoId');
     const page = parseInt(searchParams.get('page') || '1');
     const limit = parseInt(searchParams.get('limit') || '10');
 
@@ -30,6 +31,7 @@ export async function GET(request: Request) {
     if (area) where.area = area;
     if (estado) where.estado = estado;
     if (maquinaId) where.maquinaId = maquinaId;
+    if (pedidoId) where.pedidoId = pedidoId;
     if (fechaInicio || fechaFin) {
       where.fecha = {};
       if (fechaInicio) where.fecha.gte = new Date(fechaInicio);

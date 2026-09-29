@@ -8,7 +8,7 @@ import { motion } from 'framer-motion';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import { BadgeEstado } from '@/components/ui/badge-estado';
 import { BadgePrioridad } from '@/components/ui/badge-prioridad';
-import { Plus, Search, Edit, Trash2, Filter, PackagePlus, History, Package } from 'lucide-react';
+import { Plus, Search, Edit, Trash2, Filter, PackagePlus, History, Package, Factory } from 'lucide-react';
 import { format } from 'date-fns';
 import { NuevoPedidoModal } from '@/components/modals/NuevoPedidoModal';
 import { EditarPedidoModal } from '@/components/modals/EditarPedidoModal';
@@ -266,7 +266,27 @@ export default function PedidosPage() {
                   </div>
                 </div>
 
-                <div className="flex items-center justify-end gap-2 pt-2.5 border-t border-slate-200/60 dark:border-slate-700/60">
+                <div className="flex flex-wrap items-center justify-end gap-2 pt-2.5 border-t border-slate-200/60 dark:border-slate-700/60">
+                  <Link
+                    href={`/produccion?pedidoId=${pedido?.id}`}
+                    className={`inline-flex items-center justify-center gap-1.5 px-3 py-1.5 text-xs font-bold rounded-lg transition-all shadow-xs ${
+                      pedido?.estado === 'EnProceso'
+                        ? 'text-indigo-700 bg-indigo-100/90 border border-indigo-300 hover:bg-indigo-200 dark:bg-indigo-950 dark:text-indigo-200 dark:border-indigo-700 ring-1 ring-indigo-400/30'
+                        : 'text-indigo-700 bg-indigo-50 border border-indigo-200 hover:bg-indigo-100 dark:bg-indigo-950/40 dark:text-indigo-300 dark:border-indigo-800'
+                    }`}
+                  >
+                    <Factory className="h-3.5 w-3.5" />
+                    <span>Producción</span>
+                  </Link>
+
+                  <button
+                    onClick={() => router.push(`/clientes/${pedido?.productoCliente?.clienteId}/productos`)}
+                    className="inline-flex items-center justify-center gap-1 px-3 py-1.5 text-xs font-bold text-purple-600 dark:text-purple-400 bg-purple-50 dark:bg-purple-950/50 hover:bg-purple-100 rounded-lg transition-colors border border-purple-200/60 dark:border-purple-800/60"
+                  >
+                    <Package className="h-3.5 w-3.5" />
+                    Productos
+                  </button>
+
                   {isAdmin && (
                     <>
                       <button
@@ -274,27 +294,20 @@ export default function PedidosPage() {
                           setSelectedPedidoId(pedido?.id);
                           setIsEditModalOpen(true);
                         }}
-                        className="flex items-center gap-1 px-3 py-1.5 text-xs font-bold text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-950/50 hover:bg-blue-100 rounded-lg transition-colors"
+                        className="inline-flex items-center justify-center gap-1 px-3 py-1.5 text-xs font-bold text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-950/50 hover:bg-blue-100 rounded-lg transition-colors border border-blue-200/60 dark:border-blue-800/60"
                       >
                         <Edit className="h-3.5 w-3.5" />
                         Editar
                       </button>
                       <button
                         onClick={() => handleDelete(pedido?.id)}
-                        className="flex items-center gap-1 px-3 py-1.5 text-xs font-bold text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-950/50 hover:bg-red-100 rounded-lg transition-colors"
+                        className="inline-flex items-center justify-center gap-1 px-3 py-1.5 text-xs font-bold text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-950/50 hover:bg-red-100 rounded-lg transition-colors border border-red-200/60 dark:border-red-800/60"
                       >
                         <Trash2 className="h-3.5 w-3.5" />
                         Eliminar
                       </button>
                     </>
                   )}
-                  <button
-                    onClick={() => router.push(`/clientes/${pedido?.productoCliente?.clienteId}/productos`)}
-                    className="flex items-center gap-1 px-3 py-1.5 text-xs font-bold text-purple-600 dark:text-purple-400 bg-purple-50 dark:bg-purple-950/50 hover:bg-purple-100 rounded-lg transition-colors"
-                  >
-                    <Package className="h-3.5 w-3.5" />
-                    Productos
-                  </button>
                 </div>
               </div>
             );
@@ -385,6 +398,17 @@ export default function PedidosPage() {
                     </td>
                     <td className="px-6 py-4 text-right">
                       <div className="flex justify-end gap-1 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity">
+                        <Link
+                          href={`/produccion?pedidoId=${pedido?.id}`}
+                          className={`p-2 rounded-lg transition-all ${
+                            pedido?.estado === 'EnProceso'
+                              ? 'text-indigo-600 bg-indigo-50 hover:bg-indigo-100 dark:bg-indigo-950/50 dark:text-indigo-300'
+                              : 'text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-900/30'
+                          }`}
+                          title="Ir a Producción"
+                        >
+                          <Factory className="h-4 w-4" />
+                        </Link>
                         {isAdmin && (
                           <>
                             <button
