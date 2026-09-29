@@ -1,7 +1,8 @@
 'use client';
 
-import { useState, useEffect, useRef, useMemo } from 'react';
+import { useState, useEffect, useRef, useMemo, Suspense } from 'react';
 import Link from 'next/link';
+import { useSearchParams, useRouter, usePathname } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   History,
@@ -13,6 +14,11 @@ import {
   Package,
   ChevronDown,
   ChevronUp,
+  ChevronLeft,
+  ChevronRight,
+  RotateCcw,
+  CalendarDays,
+  Boxes,
   CheckCircle,
   Pencil,
   Trash2,
@@ -28,6 +34,12 @@ import { formatNumber } from '@/lib/utils';
 import { calcularDesperdicioInfo } from '@/lib/utils/merma';
 import { agruparProduccionesPorLote } from '@/lib/utils/agrupar-producciones';
 import { CLASIFICACIONES_MERMA, calcularDesgloseMerma } from '@/lib/merma-logic';
+import {
+  calcularSobranteFase,
+  calcularResumenSobrantesGrupo,
+  InfoSobrante,
+  ResumenSobrantesGrupo,
+} from '@/lib/sobrante-logic';
 
 const AREAS = [
   { value: 'Extrusion', label: 'Extrusión', color: 'bg-blue-500', gradient: 'from-blue-600 via-blue-500 to-indigo-500' },
@@ -132,6 +144,9 @@ interface Produccion {
   area: string;
   operario: string;
   cantidadProducida: number;
+  cantidadProgramada?: number;
+  sobranteKg?: number;
+  sobranteUnidades?: number;
   unidad: string;
   merma: number;
   mermaTransparenteAlta?: number;
@@ -144,11 +159,14 @@ interface Produccion {
   maquina: { nombre: string };
   pedido?: {
     id: string;
+    cantidadSolicitada?: number;
+    unidad?: string;
     cliente: { nombre: string };
     productoCliente?: ProductoEspecificacion;
   };
   productoCliente?: ProductoEspecificacion;
   registros: RegistroProduccion[];
+  sobranteInfo?: InfoSobrante;
 }
 
 interface ResumenArea {
@@ -157,7 +175,11 @@ interface ResumenArea {
   _count: number;
 }
 
-export default function HistorialProduccionPage() {
+export function HistorialProduccionContent() {
+  const searchParams = useSearchParams();
+  const pathname = usePathname();
+  const router = useRouter();
+
   const [loading, setLoading] = useState(true);
   const [produccionesGrupadas, setProduccionesGrupadas] = useState<Produccion[][]>([]);
   const [producciones, setProducciones] = useState<Produccion[]>([]);
@@ -184,6 +206,8 @@ export default function HistorialProduccionPage() {
     totalRegistros: number;
     totalProducidoExtrusion: number;
     totalProducidoSellado: number;
+    totalSobranteKg?: number;
+    totalSobranteUnidades?: number;
     consumoMateriasPrimasExtrusion?: Record<string, number>;
     consumoPeletizados?: Array<{ id: string; nombre: string; codigo?: string; cantidadKg: number }>;
   }>({
@@ -193,10 +217,32 @@ export default function HistorialProduccionPage() {
     totalMermaCristal: 0,
     totalRegistros: 0,
     totalProducidoExtrusion: 0,
-    totalProducidoSellado: 0
+    totalProducidoSellado: 0,
+    totalSobranteKg: 0,
+    totalSobranteUnidades: 0,
   });
   const [showConsumoDropdown, setShowConsumoDropdown] = useState(false);
   const consumoDropdownRef = useRef<HTMLDivElement>(null);
+
+  // Parámetros y estado de filtrado temporal histórico
+  const [periodo, setPeriodo] = useState<string>(() => searchParams.get('periodo') || 'semana');
+  const [offset, setOffset] = useState<number>(() => parseInt(searchParams.get('offset') || '0', 10));
+  const [desde, setDesde] = useState<string>(() => searchParams.get('desde') || '');
+  const [hasta, setHasta] = useState<string>(() => searchParams.get('hasta') || '');
+  const [customDesde, setCustomDesde] = useState<string>(() => searchParams.get('desde') || '');
+  const [customHasta, setCustomHasta] = useState<string>(() => searchParams.get('hasta') || '');
+  const [periodoLabel, setPeriodoLabel] = useState<string>('');
+  const [fechaInicio, setFechaInicio] = useState<string>('');
+  const [fechaFin, setFechaFin] = useState<string>('');
+  const [showCustomRange, setShowCustomRange] = useState<boolean>(() => !!(searchParams.get('desde') && searchParams.get('hasta')));
+  const [filterArea, setFilterArea] = useState<string>(() => searchParams.get('area') || '');
+
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [expandedCards, setExpandedCards] = useState<Set<string>>(new Set());
+  const [actionModal, setActionModal] = useState({ isOpen: false, type: 'editar' as 'editar' | 'eliminar', id: '' });
+  const [editarModalOpen, setEditarModalOpen] = useState(false);
+  const [eliminando, setEliminando] = useState<string | null>(null);
 
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
@@ -218,28 +264,58 @@ export default function HistorialProduccionPage() {
       document.removeEventListener('keydown', handleKeyDown);
     };
   }, [showConsumoDropdown]);
-  const [periodo, setPeriodo] = useState('semana');
-  const [filterArea, setFilterArea] = useState('');
-  const [fechaInicio, setFechaInicio] = useState('');
-  const [page, setPage] = useState(1);
-  const [totalPages, setTotalPages] = useState(1);
-  const [expandedCards, setExpandedCards] = useState<Set<string>>(new Set());
-  const [actionModal, setActionModal] = useState({ isOpen: false, type: 'editar' as 'editar' | 'eliminar', id: '' });
-  const [editarModalOpen, setEditarModalOpen] = useState(false);
-  const [eliminando, setEliminando] = useState<string | null>(null);
 
-  useEffect(() => {
-    fetchHistorial();
-  }, [periodo, filterArea, page]);
+  // Sincronización en URL sin recarga completa
+  const updateUrl = (p: string, off: number, d?: string, h?: string, a?: string) => {
+    const params = new URLSearchParams();
+    if (d && h) {
+      params.set('desde', d);
+      params.set('hasta', h);
+    } else {
+      params.set('periodo', p);
+      if (off !== 0) params.set('offset', off.toString());
+    }
+    const areaVal = a !== undefined ? a : filterArea;
+    if (areaVal) params.set('area', areaVal);
 
-  const fetchHistorial = async () => {
+    const query = params.toString();
+    const newUrl = query ? `${pathname}?${query}` : pathname;
+    window.history.replaceState(null, '', newUrl);
+  };
+
+  const fetchHistorial = async (override?: {
+    periodo?: string;
+    offset?: number;
+    desde?: string;
+    hasta?: string;
+    area?: string;
+    page?: number;
+  }) => {
     try {
+      setLoading(true);
+      const activePeriodo = override?.periodo !== undefined ? override.periodo : periodo;
+      const activeOffset = override?.offset !== undefined ? override.offset : offset;
+      const activeDesde = override?.desde !== undefined ? override.desde : desde;
+      const activeHasta = override?.hasta !== undefined ? override.hasta : hasta;
+      const activeArea = override?.area !== undefined ? override.area : filterArea;
+      const activePage = override?.page !== undefined ? override.page : page;
+
       const params = new URLSearchParams({
-        periodo,
-        page: page.toString(),
+        page: activePage.toString(),
         limit: '10',
       });
-      if (filterArea) params.append('area', filterArea);
+
+      if (activeDesde && activeHasta) {
+        params.append('desde', activeDesde);
+        params.append('hasta', activeHasta);
+      } else {
+        params.append('periodo', activePeriodo);
+        if (activeOffset !== 0) {
+          params.append('offset', activeOffset.toString());
+        }
+      }
+
+      if (activeArea) params.append('area', activeArea);
 
       const res = await fetch(`/api/produccion/historial?${params}`);
       const data = await res.json();
@@ -249,14 +325,127 @@ export default function HistorialProduccionPage() {
       setProduccionesGrupadas(grupos);
 
       setResumenPorArea(data.resumenPorArea || []);
-      setTotales(data.totales || { totalProducido: 0, totalMerma: 0, totalMermaColor: 0, totalMermaCristal: 0, totalRegistros: 0, totalProducidoExtrusion: 0, totalProducidoSellado: 0 });
+      setTotales(data.totales || {
+        totalProducido: 0,
+        totalMerma: 0,
+        totalMermaColor: 0,
+        totalMermaCristal: 0,
+        totalRegistros: 0,
+        totalProducidoExtrusion: 0,
+        totalProducidoSellado: 0,
+        totalSobranteKg: 0,
+        totalSobranteUnidades: 0,
+      });
       setTotalPages(data.totalPages || 1);
       setFechaInicio(data.fechaInicio || '');
+      setFechaFin(data.fechaFin || '');
+      setPeriodoLabel(data.periodoLabel || '');
     } catch (error) {
-      console.error('Error:', error);
+      console.error('Error al obtener historial:', error);
     } finally {
       setLoading(false);
     }
+  };
+
+  useEffect(() => {
+    fetchHistorial();
+  }, [page]);
+
+  // Manejo de navegación temporal (Anterior / Siguiente)
+  const navegarPeriodo = (dir: -1 | 1) => {
+    if (periodo === 'personalizado') {
+      const newOffset = dir;
+      setPeriodo('semana');
+      setOffset(newOffset);
+      setDesde('');
+      setHasta('');
+      setPage(1);
+      updateUrl('semana', newOffset, '', '', filterArea);
+      fetchHistorial({ periodo: 'semana', offset: newOffset, desde: '', hasta: '', page: 1 });
+      return;
+    }
+
+    const newOffset = offset + dir;
+    if (newOffset > 0) return; // No permitir navegar al futuro
+
+    setOffset(newOffset);
+    setDesde('');
+    setHasta('');
+    setPage(1);
+    updateUrl(periodo, newOffset, '', '', filterArea);
+    fetchHistorial({ periodo, offset: newOffset, desde: '', hasta: '', page: 1 });
+  };
+
+  const seleccionarPeriodoRapido = (tipo: 'semana' | 'mes') => {
+    setPeriodo(tipo);
+    setOffset(0);
+    setDesde('');
+    setHasta('');
+    setShowCustomRange(false);
+    setPage(1);
+    updateUrl(tipo, 0, '', '', filterArea);
+    fetchHistorial({ periodo: tipo, offset: 0, desde: '', hasta: '', page: 1 });
+  };
+
+  const restablecerActual = () => {
+    setPeriodo('semana');
+    setOffset(0);
+    setDesde('');
+    setHasta('');
+    setShowCustomRange(false);
+    setPage(1);
+    updateUrl('semana', 0, '', '', filterArea);
+    fetchHistorial({ periodo: 'semana', offset: 0, desde: '', hasta: '', page: 1 });
+  };
+
+  const aplicarRangoPersonalizado = () => {
+    if (!customDesde || !customHasta) {
+      alert('Por favor selecciona una fecha Desde y una fecha Hasta.');
+      return;
+    }
+
+    let dIni = customDesde;
+    let dFin = customHasta;
+    if (dIni > dFin) {
+      const tmp = dIni;
+      dIni = dFin;
+      dFin = tmp;
+      setCustomDesde(dIni);
+      setCustomHasta(dFin);
+    }
+
+    setDesde(dIni);
+    setHasta(dFin);
+    setPeriodo('personalizado');
+    setOffset(0);
+    setPage(1);
+    updateUrl('personalizado', 0, dIni, dFin, filterArea);
+    fetchHistorial({ periodo: 'personalizado', offset: 0, desde: dIni, hasta: dFin, page: 1 });
+  };
+
+  const aplicarAtajoFechas = (diasAtras: number) => {
+    const hoy = new Date();
+    const fechaFinStr = hoy.toISOString().split('T')[0];
+    const fechaIniDate = new Date();
+    fechaIniDate.setDate(hoy.getDate() - diasAtras);
+    const fechaIniStr = fechaIniDate.toISOString().split('T')[0];
+
+    setCustomDesde(fechaIniStr);
+    setCustomHasta(fechaFinStr);
+    setDesde(fechaIniStr);
+    setHasta(fechaFinStr);
+    setPeriodo('personalizado');
+    setOffset(0);
+    setPage(1);
+    updateUrl('personalizado', 0, fechaIniStr, fechaFinStr, filterArea);
+    fetchHistorial({ periodo: 'personalizado', offset: 0, desde: fechaIniStr, hasta: fechaFinStr, page: 1 });
+  };
+
+  const cambiarArea = (nuevaArea: string) => {
+    setFilterArea(nuevaArea);
+    setPage(1);
+    updateUrl(periodo, offset, desde, hasta, nuevaArea);
+    fetchHistorial({ area: nuevaArea, page: 1 });
   };
 
   const handleActionClick = (id: string, type: 'editar' | 'eliminar') => {
@@ -384,6 +573,7 @@ export default function HistorialProduccionPage() {
     }
 
     const isUnidades = ultimaFase.area === 'Sellado' || ultimaFase.unidad?.toLowerCase().startsWith('un') || ultimaFase.unidad?.toLowerCase().startsWith('ud');
+    const resumenSobrantes = calcularResumenSobrantesGrupo(grupo);
 
     return {
       ultimaFase,
@@ -392,7 +582,8 @@ export default function HistorialProduccionPage() {
       mermaColor,
       mermaCristal,
       titulo,
-      isUnidades
+      isUnidades,
+      resumenSobrantes,
     };
   };
 
@@ -603,40 +794,214 @@ export default function HistorialProduccionPage() {
           </div>
         </div>
 
-        {/* Filtros de Período */}
-        <div className="flex flex-wrap gap-4">
-          <div className="flex rounded-lg border border-gray-200 bg-white p-1">
-            <button
-              onClick={() => { setPeriodo('semana'); setPage(1); }}
-              className={`flex items-center gap-2 rounded-md px-4 py-2 text-sm font-medium transition-colors ${periodo === 'semana'
-                ? 'bg-emerald-600 text-white'
-                : 'text-gray-600 hover:bg-gray-100'
+        {/* Filtros de Período y Navegación Histórica */}
+        <div className="space-y-3">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div className="flex flex-wrap items-center gap-2">
+              {/* Botones rápidos: Esta Semana / Este Mes */}
+              <div className="flex rounded-xl border border-gray-200 bg-white p-1 shadow-xs">
+                <button
+                  type="button"
+                  onClick={() => seleccionarPeriodoRapido('semana')}
+                  className={`flex items-center gap-1.5 rounded-lg px-3.5 py-2 text-sm font-semibold transition-all ${
+                    periodo === 'semana' && offset === 0 && !desde
+                      ? 'bg-emerald-600 text-white shadow-xs'
+                      : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
+                  }`}
+                >
+                  <Calendar className="h-4 w-4" />
+                  Esta Semana
+                </button>
+                <button
+                  type="button"
+                  onClick={() => seleccionarPeriodoRapido('mes')}
+                  className={`flex items-center gap-1.5 rounded-lg px-3.5 py-2 text-sm font-semibold transition-all ${
+                    periodo === 'mes' && offset === 0 && !desde
+                      ? 'bg-emerald-600 text-white shadow-xs'
+                      : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
+                  }`}
+                >
+                  <Calendar className="h-4 w-4" />
+                  Este Mes
+                </button>
+              </div>
+
+              {/* Navegador de período temporal con flechas (< y >) */}
+              <div className="flex items-center rounded-xl border border-gray-200 bg-white p-1 shadow-xs">
+                <button
+                  type="button"
+                  onClick={() => navegarPeriodo(-1)}
+                  className="rounded-lg p-2 text-gray-600 hover:bg-gray-100 hover:text-gray-900 active:scale-95 transition-all"
+                  title="Retroceder al período anterior"
+                  aria-label="Período anterior"
+                >
+                  <ChevronLeft className="h-4 w-4" />
+                </button>
+
+                <div className="px-3 py-1 text-center min-w-[140px] sm:min-w-[190px]">
+                  <span className="text-xs sm:text-sm font-bold text-gray-800 flex items-center justify-center gap-1.5">
+                    {periodoLabel || (periodo === 'semana' ? 'Esta Semana' : 'Este Mes')}
+                    {offset !== 0 && (
+                      <span className="text-[10px] font-mono font-bold bg-amber-100 text-amber-800 px-1.5 py-0.5 rounded-full border border-amber-200">
+                        {offset < 0 ? `${offset}` : `+${offset}`}
+                      </span>
+                    )}
+                  </span>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => navegarPeriodo(1)}
+                  disabled={offset >= 0 && !desde && !hasta}
+                  className="rounded-lg p-2 text-gray-600 hover:bg-gray-100 hover:text-gray-900 disabled:opacity-30 disabled:cursor-not-allowed active:scale-95 transition-all"
+                  title="Avanzar al período siguiente"
+                  aria-label="Período siguiente"
+                >
+                  <ChevronRight className="h-4 w-4" />
+                </button>
+              </div>
+
+              {/* Botón de restablecer a período actual si está desfasado */}
+              {(offset !== 0 || !!desde) && (
+                <button
+                  type="button"
+                  onClick={restablecerActual}
+                  className="flex items-center gap-1.5 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs font-semibold text-emerald-800 hover:bg-emerald-100 active:scale-95 transition-all shadow-xs"
+                  title="Restablecer a la semana actual"
+                >
+                  <RotateCcw className="h-3.5 w-3.5" />
+                  <span>Volver a Hoy</span>
+                </button>
+              )}
+
+              {/* Botón para abrir / cerrar selector de rango personalizado */}
+              <button
+                type="button"
+                onClick={() => setShowCustomRange(!showCustomRange)}
+                className={`flex items-center gap-1.5 rounded-xl border px-3.5 py-2 text-sm font-semibold transition-all ${
+                  showCustomRange || (desde && hasta)
+                    ? 'border-emerald-500 bg-emerald-50 text-emerald-800 shadow-xs'
+                    : 'border-gray-200 bg-white text-gray-700 hover:bg-gray-50 shadow-xs'
                 }`}
-            >
-              <Calendar className="h-4 w-4" />
-              Esta Semana
-            </button>
-            <button
-              onClick={() => { setPeriodo('mes'); setPage(1); }}
-              className={`flex items-center gap-2 rounded-md px-4 py-2 text-sm font-medium transition-colors ${periodo === 'mes'
-                ? 'bg-emerald-600 text-white'
-                : 'text-gray-600 hover:bg-gray-100'
-                }`}
-            >
-              <Calendar className="h-4 w-4" />
-              Este Mes
-            </button>
+              >
+                <CalendarDays className="h-4 w-4" />
+                <span>Rango Libre</span>
+              </button>
+            </div>
+
+            {/* Selector de Área */}
+            <div className="flex items-center gap-2">
+              <select
+                value={filterArea}
+                onChange={(e) => cambiarArea(e.target.value)}
+                className="rounded-xl border border-gray-300 bg-white px-3.5 py-2 text-sm font-medium text-gray-800 shadow-xs focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+              >
+                <option value="">Todas las áreas</option>
+                {AREAS.map((a) => (
+                  <option key={a.value} value={a.value}>{a.label}</option>
+                ))}
+              </select>
+            </div>
           </div>
-          <select
-            value={filterArea}
-            onChange={(e) => { setFilterArea(e.target.value); setPage(1); }}
-            className="rounded-lg border border-gray-300 px-4 py-2 focus:border-emerald-500 focus:outline-none"
-          >
-            <option value="">Todas las áreas</option>
-            {AREAS.map((a) => (
-              <option key={a.value} value={a.value}>{a.label}</option>
-            ))}
-          </select>
+
+          {/* Panel Desplegable de Rango Personalizado */}
+          <AnimatePresence>
+            {showCustomRange && (
+              <motion.div
+                initial={{ opacity: 0, height: 0 }}
+                animate={{ opacity: 1, height: 'auto' }}
+                exit={{ opacity: 0, height: 0 }}
+                className="overflow-hidden rounded-2xl border border-gray-200 bg-white p-4 shadow-sm"
+              >
+                <div className="flex flex-wrap items-center justify-between gap-3 border-b border-gray-100 pb-3 mb-3">
+                  <div className="flex items-center gap-2">
+                    <CalendarDays className="h-4 w-4 text-emerald-600" />
+                    <span className="text-sm font-bold text-gray-900">Seleccionar Rango de Fechas Histórico</span>
+                  </div>
+                  <div className="flex flex-wrap items-center gap-1.5">
+                    <button
+                      type="button"
+                      onClick={() => aplicarAtajoFechas(7)}
+                      className="px-2.5 py-1 text-xs font-medium rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-700 transition-colors"
+                    >
+                      Últimos 7 días
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => aplicarAtajoFechas(30)}
+                      className="px-2.5 py-1 text-xs font-medium rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-700 transition-colors"
+                    >
+                      Últimos 30 días
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const hoy = new Date();
+                        const primerDiaMesAnt = new Date(hoy.getFullYear(), hoy.getMonth() - 1, 1);
+                        const ultimoDiaMesAnt = new Date(hoy.getFullYear(), hoy.getMonth(), 0);
+                        const d1 = primerDiaMesAnt.toISOString().split('T')[0];
+                        const d2 = ultimoDiaMesAnt.toISOString().split('T')[0];
+                        setCustomDesde(d1);
+                        setCustomHasta(d2);
+                        setDesde(d1);
+                        setHasta(d2);
+                        setPeriodo('personalizado');
+                        setOffset(0);
+                        setPage(1);
+                        updateUrl('personalizado', 0, d1, d2, filterArea);
+                        fetchHistorial({ periodo: 'personalizado', offset: 0, desde: d1, hasta: d2, page: 1 });
+                      }}
+                      className="px-2.5 py-1 text-xs font-medium rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-700 transition-colors"
+                    >
+                      Mes Anterior
+                    </button>
+                  </div>
+                </div>
+
+                <div className="flex flex-wrap items-center gap-4">
+                  <div className="flex items-center gap-2">
+                    <label className="text-xs font-semibold text-gray-600">Desde:</label>
+                    <input
+                      type="date"
+                      value={customDesde}
+                      onChange={(e) => setCustomDesde(e.target.value)}
+                      className="rounded-lg border border-gray-300 px-3 py-1.5 text-sm text-gray-800 shadow-xs focus:border-emerald-500 focus:outline-none"
+                    />
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <label className="text-xs font-semibold text-gray-600">Hasta:</label>
+                    <input
+                      type="date"
+                      value={customHasta}
+                      onChange={(e) => setCustomHasta(e.target.value)}
+                      className="rounded-lg border border-gray-300 px-3 py-1.5 text-sm text-gray-800 shadow-xs focus:border-emerald-500 focus:outline-none"
+                    />
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={aplicarRangoPersonalizado}
+                      className="rounded-lg bg-emerald-600 px-4 py-1.5 text-sm font-semibold text-white hover:bg-emerald-700 active:scale-95 transition-all shadow-xs"
+                    >
+                      Filtrar Período
+                    </button>
+
+                    {(desde || hasta) && (
+                      <button
+                        type="button"
+                        onClick={restablecerActual}
+                        className="rounded-lg border border-gray-300 px-3 py-1.5 text-sm font-medium text-gray-600 hover:bg-gray-100 transition-colors"
+                      >
+                        Limpiar
+                      </button>
+                    )}
+                  </div>
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
         </div>
 
         {/* Tarjetas de Resumen */}
@@ -688,6 +1053,16 @@ export default function HistorialProduccionPage() {
                     maxDecimals: getUnidadForArea(filterArea) === 'UND' ? 0 : 2
                   })} {getUnidadForArea(filterArea)}
                 </p>
+              )}
+
+              {/* Indicador de excedente/sobrante consolidado en el período */}
+              {((totales.totalSobranteKg || 0) > 0 || (totales.totalSobranteUnidades || 0) > 0) && (
+                <div className="mt-2 inline-flex items-center gap-1.5 rounded-lg bg-white/20 backdrop-blur-xs px-2.5 py-1 text-xs font-semibold text-yellow-200 border border-white/20 shadow-xs">
+                  <Sparkles className="h-3.5 w-3.5 text-yellow-300" />
+                  <span>
+                    Excedente: {(totales.totalSobranteKg || 0) > 0 ? `+${formatNumber(totales.totalSobranteKg, { minDecimals: 2, maxDecimals: 2 })} kg` : ''} {(totales.totalSobranteUnidades || 0) > 0 ? `+${formatNumber(totales.totalSobranteUnidades, { minDecimals: 0, maxDecimals: 0 })} UND` : ''}
+                  </span>
+                </div>
               )}
             </div>
 
@@ -1041,12 +1416,21 @@ export default function HistorialProduccionPage() {
 
         {/* Tarjetas de Producciones Finalizadas */}
         <div className="space-y-4">
-          <div className="flex items-center justify-between">
-            <h2 className="text-lg font-semibold text-gray-900">Producciones Finalizadas</h2>
-            {fechaInicio && (
-              <p className="text-sm text-gray-500">
-                Desde: {new Date(fechaInicio).toLocaleDateString('es-VE', { weekday: 'long', day: 'numeric', month: 'long' })}
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div>
+              <h2 className="text-lg font-bold text-gray-900">Producciones Finalizadas</h2>
+              <p className="text-xs text-gray-500 mt-0.5">
+                Período consultado:{' '}
+                <strong className="text-emerald-700 font-semibold">
+                  {periodoLabel || (fechaInicio ? new Date(fechaInicio).toLocaleDateString('es-VE') : 'Actual')}
+                </strong>
               </p>
+            </div>
+            {fechaInicio && fechaFin && (
+              <span className="inline-flex items-center gap-1.5 rounded-lg bg-gray-100 px-3 py-1 text-xs font-medium text-gray-600 border border-gray-200">
+                <Calendar className="h-3.5 w-3.5 text-gray-500" />
+                {new Date(fechaInicio).toLocaleDateString('es-VE')} al {new Date(fechaFin).toLocaleDateString('es-VE')}
+              </span>
             )}
           </div>
 
@@ -1060,7 +1444,7 @@ export default function HistorialProduccionPage() {
               const metricas = calcularMetricasGrupo(grupo);
               if (!metricas) return null;
 
-              const { titulo, cantidadTotal, mermaTotal, mermaColor, mermaCristal, isUnidades, ultimaFase } = metricas;
+              const { titulo, cantidadTotal, mermaTotal, mermaColor, mermaCristal, isUnidades, ultimaFase, resumenSobrantes } = metricas;
               const grupoId = `grupo-${grupo[0].id}`;
               const isExpanded = expandedCards.has(grupoId);
 
@@ -1076,7 +1460,7 @@ export default function HistorialProduccionPage() {
                   <div className="bg-gray-50 px-5 py-4 border-b border-gray-200 flex flex-wrap items-center justify-between gap-4">
                     <div className="flex flex-col gap-1">
                       <h3 className="text-xl font-bold text-gray-900">{titulo}</h3>
-                      <div className="flex items-center gap-3 text-sm text-gray-600">
+                      <div className="flex flex-wrap items-center gap-2.5 text-sm text-gray-600">
                         <span className="inline-flex items-center gap-1 font-medium text-emerald-700 bg-emerald-100/50 px-2.5 py-0.5 rounded-full border border-emerald-200">
                           <CheckCircle className="h-4 w-4" />
                           Completado
@@ -1088,6 +1472,18 @@ export default function HistorialProduccionPage() {
                         <span>
                           Merma Total: <strong className="text-red-600">{formatNumber(mermaTotal, { minDecimals: 2, maxDecimals: 2 })} kg</strong>
                         </span>
+                        {resumenSobrantes?.tieneSobrantes && (
+                          <>
+                            <span className="text-gray-300">|</span>
+                            <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 border border-amber-300 px-2.5 py-0.5 text-xs font-bold text-amber-900 shadow-xs">
+                              <Sparkles className="h-3 w-3 text-amber-600" />
+                              Sobrante:{' '}
+                              {resumenSobrantes.totalSobranteKg > 0 ? `+${formatNumber(resumenSobrantes.totalSobranteKg, { minDecimals: 2, maxDecimals: 2 })} kg` : ''}
+                              {resumenSobrantes.totalSobranteKg > 0 && resumenSobrantes.totalSobranteUnd > 0 ? ' · ' : ''}
+                              {resumenSobrantes.totalSobranteUnd > 0 ? `+${formatNumber(resumenSobrantes.totalSobranteUnd, { minDecimals: 0, maxDecimals: 0 })} UND` : ''}
+                            </span>
+                          </>
+                        )}
                       </div>
                     </div>
 
@@ -1117,6 +1513,7 @@ export default function HistorialProduccionPage() {
                             : prod.cantidadProducida;
 
                           const isUnidades = prod.area === 'Sellado' || prod.unidad?.toLowerCase().startsWith('un') || prod.unidad?.toLowerCase().startsWith('ud');
+                          const sobrante = prod.sobranteInfo || calcularSobranteFase(prod);
 
                           const desperdicio = calcularDesperdicioInfo({
                             area: prod.area,
@@ -1164,6 +1561,17 @@ export default function HistorialProduccionPage() {
                                       <CheckCircle className="h-3 w-3" />
                                       Finalizado
                                     </span>
+                                    {sobrante.haySobrante && (
+                                      <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-500 hover:bg-amber-600 border border-amber-300 px-3 py-1 text-xs font-bold text-white shadow-sm transition-all">
+                                        <Sparkles className="h-3.5 w-3.5 text-yellow-200" />
+                                        {sobrante.sobranteLabel}: {sobrante.sobranteTexto}
+                                        {sobrante.porcentajeExcedente > 0 && (
+                                          <span className="text-yellow-100 font-normal">
+                                            (+{sobrante.porcentajeExcedente}%)
+                                          </span>
+                                        )}
+                                      </span>
+                                    )}
                                     {desperdicio.tienePorcentaje && desperdicio.porcentaje !== null && (
                                       <span className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-bold shadow-sm ${desperdicio.semaforo.badgeClass}`}>
                                         <span className={`w-2 h-2 rounded-full ${desperdicio.semaforo.dotColor}`} />
@@ -1198,6 +1606,18 @@ export default function HistorialProduccionPage() {
                                 <div className="mt-2 flex flex-wrap items-center gap-4 text-sm text-white/90">
                                   <span>Máquina: <strong>{prod.maquina.nombre}</strong></span>
                                   <span>Cliente: <strong>{prod.pedido?.cliente?.nombre || 'Sin pedido'}</strong></span>
+                                  <span>
+                                    Programado: <strong>{formatNumber(sobrante.cantidadProgramada, { minDecimals: isUnidades ? 0 : 2, maxDecimals: 2 })} {isUnidades ? 'UND' : prod.unidad}</strong>
+                                  </span>
+                                  <span>
+                                    Producido: <strong>{formatNumber(cantidadTotal, { minDecimals: isUnidades ? 0 : 2, maxDecimals: 2 })} {isUnidades ? 'UND' : prod.unidad}</strong>
+                                  </span>
+                                  {sobrante.haySobrante && (
+                                    <span className="inline-flex items-center gap-1 rounded bg-amber-400/30 px-2 py-0.5 text-xs font-bold text-amber-100 border border-amber-300/40">
+                                      <Sparkles className="h-3 w-3 text-yellow-300" />
+                                      {sobrante.sobranteLabel}: {sobrante.sobranteTexto}
+                                    </span>
+                                  )}
                                   {prod.area === 'Extrusion' && (prod.productoCliente?.peletizado || prod.pedido?.productoCliente?.peletizado) && (
                                     <span className="inline-flex items-center gap-1 rounded bg-amber-400/25 px-2 py-0.5 text-xs font-semibold text-amber-100 border border-amber-300/30">
                                       Peletizado: {prod.productoCliente?.peletizado?.nombre || prod.pedido?.productoCliente?.peletizado?.nombre} ({prod.productoCliente?.peletizadoPorcentaje || prod.pedido?.productoCliente?.peletizadoPorcentaje}%)
@@ -1317,12 +1737,25 @@ export default function HistorialProduccionPage() {
 
                               {/* Footer - Total y Semáforo de Merma */}
                               <div className="flex flex-wrap items-center justify-between gap-3 border-t border-emerald-100 bg-gradient-to-r from-emerald-50 to-gray-50 px-4 py-3">
-                                <div className="text-lg font-bold text-gray-800">
-                                  Total:{' '}
-                                  <span className="text-emerald-600">
-                                    {formatNumber(cantidadTotal, { minDecimals: isUnidades ? 0 : 2, maxDecimals: 2 })}
-                                  </span>{' '}
-                                  {prod.area === 'Sellado' ? 'unidades' : prod.unidad}
+                                <div className="flex flex-wrap items-center gap-3">
+                                  <div className="text-lg font-bold text-gray-800">
+                                    Total:{' '}
+                                    <span className="text-emerald-600">
+                                      {formatNumber(cantidadTotal, { minDecimals: isUnidades ? 0 : 2, maxDecimals: 2 })}
+                                    </span>{' '}
+                                    {prod.area === 'Sellado' ? 'unidades' : prod.unidad}
+                                  </div>
+                                  {sobrante.haySobrante && (
+                                    <div className="flex items-center gap-1.5 bg-amber-100 border border-amber-300 text-amber-900 px-3 py-1 rounded-xl text-xs font-bold shadow-xs">
+                                      <Sparkles className="h-3.5 w-3.5 text-amber-600" />
+                                      <span>{sobrante.sobranteLabel}: <strong className="text-amber-800">{sobrante.sobranteTexto}</strong></span>
+                                      {sobrante.porcentajeExcedente > 0 && (
+                                        <span className="text-amber-700 font-medium text-[11px]">
+                                          ({sobrante.porcentajeExcedente}% sobre pedido)
+                                        </span>
+                                      )}
+                                    </div>
+                                  )}
                                 </div>
                                 <div className="flex flex-wrap items-center gap-3">
                                   <div className="flex flex-wrap items-center gap-2 bg-white/90 dark:bg-slate-800 px-3 py-1.5 rounded-xl border border-gray-200 text-xs font-semibold">
@@ -1357,6 +1790,57 @@ export default function HistorialProduccionPage() {
                             </motion.div>
                           );
                         })}
+
+                        {/* Resumen de Sobrantes / Excedentes de la Orden */}
+                        {resumenSobrantes?.tieneSobrantes && (
+                          <div className="rounded-xl border border-amber-200 bg-gradient-to-r from-amber-50 via-yellow-50/80 to-amber-50 p-4 shadow-sm">
+                            <div className="flex flex-wrap items-center justify-between gap-3 mb-2.5">
+                              <div className="flex items-center gap-2.5">
+                                <div className="p-2 bg-amber-200 rounded-xl text-amber-800 shrink-0">
+                                  <Boxes className="h-5 w-5" />
+                                </div>
+                                <div>
+                                  <h4 className="text-sm font-bold text-amber-950">
+                                    Resumen de Material Sobrante / Excedente en Planta
+                                  </h4>
+                                  <p className="text-xs text-amber-800 mt-0.5">
+                                    Material terminado que superó la cantidad programada y quedó disponible en planta:
+                                  </p>
+                                </div>
+                              </div>
+                              <span className="rounded-full bg-amber-200/90 border border-amber-300 px-3 py-1 text-xs font-extrabold text-amber-900 shadow-xs">
+                                Disponible en Planta
+                              </span>
+                            </div>
+                            <div className="grid gap-2.5 sm:grid-cols-2 lg:grid-cols-4">
+                              {resumenSobrantes.fasesConSobrante.map((item, idx) => (
+                                <div
+                                  key={idx}
+                                  className="flex items-center justify-between p-3 rounded-xl bg-white border border-amber-200/90 shadow-xs"
+                                >
+                                  <div>
+                                    <p className="text-xs font-bold text-gray-800">
+                                      {item.fase.area}
+                                    </p>
+                                    <p className="text-[11px] text-gray-500 font-medium">
+                                      {item.info.sobranteLabel}
+                                    </p>
+                                  </div>
+                                  <div className="text-right">
+                                    <p className="text-sm font-extrabold text-amber-600">
+                                      {item.info.sobranteTexto}
+                                    </p>
+                                    {item.info.porcentajeExcedente > 0 && (
+                                      <p className="text-[10px] text-amber-700 font-semibold">
+                                        +{item.info.porcentajeExcedente}% sobre orden
+                                      </p>
+                                    )}
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
                       </motion.div>
                     )}
                   </AnimatePresence>
@@ -1409,5 +1893,19 @@ export default function HistorialProduccionPage() {
         produccionId={actionModal.id}
       />
     </>
+  );
+}
+
+export default function HistorialProduccionPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="flex h-96 items-center justify-center">
+          <LoadingSpinner />
+        </div>
+      }
+    >
+      <HistorialProduccionContent />
+    </Suspense>
   );
 }

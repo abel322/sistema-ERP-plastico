@@ -4,6 +4,7 @@ import { prisma } from '@/lib/db';
 import { AreaProduccion, EstadoProduccion } from '@prisma/client';
 import { authOptions } from '@/lib/auth-options';
 import { calcularDesgloseMerma, CLASIFICACIONES_MERMA } from '@/lib/merma-logic';
+import { calcularSobranteFase } from '@/lib/sobrante-logic';
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
@@ -17,7 +18,10 @@ export async function GET(request: Request) {
     }
 
     const { searchParams } = new URL(request.url);
-    const periodo = searchParams.get('periodo') || 'semana'; // semana, mes
+    const periodo = searchParams.get('periodo') || 'semana'; // semana, mes, personalizado
+    const offset = parseInt(searchParams.get('offset') || '0', 10);
+    const desde = searchParams.get('desde');
+    const hasta = searchParams.get('hasta');
     const area = searchParams.get('area') as AreaProduccion | null;
     const page = parseInt(searchParams.get('page') || '1');
     const limit = parseInt(searchParams.get('limit') || '10');
@@ -25,22 +29,63 @@ export async function GET(request: Request) {
     // Calcular fechas según el periodo
     const now = new Date();
     let fechaInicio: Date;
+    let fechaFin: Date;
+    let periodoLabel = '';
 
-    if (periodo === 'semana') {
-      // Inicio de la semana (lunes)
-      const dayOfWeek = now.getDay();
-      const diff = dayOfWeek === 0 ? 6 : dayOfWeek - 1;
-      fechaInicio = new Date(now);
-      fechaInicio.setDate(now.getDate() - diff);
-      fechaInicio.setHours(0, 0, 0, 0);
+    if (desde && hasta) {
+      // Rango personalizado de fechas
+      const [y1, m1, d1] = desde.split('-').map(Number);
+      fechaInicio = new Date(y1, m1 - 1, d1, 0, 0, 0, 0);
+
+      const [y2, m2, d2] = hasta.split('-').map(Number);
+      fechaFin = new Date(y2, m2 - 1, d2, 23, 59, 59, 999);
+
+      const str1 = fechaInicio.toLocaleDateString('es-VE', { day: '2-digit', month: 'short', year: 'numeric' });
+      const str2 = fechaFin.toLocaleDateString('es-VE', { day: '2-digit', month: 'short', year: 'numeric' });
+      periodoLabel = `${str1} - ${str2}`;
+    } else if (periodo === 'mes') {
+      // Navegación por mes con offset
+      const targetYear = now.getFullYear();
+      const targetMonth = now.getMonth() + offset;
+
+      fechaInicio = new Date(targetYear, targetMonth, 1, 0, 0, 0, 0);
+      fechaFin = new Date(fechaInicio.getFullYear(), fechaInicio.getMonth() + 1, 0, 23, 59, 59, 999);
+
+      const monthName = fechaInicio.toLocaleDateString('es-ES', { month: 'long', year: 'numeric' });
+      const capitalized = monthName.charAt(0).toUpperCase() + monthName.slice(1);
+      periodoLabel = offset === 0 ? `Este Mes (${capitalized})` : capitalized;
     } else {
-      // Inicio del mes
-      fechaInicio = new Date(now.getFullYear(), now.getMonth(), 1);
+      // Navegación por semana con offset
+      const baseDate = new Date(now.getTime() + offset * 7 * 24 * 60 * 60 * 1000);
+      const dayOfWeek = baseDate.getDay();
+      const diff = dayOfWeek === 0 ? 6 : dayOfWeek - 1; // Lunes
+
+      fechaInicio = new Date(baseDate);
+      fechaInicio.setDate(baseDate.getDate() - diff);
+      fechaInicio.setHours(0, 0, 0, 0);
+
+      fechaFin = new Date(fechaInicio);
+      fechaFin.setDate(fechaInicio.getDate() + 6);
+      fechaFin.setHours(23, 59, 59, 999);
+
+      const str1 = fechaInicio.toLocaleDateString('es-VE', { day: '2-digit', month: 'short' });
+      const str2 = fechaFin.toLocaleDateString('es-VE', { day: '2-digit', month: 'short', year: 'numeric' });
+
+      if (offset === 0) {
+        periodoLabel = `Esta Semana (${str1} - ${str2})`;
+      } else if (offset === -1) {
+        periodoLabel = `Semana Pasada (${str1} - ${str2})`;
+      } else {
+        periodoLabel = `Semana ${str1} - ${str2}`;
+      }
     }
 
     const where: any = {
       estado: EstadoProduccion.Finalizado,
-      finalizadoAt: { gte: fechaInicio },
+      finalizadoAt: {
+        gte: fechaInicio,
+        lte: fechaFin,
+      },
     };
     if (area) where.area = area;
 
@@ -88,7 +133,10 @@ export async function GET(request: Request) {
       prisma.produccion.findMany({
         where: {
           estado: EstadoProduccion.Finalizado,
-          finalizadoAt: { gte: fechaInicio },
+          finalizadoAt: {
+            gte: fechaInicio,
+            lte: fechaFin,
+          },
           area: AreaProduccion.Extrusion,
         },
         select: {
@@ -204,10 +252,11 @@ export async function GET(request: Request) {
       consumoConsolidadoExtrusion.formMasterbachAmarillo += kgExtrusion * ((Number(f.formMasterbachAmarillo ?? f.masterbachAmarillo ?? 0)) / 100);
     });
 
-    // Asegurar cálculo consolidado de las 5 variantes de merma por orden
+    // Asegurar cálculo consolidado de las 5 variantes de merma y sobrantes por orden
     const produccionesConMermas = producciones.map((prod) => {
       const datosMerma = prod.registros && prod.registros.length > 0 ? prod.registros : prod;
       const desglose = calcularDesgloseMerma(datosMerma);
+      const sobranteInfo = calcularSobranteFase(prod);
 
       return {
         ...prod,
@@ -218,6 +267,7 @@ export async function GET(request: Request) {
         mermaTransparenteBaja: desglose.mermaTransparenteBaja,
         mermaBlancoPego: desglose.mermaBlancoPego,
         mermaCristal: desglose.mermaTransparenteAlta, // retrocompatibilidad
+        sobranteInfo,
       };
     });
 
@@ -249,6 +299,15 @@ export async function GET(request: Request) {
 
     const totalMerma = sumMermaTotal || Object.values(mermasTotalesMap).reduce((a, b) => a + b, 0);
 
+    // Totales de excedentes/sobrantes
+    const totalSobranteKg = produccionesConMermas
+      .filter((p) => !p.sobranteInfo.isUnidades)
+      .reduce((acc, p) => acc + (p.sobranteInfo.sobranteKg || 0), 0);
+
+    const totalSobranteUnidades = produccionesConMermas
+      .filter((p) => p.sobranteInfo.isUnidades)
+      .reduce((acc, p) => acc + (p.sobranteInfo.sobranteUnidades || 0), 0);
+
     const totales = {
       totalProducido: resumen.reduce((acc, r) => acc + (r._sum.cantidadProducida || 0), 0),
       totalMerma,
@@ -265,6 +324,8 @@ export async function GET(request: Request) {
       totalProducidoSellado: resumen.find(r => r.area === 'Sellado')?._sum.cantidadProducida || 0,
       consumoMateriasPrimasExtrusion: consumoConsolidadoExtrusion,
       consumoPeletizados: Object.values(consumoPeletizadosDetalle),
+      totalSobranteKg,
+      totalSobranteUnidades,
     };
 
     return NextResponse.json({
@@ -274,8 +335,13 @@ export async function GET(request: Request) {
       totalPages: Math.ceil(total / limit),
       resumenPorArea: resumen,
       totales,
-      periodo,
+      periodo: desde && hasta ? 'personalizado' : periodo,
+      offset,
+      periodoLabel,
       fechaInicio: fechaInicio.toISOString(),
+      fechaFin: fechaFin.toISOString(),
+      desde: fechaInicio.toISOString().split('T')[0],
+      hasta: fechaFin.toISOString().split('T')[0],
     });
   } catch (error) {
     console.error('Error al obtener historial:', error);
