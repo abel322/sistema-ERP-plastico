@@ -21,6 +21,82 @@ interface ProductoCliente {
 
 type TabType = 'basico' | 'formulacion' | 'serigrafia' | 'extrusion' | 'sellado';
 
+function mapRecordToFormState(record: any, fallbackProduct: any = {}) {
+  const getVal = (primary: any, secondary: any, fallback: any) => {
+    if (primary !== undefined && primary !== null) return primary;
+    if (secondary !== undefined && secondary !== null) return secondary;
+    if (fallback !== undefined && fallback !== null) return fallback;
+    return null;
+  };
+
+  const getStr = (primary: any, secondary: any, fallback: any) => {
+    if (primary !== undefined && primary !== null) return primary;
+    if (secondary !== undefined && secondary !== null) return secondary;
+    if (fallback !== undefined && fallback !== null) return fallback;
+    return '';
+  };
+
+  return {
+    sldCapacidadBolsa: getVal(record?.capacidadBolsa, record?.sldCapacidadBolsa, fallbackProduct?.sldCapacidadBolsa),
+    sldTemperaturaAmbiente: getVal(record?.temperaturaAmbiente, record?.sldTemperaturaAmbiente, fallbackProduct?.sldTemperaturaAmbiente),
+    sldTornilloEsparrago: getVal(record?.tornilloEsparrago, record?.sldTornilloEsparrago, fallbackProduct?.sldTornilloEsparrago),
+    sldTempSuperior: getVal(record?.temperaturaSuperior, record?.sldTempSuperior, fallbackProduct?.sldTempSuperior),
+    sldTempInferior: getVal(record?.temperaturaInferior, record?.sldTempInferior, fallbackProduct?.sldTempInferior),
+    sldTempValvula: getVal(record?.temperaturaValvula, record?.sldTempValvula, fallbackProduct?.sldTempValvula),
+    sldTempCuchilla: getVal(record?.temperaturaCuchilla, record?.sldTempCuchilla, fallbackProduct?.sldTempCuchilla),
+    sldPresellado_A: getVal(record?.preselladoA, record?.sldPresellado_A, fallbackProduct?.sldPresellado_A),
+    sldPresellado_B: getVal(record?.preselladoB, record?.sldPresellado_B, fallbackProduct?.sldPresellado_B),
+    sldTiempoLimite: getVal(record?.tiempoLimite, record?.sldTiempoLimite, fallbackProduct?.sldTiempoLimite),
+    sldMicroperforaciones: getStr(record?.microperforaciones, record?.sldMicroperforaciones, fallbackProduct?.sldMicroperforaciones),
+    sldMuleteado: getStr(record?.muleteado, record?.sldMuleteado, fallbackProduct?.sldMuleteado),
+    sldPresionTroquelValvula: getVal(record?.presionTroquelValvula, record?.sldPresionTroquelValvula, fallbackProduct?.sldPresionTroquelValvula),
+    sldRodilloAnchoValvula: getVal(record?.rodilloAnchoValvula, record?.sldRodilloAnchoValvula, fallbackProduct?.sldRodilloAnchoValvula),
+    sldGPM: getVal(record?.gpm, record?.sldGPM, fallbackProduct?.sldGPM),
+    sldVelocidadTransportador: getVal(record?.velocidadTransportador, record?.sldVelocidadTransportador, fallbackProduct?.sldVelocidadTransportador),
+    sldCicloTrabajo: getVal(record?.cicloTrabajo, record?.sldCicloTrabajo, fallbackProduct?.sldCicloTrabajo),
+    sldPresionBalancin1: getVal(record?.presionBalancin1, record?.sldPresionBalancin1, fallbackProduct?.sldPresionBalancin1),
+    sldPresionBalancin2: getVal(record?.presionBalancin2, record?.sldPresionBalancin2, fallbackProduct?.sldPresionBalancin2),
+    sldPresionBalancin3: getVal(record?.presionBalancin3, record?.sldPresionBalancin3, fallbackProduct?.sldPresionBalancin3),
+    sldAlturaCabezalExtDerecho: getVal(record?.alturaCabezalExtDerecho, record?.sldAlturaCabezalExtDerecho, fallbackProduct?.sldAlturaCabezalExtDerecho),
+    sldAlturaCabezalExtIzquierdo: getVal(record?.alturaCabezalExtIzquierdo, record?.sldAlturaCabezalExtIzquierdo, fallbackProduct?.sldAlturaCabezalExtIzquierdo),
+    sldBandaTransportadora: getVal(record?.bandaTransportadora, record?.sldBandaTransportadora, fallbackProduct?.sldBandaTransportadora),
+    sldMedidaPortabobina: getVal(record?.medidaPortabobina, record?.sldMedidaPortabobina, fallbackProduct?.sldMedidaPortabobina),
+    sldAjusteSensorFail: getVal(record?.ajusteSensorFail, record?.sldAjusteSensorFail, fallbackProduct?.sldAjusteSensorFail),
+    tornilloDerMovHorizCabezalDer: getVal(record?.tornilloDerMovHorizCabezalDer, null, fallbackProduct?.tornilloDerMovHorizCabezalDer),
+    tornilloIzqMovHorizCabezalDer: getVal(record?.tornilloIzqMovHorizCabezalDer, null, fallbackProduct?.tornilloIzqMovHorizCabezalDer),
+    tornilloDerMovHorizCabezalIzq: getVal(record?.tornilloDerMovHorizCabezalIzq, null, fallbackProduct?.tornilloDerMovHorizCabezalIzq),
+    tornilloIzqMovHorizCabezalIzq: getVal(record?.tornilloIzqMovHorizCabezalIzq, null, fallbackProduct?.tornilloIzqMovHorizCabezalIzq),
+    tornilloAmortiguadorCabezalA: getVal(record?.tornilloAmortiguadorCabezalA, null, fallbackProduct?.tornilloAmortiguadorCabezalA),
+    tornilloAmortiguadorCabezalB: getVal(record?.tornilloAmortiguadorCabezalB, null, fallbackProduct?.tornilloAmortiguadorCabezalB),
+    tornilloAmortiguadorCabezalC: getVal(record?.tornilloAmortiguadorCabezalC, null, fallbackProduct?.tornilloAmortiguadorCabezalC),
+    fuelleSuperiorIzquierdo: getVal(record?.fuelleSuperiorIzquierdo, null, fallbackProduct?.fuelleSuperiorIzquierdo),
+    fuelleSuperiorDerecho: getVal(record?.fuelleSuperiorDerecho, null, fallbackProduct?.fuelleSuperiorDerecho),
+    fuelleInferiorIzquierdo: getVal(record?.fuelleInferiorIzquierdo, null, fallbackProduct?.fuelleInferiorIzquierdo),
+    fuelleInferiorDerecho: getVal(record?.fuelleInferiorDerecho, null, fallbackProduct?.fuelleInferiorDerecho),
+    anchoBolsaDespuesTriangulo: getVal(record?.anchoBolsaDespuesTriangulo, null, fallbackProduct?.anchoBolsaDespuesTriangulo),
+    distanciaBarraRoscadaTriangulo: getVal(record?.distanciaBarraRoscadaTriangulo, null, fallbackProduct?.distanciaBarraRoscadaTriangulo),
+    longitudBolsa: getVal(record?.longitudBolsa, null, fallbackProduct?.longitudBolsa),
+    feedingBagAngle: getVal(record?.feedingBagAngle, null, fallbackProduct?.feedingBagAngle),
+    distanciaSensorRegistroColor: getVal(record?.distanciaSensorRegistroColor, null, fallbackProduct?.distanciaSensorRegistroColor),
+    distanciaSensorMovimiento: getVal(record?.distanciaSensorMovimiento, null, fallbackProduct?.distanciaSensorMovimiento),
+    distanciaPresellado: getVal(record?.distanciaPresellado, null, fallbackProduct?.distanciaPresellado),
+    sldPresionSopladoArriba: getVal(record?.presionSopladoArriba, record?.sldPresionSopladoArriba, fallbackProduct?.sldPresionSopladoArriba),
+    sldPresionSopladoAbajo: getVal(record?.presionSopladoAbajo, record?.sldPresionSopladoAbajo, fallbackProduct?.sldPresionSopladoAbajo),
+    sldPresionRodilloServoL: getVal(record?.presionRodilloServoL, record?.sldPresionRodilloServoL, fallbackProduct?.sldPresionRodilloServoL),
+    sldPresionRodilloServoR: getVal(record?.presionRodilloServoR, record?.sldPresionRodilloServoR, fallbackProduct?.sldPresionRodilloServoR),
+    sldSoplarInicio: getVal(record?.soplarInicio, record?.sldSoplarInicio, fallbackProduct?.sldSoplarInicio),
+    sldSoplarTerminar: getVal(record?.soplarTerminar, record?.sldSoplarTerminar, fallbackProduct?.sldSoplarTerminar),
+    selladoSiliconaLateralIniciar: getVal(record?.selladoSiliconaLateralIniciar, null, fallbackProduct?.selladoSiliconaLateralIniciar),
+    selladoSiliconaLateralFinal: getVal(record?.selladoSiliconaLateralFinal, null, fallbackProduct?.selladoSiliconaLateralFinal),
+    tiempoPrecalentar: getVal(record?.tiempoPrecalentar, null, fallbackProduct?.tiempoPrecalentar),
+    temporizador: getVal(record?.temporizador, null, fallbackProduct?.temporizador),
+    plancha: getVal(record?.plancha, null, fallbackProduct?.plancha),
+    montajeBobina: getStr(record?.montajeBobina, null, fallbackProduct?.montajeBobina),
+    disenoImpresionValvula: getStr(record?.disenoImpresionValvula, null, fallbackProduct?.disenoImpresionValvula),
+    llevaPostizo: Boolean(record?.llevaPostizo ?? fallbackProduct?.llevaPostizo ?? false),
+  };
+}
+
 export default function EditarCompletoPage() {
   const { data: session, status } = useSession();
   const router = useRouter();
@@ -34,6 +110,11 @@ export default function EditarCompletoPage() {
   const [activeTab, setActiveTab] = useState<TabType>('basico');
   const [formData, setFormData] = useState<any>({});
   const [peletizadosInventario, setPeletizadosInventario] = useState<any[]>([]);
+
+  // Gestión de turnos para selladora de válvula (DÍA / TARDE)
+  const [turnoActivo, setTurnoActivo] = useState<'DIA' | 'TARDE'>('DIA');
+  const [parametrosDia, setParametrosDia] = useState<any>({});
+  const [parametrosTarde, setParametrosTarde] = useState<any>({});
 
   useEffect(() => {
     if (status === 'unauthenticated') {
@@ -99,6 +180,17 @@ export default function EditarCompletoPage() {
         };
         
         setFormData(formDataWithVirtuals);
+
+        // Inicializar parámetros diferenciados por turno (DIA / TARDE)
+        const registrosSellado = data.parametrosSellado || [];
+        const regDia = registrosSellado.find((r: any) => r.turno === 'DIA');
+        const regTarde = registrosSellado.find((r: any) => r.turno === 'TARDE');
+
+        const diaInitial = mapRecordToFormState(regDia, data);
+        const tardeInitial = mapRecordToFormState(regTarde, regDia || data);
+
+        setParametrosDia(diaInitial);
+        setParametrosTarde(tardeInitial);
       }
     } catch (error) {
       console.error('Error al cargar producto:', error);
@@ -112,10 +204,16 @@ export default function EditarCompletoPage() {
     setSaving(true);
 
     try {
+      const payload = {
+        ...formData,
+        parametrosDia: formData.sldTipoSelladora === 'valvula' ? parametrosDia : undefined,
+        parametrosTarde: formData.sldTipoSelladora === 'valvula' ? parametrosTarde : undefined,
+      };
+
       const response = await fetch(`/api/clientes/${clienteId}/productos/${productoId}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(formData)
+        body: JSON.stringify(payload)
       });
 
       if (response.ok) {
@@ -130,6 +228,53 @@ export default function EditarCompletoPage() {
       alert('Error al actualizar producto');
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleCopiarParametros = () => {
+    const origen = turnoActivo === 'DIA' ? parametrosDia : parametrosTarde;
+    const destinoNombre = turnoActivo === 'DIA' ? 'Tarde' : 'Día';
+    const origenNombre = turnoActivo === 'DIA' ? 'Día' : 'Tarde';
+
+    if (turnoActivo === 'DIA') {
+      setParametrosTarde((prev: any) => ({
+        ...prev,
+        ...origen,
+      }));
+    } else {
+      setParametrosDia((prev: any) => ({
+        ...prev,
+        ...origen,
+      }));
+      setFormData((prev: any) => ({
+        ...prev,
+        ...origen,
+      }));
+    }
+
+    alert(`Valores copiados de ${origenNombre} a ${destinoNombre} exitosamente.`);
+  };
+
+  const getSelladoValue = (field: string) => {
+    if (formData.sldTipoSelladora === 'valvula') {
+      const activeObj = turnoActivo === 'DIA' ? parametrosDia : parametrosTarde;
+      if (activeObj && activeObj[field] !== undefined) {
+        return activeObj[field];
+      }
+    }
+    return formData[field];
+  };
+
+  const handleSelladoChange = (field: string, value: any) => {
+    if (formData.sldTipoSelladora === 'valvula') {
+      if (turnoActivo === 'DIA') {
+        setParametrosDia((prev: any) => ({ ...prev, [field]: value }));
+        setFormData((prev: any) => ({ ...prev, [field]: value }));
+      } else {
+        setParametrosTarde((prev: any) => ({ ...prev, [field]: value }));
+      }
+    } else {
+      handleChange(field, value);
     }
   };
 
@@ -235,7 +380,7 @@ export default function EditarCompletoPage() {
   useEffect(() => {
     if (formData.tipoBobinaCliente === 'Lamina') {
       // Calcular ancho de lámina rebobinador
-      let laminaAncho = null;
+      let laminaAncho: number | null = null;
       
       if (formData.tipoSellado === 'Inferior' && formData.esBolsaPego && formData.ancho && formData.anchoFuelle && formData.anchoSolapa) {
         // Bolsa de pego con sellado inferior: (ancho * 2) + (fuelle * 2) + solapa
@@ -252,11 +397,12 @@ export default function EditarCompletoPage() {
       }
       
       if (laminaAncho !== null) {
-        setFormData((prev: any) => ({ ...prev, laminaRebobinadorAncho: parseFloat(laminaAncho.toFixed(2)) }));
+        const valAncho = laminaAncho;
+        setFormData((prev: any) => ({ ...prev, laminaRebobinadorAncho: parseFloat(valAncho.toFixed(2)) }));
       }
       
       // Calcular calibre de lámina rebobinador
-      let laminaCalibre = null;
+      let laminaCalibre: number | null = null;
       const calibre = parseFloat(formData.calibre) || 0;
       
       if (formData.tipoSellado === 'Lateral' && calibre) {
@@ -268,7 +414,8 @@ export default function EditarCompletoPage() {
       }
       
       if (laminaCalibre !== null) {
-        setFormData((prev: any) => ({ ...prev, laminaRebobinadorCalibre: parseFloat(laminaCalibre.toFixed(2)) }));
+        const valCalibre = laminaCalibre;
+        setFormData((prev: any) => ({ ...prev, laminaRebobinadorCalibre: parseFloat(valCalibre.toFixed(2)) }));
       }
     }
   }, [formData.tipoBobinaCliente, formData.tipoSellado, formData.esBolsaPego, formData.ancho, formData.largo, formData.anchoBobina, formData.anchoFuelle, formData.anchoSolapa, formData.calibre, formData.tipoProducto]);
@@ -1321,7 +1468,7 @@ export default function EditarCompletoPage() {
             </div>
           )}
 
-          {/* Tab: Sellado - COMPLETO CON 49 CAMPOS */}
+          {/* Tab: Sellado - COMPLETO CON 49 CAMPOS Y GESTIÓN DUAL DE TURNOS */}
           {activeTab === 'sellado' && (
             <div className="space-y-6">
               <h2 className="text-xl font-bold text-gray-900 mb-4">Parámetros de Sellado</h2>
@@ -1349,6 +1496,45 @@ export default function EditarCompletoPage() {
                 </div>
               )}
 
+              {/* Sub-tabs de Selección de Turno (Solo Selladora de Válvula) */}
+              {formData.sldTipoSelladora === 'valvula' && (
+                <div className="flex flex-wrap items-center justify-between gap-3 p-1.5 bg-slate-100 dark:bg-slate-800 rounded-xl mb-6">
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setTurnoActivo('DIA')}
+                      className={`flex items-center gap-2 px-4 py-2 text-sm font-semibold rounded-lg transition-all ${
+                        turnoActivo === 'DIA'
+                          ? 'bg-amber-500 text-white shadow-sm'
+                          : 'text-slate-600 dark:text-slate-300 hover:bg-white/50 dark:hover:bg-slate-700/50'
+                      }`}
+                    >
+                      ☀️ Parámetros de Día
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setTurnoActivo('TARDE')}
+                      className={`flex items-center gap-2 px-4 py-2 text-sm font-semibold rounded-lg transition-all ${
+                        turnoActivo === 'TARDE'
+                          ? 'bg-indigo-600 text-white shadow-sm'
+                          : 'text-slate-600 dark:text-slate-300 hover:bg-white/50 dark:hover:bg-slate-700/50'
+                      }`}
+                    >
+                      🌙 Parámetros de Tarde
+                    </button>
+                  </div>
+
+                  {/* Botón de utilidad para clonar medidas mecánicas fijas */}
+                  <button
+                    type="button"
+                    onClick={handleCopiarParametros}
+                    className="text-xs text-slate-500 hover:text-slate-800 dark:hover:text-slate-200 underline px-2 py-1"
+                  >
+                    Copiar valores de {turnoActivo === 'DIA' ? 'Día a Tarde' : 'Tarde a Día'}
+                  </button>
+                </div>
+              )}
+
               {formData.sldTipoSelladora && (
                 <>
                   {/* Parámetros Generales */}
@@ -1362,8 +1548,8 @@ export default function EditarCompletoPage() {
                           </label>
                           <input
                             type="number"
-                            value={formData.sldCapacidadBolsa || ''}
-                            onChange={(e) => handleChange('sldCapacidadBolsa', e.target.value ? parseInt(e.target.value) : null)}
+                            value={getSelladoValue('sldCapacidadBolsa') ?? ''}
+                            onChange={(e) => handleSelladoChange('sldCapacidadBolsa', e.target.value ? parseInt(e.target.value) : null)}
                             className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
                           />
                         </div>
@@ -1375,8 +1561,8 @@ export default function EditarCompletoPage() {
                         <input
                           type="number"
                           step="0.01"
-                          value={formData.sldTemperaturaAmbiente || ''}
-                          onChange={(e) => handleChange('sldTemperaturaAmbiente', e.target.value ? parseFloat(e.target.value) : null)}
+                          value={getSelladoValue('sldTemperaturaAmbiente') ?? ''}
+                          onChange={(e) => handleSelladoChange('sldTemperaturaAmbiente', e.target.value ? parseFloat(e.target.value) : null)}
                           className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
                         />
                       </div>
@@ -1387,8 +1573,8 @@ export default function EditarCompletoPage() {
                         <input
                           type="number"
                           step="0.01"
-                          value={formData.sldTornilloEsparrago || ''}
-                          onChange={(e) => handleChange('sldTornilloEsparrago', e.target.value ? parseFloat(e.target.value) : null)}
+                          value={getSelladoValue('sldTornilloEsparrago') ?? ''}
+                          onChange={(e) => handleSelladoChange('sldTornilloEsparrago', e.target.value ? parseFloat(e.target.value) : null)}
                           className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
                         />
                       </div>
@@ -1407,8 +1593,8 @@ export default function EditarCompletoPage() {
                             </label>
                             <input
                               type="number"
-                              value={formData.sldTempSuperior || ''}
-                              onChange={(e) => handleChange('sldTempSuperior', e.target.value ? parseInt(e.target.value) : null)}
+                              value={getSelladoValue('sldTempSuperior') ?? ''}
+                              onChange={(e) => handleSelladoChange('sldTempSuperior', e.target.value ? parseInt(e.target.value) : null)}
                               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
                             />
                           </div>
@@ -1418,8 +1604,8 @@ export default function EditarCompletoPage() {
                             </label>
                             <input
                               type="number"
-                              value={formData.sldTempInferior || ''}
-                              onChange={(e) => handleChange('sldTempInferior', e.target.value ? parseInt(e.target.value) : null)}
+                              value={getSelladoValue('sldTempInferior') ?? ''}
+                              onChange={(e) => handleSelladoChange('sldTempInferior', e.target.value ? parseInt(e.target.value) : null)}
                               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
                             />
                           </div>
@@ -1429,8 +1615,8 @@ export default function EditarCompletoPage() {
                             </label>
                             <input
                               type="number"
-                              value={formData.sldTempValvula || ''}
-                              onChange={(e) => handleChange('sldTempValvula', e.target.value ? parseInt(e.target.value) : null)}
+                              value={getSelladoValue('sldTempValvula') ?? ''}
+                              onChange={(e) => handleSelladoChange('sldTempValvula', e.target.value ? parseInt(e.target.value) : null)}
                               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
                             />
                           </div>
@@ -1441,8 +1627,8 @@ export default function EditarCompletoPage() {
                             <input
                               type="number"
                               step="0.01"
-                              value={formData.sldTempCuchilla || ''}
-                              onChange={(e) => handleChange('sldTempCuchilla', e.target.value ? parseFloat(e.target.value) : null)}
+                              value={getSelladoValue('sldTempCuchilla') ?? ''}
+                              onChange={(e) => handleSelladoChange('sldTempCuchilla', e.target.value ? parseFloat(e.target.value) : null)}
                               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
                             />
                           </div>
@@ -1452,8 +1638,8 @@ export default function EditarCompletoPage() {
                             </label>
                             <input
                               type="number"
-                              value={formData.sldPresellado_A || ''}
-                              onChange={(e) => handleChange('sldPresellado_A', e.target.value ? parseInt(e.target.value) : null)}
+                              value={getSelladoValue('sldPresellado_A') ?? ''}
+                              onChange={(e) => handleSelladoChange('sldPresellado_A', e.target.value ? parseInt(e.target.value) : null)}
                               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
                             />
                           </div>
@@ -1463,8 +1649,8 @@ export default function EditarCompletoPage() {
                             </label>
                             <input
                               type="number"
-                              value={formData.sldPresellado_B || ''}
-                              onChange={(e) => handleChange('sldPresellado_B', e.target.value ? parseInt(e.target.value) : null)}
+                              value={getSelladoValue('sldPresellado_B') ?? ''}
+                              onChange={(e) => handleSelladoChange('sldPresellado_B', e.target.value ? parseInt(e.target.value) : null)}
                               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
                             />
                           </div>
@@ -1583,8 +1769,8 @@ export default function EditarCompletoPage() {
                           </label>
                           <input
                             type="number"
-                            value={formData.sldTiempoLimite || ''}
-                            onChange={(e) => handleChange('sldTiempoLimite', e.target.value ? parseInt(e.target.value) : null)}
+                            value={getSelladoValue('sldTiempoLimite') ?? ''}
+                            onChange={(e) => handleSelladoChange('sldTiempoLimite', e.target.value ? parseInt(e.target.value) : null)}
                             className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
                           />
                         </div>
@@ -1594,8 +1780,8 @@ export default function EditarCompletoPage() {
                           </label>
                           <input
                             type="text"
-                            value={formData.sldMicroperforaciones || ''}
-                            onChange={(e) => handleChange('sldMicroperforaciones', e.target.value)}
+                            value={getSelladoValue('sldMicroperforaciones') ?? ''}
+                            onChange={(e) => handleSelladoChange('sldMicroperforaciones', e.target.value)}
                             className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
                           />
                         </div>
@@ -1605,8 +1791,8 @@ export default function EditarCompletoPage() {
                           </label>
                           <input
                             type="text"
-                            value={formData.sldMuleteado || ''}
-                            onChange={(e) => handleChange('sldMuleteado', e.target.value)}
+                            value={getSelladoValue('sldMuleteado') ?? ''}
+                            onChange={(e) => handleSelladoChange('sldMuleteado', e.target.value)}
                             className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
                           />
                         </div>
@@ -1617,8 +1803,8 @@ export default function EditarCompletoPage() {
                           <input
                             type="number"
                             step="0.01"
-                            value={formData.sldPresionTroquelValvula || ''}
-                            onChange={(e) => handleChange('sldPresionTroquelValvula', e.target.value ? parseFloat(e.target.value) : null)}
+                            value={getSelladoValue('sldPresionTroquelValvula') ?? ''}
+                            onChange={(e) => handleSelladoChange('sldPresionTroquelValvula', e.target.value ? parseFloat(e.target.value) : null)}
                             className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
                           />
                         </div>
@@ -1636,8 +1822,8 @@ export default function EditarCompletoPage() {
                         </label>
                         <input
                           type="number"
-                          value={formData.sldRodilloAnchoValvula || ''}
-                          onChange={(e) => handleChange('sldRodilloAnchoValvula', e.target.value ? parseInt(e.target.value) : null)}
+                          value={getSelladoValue('sldRodilloAnchoValvula') ?? ''}
+                          onChange={(e) => handleSelladoChange('sldRodilloAnchoValvula', e.target.value ? parseInt(e.target.value) : null)}
                           className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
                         />
                       </div>
@@ -1647,8 +1833,8 @@ export default function EditarCompletoPage() {
                         </label>
                         <input
                           type="number"
-                          value={formData.sldGPM || ''}
-                          onChange={(e) => handleChange('sldGPM', e.target.value ? parseInt(e.target.value) : null)}
+                          value={getSelladoValue('sldGPM') ?? ''}
+                          onChange={(e) => handleSelladoChange('sldGPM', e.target.value ? parseInt(e.target.value) : null)}
                           className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
                         />
                       </div>
@@ -1660,8 +1846,8 @@ export default function EditarCompletoPage() {
                           <input
                             type="number"
                             step="0.01"
-                            value={formData.sldVelocidadTransportador || ''}
-                            onChange={(e) => handleChange('sldVelocidadTransportador', e.target.value ? parseFloat(e.target.value) : null)}
+                            value={getSelladoValue('sldVelocidadTransportador') ?? ''}
+                            onChange={(e) => handleSelladoChange('sldVelocidadTransportador', e.target.value ? parseFloat(e.target.value) : null)}
                             className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
                           />
                         </div>
@@ -1673,8 +1859,8 @@ export default function EditarCompletoPage() {
                         <input
                           type="number"
                           step="0.01"
-                          value={formData.sldCicloTrabajo || ''}
-                          onChange={(e) => handleChange('sldCicloTrabajo', e.target.value ? parseFloat(e.target.value) : null)}
+                          value={getSelladoValue('sldCicloTrabajo') ?? ''}
+                          onChange={(e) => handleSelladoChange('sldCicloTrabajo', e.target.value ? parseFloat(e.target.value) : null)}
                           className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
                         />
                       </div>
@@ -1721,8 +1907,8 @@ export default function EditarCompletoPage() {
                           <input
                             type="number"
                             step="0.01"
-                            value={formData.sldPresionBalancin1 || ''}
-                            onChange={(e) => handleChange('sldPresionBalancin1', e.target.value ? parseFloat(e.target.value) : null)}
+                            value={getSelladoValue('sldPresionBalancin1') ?? ''}
+                            onChange={(e) => handleSelladoChange('sldPresionBalancin1', e.target.value ? parseFloat(e.target.value) : null)}
                             className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
                           />
                         </div>
@@ -1733,8 +1919,8 @@ export default function EditarCompletoPage() {
                           <input
                             type="number"
                             step="0.01"
-                            value={formData.sldPresionBalancin2 || ''}
-                            onChange={(e) => handleChange('sldPresionBalancin2', e.target.value ? parseFloat(e.target.value) : null)}
+                            value={getSelladoValue('sldPresionBalancin2') ?? ''}
+                            onChange={(e) => handleSelladoChange('sldPresionBalancin2', e.target.value ? parseFloat(e.target.value) : null)}
                             className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
                           />
                         </div>
@@ -1745,8 +1931,8 @@ export default function EditarCompletoPage() {
                           <input
                             type="number"
                             step="0.01"
-                            value={formData.sldPresionBalancin3 || ''}
-                            onChange={(e) => handleChange('sldPresionBalancin3', e.target.value ? parseFloat(e.target.value) : null)}
+                            value={getSelladoValue('sldPresionBalancin3') ?? ''}
+                            onChange={(e) => handleSelladoChange('sldPresionBalancin3', e.target.value ? parseFloat(e.target.value) : null)}
                             className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
                           />
                         </div>
@@ -1806,8 +1992,8 @@ export default function EditarCompletoPage() {
                         <input
                           type="number"
                           step="0.01"
-                          value={formData.sldAlturaCabezalExtDerecho || ''}
-                          onChange={(e) => handleChange('sldAlturaCabezalExtDerecho', e.target.value ? parseFloat(e.target.value) : null)}
+                          value={getSelladoValue('sldAlturaCabezalExtDerecho') ?? ''}
+                          onChange={(e) => handleSelladoChange('sldAlturaCabezalExtDerecho', e.target.value ? parseFloat(e.target.value) : null)}
                           className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
                         />
                       </div>
@@ -1818,8 +2004,8 @@ export default function EditarCompletoPage() {
                         <input
                           type="number"
                           step="0.01"
-                          value={formData.sldAlturaCabezalExtIzquierdo || ''}
-                          onChange={(e) => handleChange('sldAlturaCabezalExtIzquierdo', e.target.value ? parseFloat(e.target.value) : null)}
+                          value={getSelladoValue('sldAlturaCabezalExtIzquierdo') ?? ''}
+                          onChange={(e) => handleSelladoChange('sldAlturaCabezalExtIzquierdo', e.target.value ? parseFloat(e.target.value) : null)}
                           className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
                         />
                       </div>
@@ -1830,8 +2016,8 @@ export default function EditarCompletoPage() {
                         <input
                           type="number"
                           step="0.01"
-                          value={formData.sldBandaTransportadora || ''}
-                          onChange={(e) => handleChange('sldBandaTransportadora', e.target.value ? parseFloat(e.target.value) : null)}
+                          value={getSelladoValue('sldBandaTransportadora') ?? ''}
+                          onChange={(e) => handleSelladoChange('sldBandaTransportadora', e.target.value ? parseFloat(e.target.value) : null)}
                           className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
                         />
                       </div>
@@ -1841,8 +2027,8 @@ export default function EditarCompletoPage() {
                         </label>
                         <input
                           type="number"
-                          value={formData.sldMedidaPortabobina || ''}
-                          onChange={(e) => handleChange('sldMedidaPortabobina', e.target.value ? parseInt(e.target.value) : null)}
+                          value={getSelladoValue('sldMedidaPortabobina') ?? ''}
+                          onChange={(e) => handleSelladoChange('sldMedidaPortabobina', e.target.value ? parseInt(e.target.value) : null)}
                           className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
                         />
                       </div>
@@ -1852,8 +2038,8 @@ export default function EditarCompletoPage() {
                         </label>
                         <input
                           type="number"
-                          value={formData.sldAjusteSensorFail || ''}
-                          onChange={(e) => handleChange('sldAjusteSensorFail', e.target.value ? parseInt(e.target.value) : null)}
+                          value={getSelladoValue('sldAjusteSensorFail') ?? ''}
+                          onChange={(e) => handleSelladoChange('sldAjusteSensorFail', e.target.value ? parseInt(e.target.value) : null)}
                           className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
                         />
                       </div>
@@ -1875,8 +2061,8 @@ export default function EditarCompletoPage() {
                             <input
                               type="number"
                               step="0.01"
-                              value={formData.tornilloDerMovHorizCabezalDer ?? ''}
-                              onChange={(e) => handleChange('tornilloDerMovHorizCabezalDer', e.target.value !== '' ? parseFloat(e.target.value) : null)}
+                              value={getSelladoValue('tornilloDerMovHorizCabezalDer') ?? ''}
+                              onChange={(e) => handleSelladoChange('tornilloDerMovHorizCabezalDer', e.target.value !== '' ? parseFloat(e.target.value) : null)}
                               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent bg-white"
                               placeholder="0.00"
                             />
@@ -1888,8 +2074,8 @@ export default function EditarCompletoPage() {
                             <input
                               type="number"
                               step="0.01"
-                              value={formData.tornilloIzqMovHorizCabezalDer ?? ''}
-                              onChange={(e) => handleChange('tornilloIzqMovHorizCabezalDer', e.target.value !== '' ? parseFloat(e.target.value) : null)}
+                              value={getSelladoValue('tornilloIzqMovHorizCabezalDer') ?? ''}
+                              onChange={(e) => handleSelladoChange('tornilloIzqMovHorizCabezalDer', e.target.value !== '' ? parseFloat(e.target.value) : null)}
                               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent bg-white"
                               placeholder="0.00"
                             />
@@ -1908,8 +2094,8 @@ export default function EditarCompletoPage() {
                             <input
                               type="number"
                               step="0.01"
-                              value={formData.tornilloDerMovHorizCabezalIzq ?? ''}
-                              onChange={(e) => handleChange('tornilloDerMovHorizCabezalIzq', e.target.value !== '' ? parseFloat(e.target.value) : null)}
+                              value={getSelladoValue('tornilloDerMovHorizCabezalIzq') ?? ''}
+                              onChange={(e) => handleSelladoChange('tornilloDerMovHorizCabezalIzq', e.target.value !== '' ? parseFloat(e.target.value) : null)}
                               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent bg-white"
                               placeholder="0.00"
                             />
@@ -1921,8 +2107,8 @@ export default function EditarCompletoPage() {
                             <input
                               type="number"
                               step="0.01"
-                              value={formData.tornilloIzqMovHorizCabezalIzq ?? ''}
-                              onChange={(e) => handleChange('tornilloIzqMovHorizCabezalIzq', e.target.value !== '' ? parseFloat(e.target.value) : null)}
+                              value={getSelladoValue('tornilloIzqMovHorizCabezalIzq') ?? ''}
+                              onChange={(e) => handleSelladoChange('tornilloIzqMovHorizCabezalIzq', e.target.value !== '' ? parseFloat(e.target.value) : null)}
                               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent bg-white"
                               placeholder="0.00"
                             />
@@ -1941,8 +2127,8 @@ export default function EditarCompletoPage() {
                             <input
                               type="number"
                               step="0.01"
-                              value={formData.tornilloAmortiguadorCabezalA ?? ''}
-                              onChange={(e) => handleChange('tornilloAmortiguadorCabezalA', e.target.value !== '' ? parseFloat(e.target.value) : null)}
+                              value={getSelladoValue('tornilloAmortiguadorCabezalA') ?? ''}
+                              onChange={(e) => handleSelladoChange('tornilloAmortiguadorCabezalA', e.target.value !== '' ? parseFloat(e.target.value) : null)}
                               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent bg-white"
                               placeholder="0.00"
                             />
@@ -1954,8 +2140,8 @@ export default function EditarCompletoPage() {
                             <input
                               type="number"
                               step="0.01"
-                              value={formData.tornilloAmortiguadorCabezalB ?? ''}
-                              onChange={(e) => handleChange('tornilloAmortiguadorCabezalB', e.target.value !== '' ? parseFloat(e.target.value) : null)}
+                              value={getSelladoValue('tornilloAmortiguadorCabezalB') ?? ''}
+                              onChange={(e) => handleSelladoChange('tornilloAmortiguadorCabezalB', e.target.value !== '' ? parseFloat(e.target.value) : null)}
                               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent bg-white"
                               placeholder="0.00"
                             />
@@ -1967,8 +2153,8 @@ export default function EditarCompletoPage() {
                             <input
                               type="number"
                               step="0.01"
-                              value={formData.tornilloAmortiguadorCabezalC ?? ''}
-                              onChange={(e) => handleChange('tornilloAmortiguadorCabezalC', e.target.value !== '' ? parseFloat(e.target.value) : null)}
+                              value={getSelladoValue('tornilloAmortiguadorCabezalC') ?? ''}
+                              onChange={(e) => handleSelladoChange('tornilloAmortiguadorCabezalC', e.target.value !== '' ? parseFloat(e.target.value) : null)}
                               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent bg-white"
                               placeholder="0.00"
                             />
@@ -1992,8 +2178,8 @@ export default function EditarCompletoPage() {
                           <input
                             type="number"
                             step="0.01"
-                            value={formData.fuelleSuperiorIzquierdo ?? ''}
-                            onChange={(e) => handleChange('fuelleSuperiorIzquierdo', e.target.value !== '' ? parseFloat(e.target.value) : null)}
+                            value={getSelladoValue('fuelleSuperiorIzquierdo') ?? ''}
+                            onChange={(e) => handleSelladoChange('fuelleSuperiorIzquierdo', e.target.value !== '' ? parseFloat(e.target.value) : null)}
                             className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent bg-white"
                             placeholder="0.00"
                           />
@@ -2005,8 +2191,8 @@ export default function EditarCompletoPage() {
                           <input
                             type="number"
                             step="0.01"
-                            value={formData.fuelleSuperiorDerecho ?? ''}
-                            onChange={(e) => handleChange('fuelleSuperiorDerecho', e.target.value !== '' ? parseFloat(e.target.value) : null)}
+                            value={getSelladoValue('fuelleSuperiorDerecho') ?? ''}
+                            onChange={(e) => handleSelladoChange('fuelleSuperiorDerecho', e.target.value !== '' ? parseFloat(e.target.value) : null)}
                             className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent bg-white"
                             placeholder="0.00"
                           />
@@ -2018,8 +2204,8 @@ export default function EditarCompletoPage() {
                           <input
                             type="number"
                             step="0.01"
-                            value={formData.fuelleInferiorIzquierdo ?? ''}
-                            onChange={(e) => handleChange('fuelleInferiorIzquierdo', e.target.value !== '' ? parseFloat(e.target.value) : null)}
+                            value={getSelladoValue('fuelleInferiorIzquierdo') ?? ''}
+                            onChange={(e) => handleSelladoChange('fuelleInferiorIzquierdo', e.target.value !== '' ? parseFloat(e.target.value) : null)}
                             className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent bg-white"
                             placeholder="0.00"
                           />
@@ -2031,8 +2217,8 @@ export default function EditarCompletoPage() {
                           <input
                             type="number"
                             step="0.01"
-                            value={formData.fuelleInferiorDerecho ?? ''}
-                            onChange={(e) => handleChange('fuelleInferiorDerecho', e.target.value !== '' ? parseFloat(e.target.value) : null)}
+                            value={getSelladoValue('fuelleInferiorDerecho') ?? ''}
+                            onChange={(e) => handleSelladoChange('fuelleInferiorDerecho', e.target.value !== '' ? parseFloat(e.target.value) : null)}
                             className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent bg-white"
                             placeholder="0.00"
                           />
@@ -2048,8 +2234,8 @@ export default function EditarCompletoPage() {
                         <input
                           type="number"
                           step="0.01"
-                          value={formData.anchoBolsaDespuesTriangulo ?? ''}
-                          onChange={(e) => handleChange('anchoBolsaDespuesTriangulo', e.target.value !== '' ? parseFloat(e.target.value) : null)}
+                          value={getSelladoValue('anchoBolsaDespuesTriangulo') ?? ''}
+                          onChange={(e) => handleSelladoChange('anchoBolsaDespuesTriangulo', e.target.value !== '' ? parseFloat(e.target.value) : null)}
                           className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
                           placeholder="0.00"
                         />
@@ -2061,8 +2247,8 @@ export default function EditarCompletoPage() {
                         <input
                           type="number"
                           step="0.01"
-                          value={formData.distanciaBarraRoscadaTriangulo ?? ''}
-                          onChange={(e) => handleChange('distanciaBarraRoscadaTriangulo', e.target.value !== '' ? parseFloat(e.target.value) : null)}
+                          value={getSelladoValue('distanciaBarraRoscadaTriangulo') ?? ''}
+                          onChange={(e) => handleSelladoChange('distanciaBarraRoscadaTriangulo', e.target.value !== '' ? parseFloat(e.target.value) : null)}
                           className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
                           placeholder="0.00"
                         />
@@ -2074,8 +2260,8 @@ export default function EditarCompletoPage() {
                         <input
                           type="number"
                           step="0.01"
-                          value={formData.longitudBolsa ?? ''}
-                          onChange={(e) => handleChange('longitudBolsa', e.target.value !== '' ? parseFloat(e.target.value) : null)}
+                          value={getSelladoValue('longitudBolsa') ?? ''}
+                          onChange={(e) => handleSelladoChange('longitudBolsa', e.target.value !== '' ? parseFloat(e.target.value) : null)}
                           className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
                           placeholder="0.00"
                         />
@@ -2094,8 +2280,8 @@ export default function EditarCompletoPage() {
                         <input
                           type="number"
                           step="0.01"
-                          value={formData.feedingBagAngle ?? ''}
-                          onChange={(e) => handleChange('feedingBagAngle', e.target.value !== '' ? parseFloat(e.target.value) : null)}
+                          value={getSelladoValue('feedingBagAngle') ?? ''}
+                          onChange={(e) => handleSelladoChange('feedingBagAngle', e.target.value !== '' ? parseFloat(e.target.value) : null)}
                           className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
                           placeholder="0.00"
                         />
@@ -2107,8 +2293,8 @@ export default function EditarCompletoPage() {
                         <input
                           type="number"
                           step="0.01"
-                          value={formData.distanciaSensorRegistroColor ?? ''}
-                          onChange={(e) => handleChange('distanciaSensorRegistroColor', e.target.value !== '' ? parseFloat(e.target.value) : null)}
+                          value={getSelladoValue('distanciaSensorRegistroColor') ?? ''}
+                          onChange={(e) => handleSelladoChange('distanciaSensorRegistroColor', e.target.value !== '' ? parseFloat(e.target.value) : null)}
                           className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
                           placeholder="0.00"
                         />
@@ -2120,8 +2306,8 @@ export default function EditarCompletoPage() {
                         <input
                           type="number"
                           step="0.01"
-                          value={formData.distanciaSensorMovimiento ?? ''}
-                          onChange={(e) => handleChange('distanciaSensorMovimiento', e.target.value !== '' ? parseFloat(e.target.value) : null)}
+                          value={getSelladoValue('distanciaSensorMovimiento') ?? ''}
+                          onChange={(e) => handleSelladoChange('distanciaSensorMovimiento', e.target.value !== '' ? parseFloat(e.target.value) : null)}
                           className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
                           placeholder="0.00"
                         />
@@ -2133,8 +2319,8 @@ export default function EditarCompletoPage() {
                         <input
                           type="number"
                           step="0.01"
-                          value={formData.distanciaPresellado ?? ''}
-                          onChange={(e) => handleChange('distanciaPresellado', e.target.value !== '' ? parseFloat(e.target.value) : null)}
+                          value={getSelladoValue('distanciaPresellado') ?? ''}
+                          onChange={(e) => handleSelladoChange('distanciaPresellado', e.target.value !== '' ? parseFloat(e.target.value) : null)}
                           className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
                           placeholder="0.00"
                         />
@@ -2153,8 +2339,8 @@ export default function EditarCompletoPage() {
                         <input
                           type="number"
                           step="0.01"
-                          value={formData.sldPresionSopladoArriba || ''}
-                          onChange={(e) => handleChange('sldPresionSopladoArriba', e.target.value ? parseFloat(e.target.value) : null)}
+                          value={getSelladoValue('sldPresionSopladoArriba') ?? ''}
+                          onChange={(e) => handleSelladoChange('sldPresionSopladoArriba', e.target.value ? parseFloat(e.target.value) : null)}
                           className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
                         />
                       </div>
@@ -2165,8 +2351,8 @@ export default function EditarCompletoPage() {
                         <input
                           type="number"
                           step="0.01"
-                          value={formData.sldPresionSopladoAbajo || ''}
-                          onChange={(e) => handleChange('sldPresionSopladoAbajo', e.target.value ? parseFloat(e.target.value) : null)}
+                          value={getSelladoValue('sldPresionSopladoAbajo') ?? ''}
+                          onChange={(e) => handleSelladoChange('sldPresionSopladoAbajo', e.target.value ? parseFloat(e.target.value) : null)}
                           className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
                         />
                       </div>
@@ -2177,8 +2363,8 @@ export default function EditarCompletoPage() {
                         <input
                           type="number"
                           step="0.01"
-                          value={formData.sldPresionRodilloServoL || ''}
-                          onChange={(e) => handleChange('sldPresionRodilloServoL', e.target.value ? parseFloat(e.target.value) : null)}
+                          value={getSelladoValue('sldPresionRodilloServoL') ?? ''}
+                          onChange={(e) => handleSelladoChange('sldPresionRodilloServoL', e.target.value ? parseFloat(e.target.value) : null)}
                           className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
                         />
                       </div>
@@ -2189,8 +2375,8 @@ export default function EditarCompletoPage() {
                         <input
                           type="number"
                           step="0.01"
-                          value={formData.sldPresionRodilloServoR || ''}
-                          onChange={(e) => handleChange('sldPresionRodilloServoR', e.target.value ? parseFloat(e.target.value) : null)}
+                          value={getSelladoValue('sldPresionRodilloServoR') ?? ''}
+                          onChange={(e) => handleSelladoChange('sldPresionRodilloServoR', e.target.value ? parseFloat(e.target.value) : null)}
                           className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
                         />
                       </div>
@@ -2200,8 +2386,8 @@ export default function EditarCompletoPage() {
                         </label>
                         <input
                           type="number"
-                          value={formData.sldSoplarInicio || ''}
-                          onChange={(e) => handleChange('sldSoplarInicio', e.target.value ? parseInt(e.target.value) : null)}
+                          value={getSelladoValue('sldSoplarInicio') ?? ''}
+                          onChange={(e) => handleSelladoChange('sldSoplarInicio', e.target.value ? parseInt(e.target.value) : null)}
                           className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
                         />
                       </div>
@@ -2211,8 +2397,8 @@ export default function EditarCompletoPage() {
                         </label>
                         <input
                           type="number"
-                          value={formData.sldSoplarTerminar || ''}
-                          onChange={(e) => handleChange('sldSoplarTerminar', e.target.value ? parseInt(e.target.value) : null)}
+                          value={getSelladoValue('sldSoplarTerminar') ?? ''}
+                          onChange={(e) => handleSelladoChange('sldSoplarTerminar', e.target.value ? parseInt(e.target.value) : null)}
                           className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
                         />
                       </div>
@@ -2260,8 +2446,8 @@ export default function EditarCompletoPage() {
                           <input
                             type="number"
                             step="0.01"
-                            value={formData.selladoSiliconaLateralIniciar ?? ''}
-                            onChange={(e) => handleChange('selladoSiliconaLateralIniciar', e.target.value !== '' ? parseFloat(e.target.value) : null)}
+                            value={getSelladoValue('selladoSiliconaLateralIniciar') ?? ''}
+                            onChange={(e) => handleSelladoChange('selladoSiliconaLateralIniciar', e.target.value !== '' ? parseFloat(e.target.value) : null)}
                             className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent bg-white"
                             placeholder="0.00"
                           />
@@ -2273,8 +2459,8 @@ export default function EditarCompletoPage() {
                           <input
                             type="number"
                             step="0.01"
-                            value={formData.selladoSiliconaLateralFinal ?? ''}
-                            onChange={(e) => handleChange('selladoSiliconaLateralFinal', e.target.value !== '' ? parseFloat(e.target.value) : null)}
+                            value={getSelladoValue('selladoSiliconaLateralFinal') ?? ''}
+                            onChange={(e) => handleSelladoChange('selladoSiliconaLateralFinal', e.target.value !== '' ? parseFloat(e.target.value) : null)}
                             className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent bg-white"
                             placeholder="0.00"
                           />
@@ -2291,8 +2477,8 @@ export default function EditarCompletoPage() {
                         <input
                           type="number"
                           step="0.01"
-                          value={formData.tiempoPrecalentar ?? ''}
-                          onChange={(e) => handleChange('tiempoPrecalentar', e.target.value !== '' ? parseFloat(e.target.value) : null)}
+                          value={getSelladoValue('tiempoPrecalentar') ?? ''}
+                          onChange={(e) => handleSelladoChange('tiempoPrecalentar', e.target.value !== '' ? parseFloat(e.target.value) : null)}
                           className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
                           placeholder="0.00"
                         />
@@ -2304,8 +2490,8 @@ export default function EditarCompletoPage() {
                         <input
                           type="number"
                           step="0.01"
-                          value={formData.temporizador ?? ''}
-                          onChange={(e) => handleChange('temporizador', e.target.value !== '' ? parseFloat(e.target.value) : null)}
+                          value={getSelladoValue('temporizador') ?? ''}
+                          onChange={(e) => handleSelladoChange('temporizador', e.target.value !== '' ? parseFloat(e.target.value) : null)}
                           className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
                           placeholder="0.00"
                         />
@@ -2317,8 +2503,8 @@ export default function EditarCompletoPage() {
                         <input
                           type="number"
                           step="0.01"
-                          value={formData.plancha ?? ''}
-                          onChange={(e) => handleChange('plancha', e.target.value !== '' ? parseFloat(e.target.value) : null)}
+                          value={getSelladoValue('plancha') ?? ''}
+                          onChange={(e) => handleSelladoChange('plancha', e.target.value !== '' ? parseFloat(e.target.value) : null)}
                           className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
                           placeholder="0.00"
                         />
@@ -2333,8 +2519,8 @@ export default function EditarCompletoPage() {
                         </label>
                         <input
                           type="text"
-                          value={formData.montajeBobina || ''}
-                          onChange={(e) => handleChange('montajeBobina', e.target.value)}
+                          value={getSelladoValue('montajeBobina') ?? ''}
+                          onChange={(e) => handleSelladoChange('montajeBobina', e.target.value)}
                           className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
                           placeholder="Ej: Cara hacia arriba / Bobina invertida"
                         />
@@ -2345,8 +2531,8 @@ export default function EditarCompletoPage() {
                         </label>
                         <input
                           type="text"
-                          value={formData.disenoImpresionValvula || ''}
-                          onChange={(e) => handleChange('disenoImpresionValvula', e.target.value)}
+                          value={getSelladoValue('disenoImpresionValvula') ?? ''}
+                          onChange={(e) => handleSelladoChange('disenoImpresionValvula', e.target.value)}
                           className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
                           placeholder="Detalles del diseño o referencia"
                         />
@@ -2358,8 +2544,8 @@ export default function EditarCompletoPage() {
                       <label className="inline-flex items-center gap-3 cursor-pointer select-none p-3 bg-gray-50 rounded-xl border border-gray-200 hover:bg-gray-100/70 transition-colors">
                         <input
                           type="checkbox"
-                          checked={!!formData.llevaPostizo}
-                          onChange={(e) => handleChange('llevaPostizo', e.target.checked)}
+                          checked={!!getSelladoValue('llevaPostizo')}
+                          onChange={(e) => handleSelladoChange('llevaPostizo', e.target.checked)}
                           className="w-5 h-5 text-purple-600 rounded border-gray-300 focus:ring-purple-500 focus:ring-offset-0 transition-colors cursor-pointer"
                         />
                         <div>

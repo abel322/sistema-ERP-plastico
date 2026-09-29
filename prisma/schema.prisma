@@ -530,11 +530,108 @@ model ProductoCliente {
   producciones        Produccion[]
   productosSobrantes  ProductoSobrante[]
   maquinasCompatibles Maquina[]           @relation("MaquinaProductosCompatibles")
+  parametrosSellado   ParametrosSellado[]
 
   @@index([userId])
   @@index([clienteId])
   @@index([activo])
   @@index([peletizadoId])
+}
+
+enum TurnoSellado {
+  DIA
+  TARDE
+}
+
+model ParametrosSellado {
+  id                            String          @id @default(cuid())
+  productoId                    String
+  producto                      ProductoCliente @relation(fields: [productoId], references: [id], onDelete: Cascade)
+  turno                         TurnoSellado    @default(DIA)
+
+  // Temperaturas y Presellado
+  temperaturaSuperior           Float?
+  temperaturaInferior           Float?
+  temperaturaValvula            Float?
+  temperaturaCuchilla           Float?
+  preselladoA                   Float?
+  preselladoB                   Float?
+  temperaturaAmbiente           Float?
+  tornilloEsparrago             Float?
+  capacidadBolsa                Int?
+
+  // Tiempos y Accesorios
+  tiempoLimite                  Int?
+  microperforaciones            String?
+  muleteado                     String?
+  presionTroquelValvula         Float?
+
+  // Parámetros de Máquina
+  rodilloAnchoValvula           Int?
+  gpm                           Int?
+  velocidadTransportador        Float?
+  cicloTrabajo                  Float?
+
+  // Presiones de Balancines
+  presionBalancin1              Float?
+  presionBalancin2              Float?
+  presionBalancin3              Float?
+
+  // Alturas y Medidas
+  alturaCabezalExtDerecho       Float?
+  alturaCabezalExtIzquierdo     Float?
+  bandaTransportadora           Float?
+  medidaPortabobina             Int?
+  ajusteSensorFail              Int?
+
+  // Tornillos de Ajuste de Cabezal
+  tornilloDerMovHorizCabezalDer Float?
+  tornilloIzqMovHorizCabezalDer Float?
+  tornilloDerMovHorizCabezalIzq Float?
+  tornilloIzqMovHorizCabezalIzq Float?
+
+  tornilloAmortiguadorCabezalA  Float?
+  tornilloAmortiguadorCabezalB  Float?
+  tornilloAmortiguadorCabezalC  Float?
+
+  // Fuelles y Medidas del Triángulo
+  fuelleSuperiorIzquierdo       Float?
+  fuelleSuperiorDerecho         Float?
+  fuelleInferiorIzquierdo       Float?
+  fuelleInferiorDerecho         Float?
+  anchoBolsaDespuesTriangulo    Float?
+  distanciaBarraRoscadaTriangulo Float?
+  longitudBolsa                 Float?
+
+  // Sensores y Sincronización
+  feedingBagAngle               Float?
+  distanciaSensorRegistroColor  Float?
+  distanciaSensorMovimiento     Float?
+  distanciaPresellado           Float?
+
+  // Presiones y Soplado
+  presionSopladoArriba          Float?
+  presionSopladoAbajo           Float?
+  presionRodilloServoL          Float?
+  presionRodilloServoR          Float?
+  soplarInicio                  Int?
+  soplarTerminar                Int?
+
+  // Tiempos, Sellado Silicona y Opciones
+  selladoSiliconaLateralIniciar Float?
+  selladoSiliconaLateralFinal   Float?
+  tiempoPrecalentar             Float?
+  temporizador                  Float?
+  plancha                       Float?
+  montajeBobina                 String?
+  disenoImpresionValvula        String?
+  llevaPostizo                  Boolean?        @default(false)
+
+  createdAt                     DateTime        @default(now())
+  updatedAt                     DateTime        @updatedAt
+
+  @@unique([productoId, turno])
+  @@index([productoId])
 }
 
 model Pedido {

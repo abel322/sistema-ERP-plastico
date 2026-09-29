@@ -2,6 +2,8 @@ import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth-options';
 import { prisma } from '@/lib/db';
+import { revalidatePath } from 'next/cache';
+import { parseParametrosSellado } from '@/app/actions/parametros-sellado';
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
@@ -23,7 +25,8 @@ export async function GET(
         clienteId: params.id
       },
       include: {
-        peletizado: true
+        peletizado: true,
+        parametrosSellado: true,
       }
     });
 
@@ -303,6 +306,29 @@ export async function PUT(
         llevaPostizo: body.llevaPostizo !== undefined && body.llevaPostizo !== null ? Boolean(body.llevaPostizo) : false,
       }
     });
+
+    if (body.parametrosDia || body.parametrosTarde) {
+      const datosDia = parseParametrosSellado(body.parametrosDia || {});
+      const datosTarde = parseParametrosSellado(body.parametrosTarde || {});
+
+      await prisma.$transaction([
+        prisma.parametrosSellado.upsert({
+          where: { productoId_turno: { productoId: params.productoId, turno: 'DIA' } },
+          update: { ...datosDia },
+          create: { ...datosDia, productoId: params.productoId, turno: 'DIA' },
+        }),
+        prisma.parametrosSellado.upsert({
+          where: { productoId_turno: { productoId: params.productoId, turno: 'TARDE' } },
+          update: { ...datosTarde },
+          create: { ...datosTarde, productoId: params.productoId, turno: 'TARDE' },
+        }),
+      ]);
+    }
+
+    if (params.id && params.productoId) {
+      revalidatePath(`/clientes/${params.id}/productos/${params.productoId}/editar-completo`);
+      revalidatePath(`/clientes/${params.id}/productos`);
+    }
 
     return NextResponse.json(producto);
   } catch (error) {
