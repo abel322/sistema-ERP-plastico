@@ -80,8 +80,13 @@ export async function POST(
     const produccion = await prisma.produccion.findUnique({
       where: { id },
       include: {
-        pedido: { include: { cliente: true, productoCliente: true } },
-        productoCliente: true,
+        pedido: {
+          include: {
+            cliente: true,
+            productoCliente: { include: { peletizado: true } },
+          },
+        },
+        productoCliente: { include: { peletizado: true } },
         productoTerminado: true,
       },
     });

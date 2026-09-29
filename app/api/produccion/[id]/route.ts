@@ -24,8 +24,13 @@ export async function GET(
       where: { id: params.id },
       include: {
         maquina: true,
-        pedido: { include: { cliente: true, productoCliente: true } },
-        productoCliente: { include: { cliente: true } },
+        pedido: {
+          include: {
+            cliente: true,
+            productoCliente: { include: { peletizado: true } },
+          },
+        },
+        productoCliente: { include: { cliente: true, peletizado: true } },
         productoTerminado: true,
         registros: { orderBy: { fecha: 'desc' } },
       },

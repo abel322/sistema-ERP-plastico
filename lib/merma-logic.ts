@@ -1,7 +1,9 @@
 import { CategoriaInventario, TipoMovimiento } from '@prisma/client';
 
+export type MermaKey = 'mermaTransparenteAlta' | 'mermaBlancoPollo' | 'mermaColor' | 'mermaTransparenteBaja' | 'mermaBlancoPego';
+
 export interface MermaItemConfig {
-  key: 'mermaTransparenteAlta' | 'mermaBlancoPollo' | 'mermaColor' | 'mermaTransparenteBaja' | 'mermaBlancoPego';
+  key: MermaKey;
   label: string;
   shortLabel: string;
   codigo: string; // "molido 1", "molido 2", etc.
@@ -9,6 +11,40 @@ export interface MermaItemConfig {
   color: string;
   badgeClass: string;
   borderClass: string;
+}
+
+export interface MermaFieldConfig {
+  key: MermaKey;
+  label: string;
+  shortLabel: string;
+  molidoBadge: string;
+  codigo: string;
+  colorClass: string;
+  badgeClass: string;
+  borderClass: string;
+}
+
+export interface ProductoMermaInfo {
+  material?: string | null;
+  conImpresion?: boolean | null;
+  llevaImpresion?: boolean | null;
+  conPigmento?: boolean | null;
+  color?: string | null;
+  nombreProducto?: string | null;
+  formMasterbachBlanco?: number | null;
+  masterbachBlanco?: number | null;
+  formMasterbachNegro?: number | null;
+  masterbachNegro?: number | null;
+  formMasterbachAzul?: number | null;
+  masterbachAzul?: number | null;
+  formMasterbachAmarillo?: number | null;
+  masterbachAmarillo?: number | null;
+  peletizadoId?: string | null;
+  peletizado?: {
+    id?: string;
+    nombre?: string | null;
+    codigo?: string | null;
+  } | null;
 }
 
 export const CLASIFICACIONES_MERMA: MermaItemConfig[] = [
@@ -63,6 +99,181 @@ export const CLASIFICACIONES_MERMA: MermaItemConfig[] = [
     borderClass: 'border-rose-200 dark:border-rose-900/50 focus:ring-rose-500',
   },
 ];
+
+/**
+ * Determina la Merma Base del plástico según la Ficha Técnica del producto:
+ * - Si lleva pigmento de color (Negro, Azul, Amarillo o Peletizado Color) -> mermaColor (MOLIDO 3)
+ * - Si lleva pigmento blanco (Masterbach Blanco > 0 o fórmula blanca) -> mermaBlancoPollo (MOLIDO 2) o mermaBlancoPego (MOLIDO 5)
+ * - Si NO lleva pigmento (Natural / Transparente):
+ *     * Material === 'Alta' -> mermaTransparenteAlta (MOLIDO 1)
+ *     * Material === 'Baja' -> mermaTransparenteBaja (MOLIDO 4)
+ */
+export function determinarMermaBase(producto?: ProductoMermaInfo | null): MermaKey {
+  // 1. Pigmento de color (Negro, Azul, Amarillo o Peletizado Color)
+  const mbNegro = Number(producto?.formMasterbachNegro ?? producto?.masterbachNegro) || 0;
+  const mbAzul = Number(producto?.formMasterbachAzul ?? producto?.masterbachAzul) || 0;
+  const mbAmarillo = Number(producto?.formMasterbachAmarillo ?? producto?.masterbachAmarillo) || 0;
+  const pelCodigo = (producto?.peletizado?.codigo || '').toLowerCase().trim();
+  const pelNombre = (producto?.peletizado?.nombre || '').toLowerCase().trim();
+  const colorProd = (producto?.color || '').toLowerCase().trim();
+
+  const tienePigmentoColor =
+    mbNegro > 0 ||
+    mbAzul > 0 ||
+    mbAmarillo > 0 ||
+    pelCodigo === 'molido 3' ||
+    pelNombre.includes('color') ||
+    (colorProd && !['natural', 'transparente', 'blanco', 'cristal', 'sin pigmento', 's/i'].includes(colorProd));
+
+  if (tienePigmentoColor) {
+    return 'mermaColor'; // MOLIDO 3
+  }
+
+  // 2. Pigmento blanco (Masterbach Blanco > 0 o fórmula blanca)
+  const mbBlanco = Number(producto?.formMasterbachBlanco ?? producto?.masterbachBlanco) || 0;
+  const nombreProd = (producto?.nombreProducto || '').toLowerCase();
+
+  const tienePigmentoBlanco =
+    mbBlanco > 0 ||
+    pelCodigo === 'molido 2' ||
+    pelCodigo === 'molido 5' ||
+    pelNombre.includes('blanco') ||
+    colorProd.includes('blanco') ||
+    nombreProd.includes('blanco') ||
+    (Boolean(producto?.conPigmento) && (pelNombre.includes('blanco') || colorProd.includes('blanco')));
+
+  if (tienePigmentoBlanco) {
+    // Si corresponde a Blanco Pollo (MOLIDO 2) o Blanco Pego (MOLIDO 5)
+    if (
+      pelCodigo === 'molido 2' ||
+      pelNombre.includes('pollo') ||
+      nombreProd.includes('pollo') ||
+      colorProd.includes('pollo')
+    ) {
+      return 'mermaBlancoPollo'; // MOLIDO 2
+    }
+    if (
+      pelCodigo === 'molido 5' ||
+      pelNombre.includes('pego') ||
+      nombreProd.includes('pego') ||
+      colorProd.includes('pego')
+    ) {
+      return 'mermaBlancoPego'; // MOLIDO 5
+    }
+
+    // Si no especifica en nombre ni peletizado, según material:
+    const mat = (producto?.material || '').toLowerCase();
+    if (mat.includes('alta') || mat.includes('pead') || mat.includes('hdpe')) {
+      return 'mermaBlancoPollo'; // MOLIDO 2
+    }
+    return 'mermaBlancoPego'; // MOLIDO 5
+  }
+
+  // 3. Sin pigmento (Natural / Transparente):
+  const mat = (producto?.material || '').toLowerCase();
+  if (mat.includes('alta') || mat.includes('pead') || mat.includes('hdpe')) {
+    return 'mermaTransparenteAlta'; // MOLIDO 1
+  }
+
+  // Por defecto en baja o no especificado:
+  return 'mermaTransparenteBaja'; // MOLIDO 4
+}
+
+/**
+ * Determina los campos de merma que físicamente aplican según el Área de Producción y la Ficha Técnica:
+ * 1. EXTRUSIÓN: Solo 1 campo -> Merma Base del producto.
+ * 2. SERIGRAFÍA:
+ *    - Si lleva impresión: 2 campos -> Merma Base limpia (sin tinta) + Merma Color (con tinta).
+ *    - Si no lleva impresión: 1 campo -> Merma Base.
+ * 3. SELLADO:
+ *    - Si es impreso: 1 campo -> Merma Color (MOLIDO 3).
+ *    - Si no es impreso: 1 campo -> Merma Base.
+ * 4. REFILADO:
+ *    - 2 campos -> Merma Color (MOLIDO 3) + Merma Transparente Baja (MOLIDO 4).
+ */
+export function determinarCamposMerma(
+  area: string,
+  producto?: ProductoMermaInfo | null
+): MermaFieldConfig[] {
+  const areaNorm = (area || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toUpperCase()
+    .trim();
+  const llevaImpresion = Boolean(
+    producto?.llevaImpresion ??
+    producto?.conImpresion ??
+    false
+  );
+
+  const mermaBaseKey = determinarMermaBase(producto);
+  const configMap = new Map<MermaKey, MermaFieldConfig>(
+    CLASIFICACIONES_MERMA.map((c) => [
+      c.key,
+      {
+        key: c.key,
+        label: c.label,
+        shortLabel: c.shortLabel,
+        molidoBadge: c.codigo.toUpperCase(),
+        codigo: c.codigo,
+        colorClass: c.color,
+        badgeClass: c.badgeClass,
+        borderClass: c.borderClass,
+      },
+    ])
+  );
+
+  const getField = (k: MermaKey) => configMap.get(k)!;
+
+  // 1. ÁREA EXTRUSIÓN: No hay tinta. Solo 1 campo: Merma Base.
+  if (areaNorm === 'EXTRUSION') {
+    return [getField(mermaBaseKey)];
+  }
+
+  // 2. ÁREA SERIGRAFÍA:
+  if (areaNorm === 'SERIGRAFIA') {
+    if (llevaImpresion) {
+      if (mermaBaseKey === 'mermaColor') {
+        return [getField('mermaColor')];
+      }
+      return [
+        {
+          ...getField(mermaBaseKey),
+          label: `${getField(mermaBaseKey).label} (Sin Tinta / Limpia)`,
+        },
+        {
+          ...getField('mermaColor'),
+          label: 'Merma Color (Con Tinta)',
+        },
+      ];
+    }
+    return [getField(mermaBaseKey)];
+  }
+
+  // 3. ÁREA SELLADO:
+  if (areaNorm === 'SELLADO') {
+    if (llevaImpresion) {
+      return [
+        {
+          ...getField('mermaColor'),
+          label: 'Merma Color (Con Tinta)',
+        },
+      ];
+    }
+    return [getField(mermaBaseKey)];
+  }
+
+  // 4. ÁREA REFILADO:
+  // En Refilado NUNCA se genera merma blanca ni merma transparente alta.
+  if (areaNorm === 'REFILADO') {
+    return [
+      getField('mermaColor'),
+      getField('mermaTransparenteBaja'),
+    ];
+  }
+
+  return [getField(mermaBaseKey)];
+}
 
 export function calcularDesgloseMerma(data: any): {
   mermaTotal: number;

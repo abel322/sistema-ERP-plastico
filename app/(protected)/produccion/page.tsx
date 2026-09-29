@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, FormEvent } from 'react';
+import { useState, useEffect, useMemo, FormEvent } from 'react';
 import { useSession } from 'next-auth/react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
@@ -26,7 +26,13 @@ import {
 import { formatNumber } from '@/lib/utils';
 import { calculateBagWeight, getPlasticDensity } from '@/lib/utils/bag-weight';
 import { calcularDesperdicioInfo } from '@/lib/utils/merma';
-import { CLASIFICACIONES_MERMA, calcularDesgloseMerma } from '@/lib/merma-logic';
+import {
+  CLASIFICACIONES_MERMA,
+  calcularDesgloseMerma,
+  determinarCamposMerma,
+  MermaFieldConfig,
+  ProductoMermaInfo,
+} from '@/lib/merma-logic';
 
 const AREAS = [
   { value: 'Extrusion', label: 'Extrusión' },
@@ -88,11 +94,10 @@ interface Produccion {
       tipoProducto?: string;
       conImpresion?: boolean;
     };
-    productoCliente?: {
+    productoCliente?: ProductoMermaInfo & {
       id?: string;
       nombreProducto?: string;
       tipoProducto?: string;
-      conImpresion?: boolean;
       pesoPorUnidad?: number;
       ancho?: number;
       largo?: number;
@@ -104,11 +109,10 @@ interface Produccion {
       material?: string;
     };
   };
-  productoCliente?: {
+  productoCliente?: ProductoMermaInfo & {
     id?: string;
     nombreProducto?: string;
     tipoProducto?: string;
-    conImpresion?: boolean;
     pesoPorUnidad?: number;
     ancho?: number;
     largo?: number;
@@ -220,6 +224,18 @@ export default function ProduccionPage() {
     return false;
   };
 
+  const camposMermaVisibles: MermaFieldConfig[] = useMemo(() => {
+    if (!selectedProduccion) return [];
+    const prodCliente = selectedProduccion.pedido?.productoCliente || selectedProduccion.productoCliente;
+    const llevaImpresion = esOrdenImpresa(selectedProduccion);
+    const productoMerma: ProductoMermaInfo = {
+      ...prodCliente,
+      llevaImpresion,
+      conImpresion: llevaImpresion,
+    };
+    return determinarCamposMerma(selectedProduccion.area, productoMerma);
+  }, [selectedProduccion]);
+
   const isAdmin = (session?.user as any)?.rol === 'admin';
 
   useEffect(() => {
@@ -309,11 +325,30 @@ export default function ProduccionPage() {
     if (!selectedProduccion) return;
     setSaving(true);
     try {
-      const mAlta = parseFloat((registroForm as any).mermaTransparenteAlta || '0') || 0;
-      const mPollo = parseFloat((registroForm as any).mermaBlancoPollo || '0') || 0;
-      const mColor = parseFloat((registroForm as any).mermaColor || '0') || 0;
-      const mBaja = parseFloat((registroForm as any).mermaTransparenteBaja || '0') || 0;
-      const mPego = parseFloat((registroForm as any).mermaBlancoPego || '0') || 0;
+      const prodCliente = selectedProduccion.pedido?.productoCliente || selectedProduccion.productoCliente;
+      const llevaImpresion = esOrdenImpresa(selectedProduccion);
+      const camposVisibles = determinarCamposMerma(selectedProduccion.area, {
+        ...prodCliente,
+        llevaImpresion,
+        conImpresion: llevaImpresion,
+      });
+      const visibleKeys = new Set(camposVisibles.map((c) => c.key));
+
+      const mAlta = visibleKeys.has('mermaTransparenteAlta')
+        ? parseFloat((registroForm as any).mermaTransparenteAlta || '0') || 0
+        : 0;
+      const mPollo = visibleKeys.has('mermaBlancoPollo')
+        ? parseFloat((registroForm as any).mermaBlancoPollo || '0') || 0
+        : 0;
+      const mColor = visibleKeys.has('mermaColor')
+        ? parseFloat((registroForm as any).mermaColor || '0') || 0
+        : 0;
+      const mBaja = visibleKeys.has('mermaTransparenteBaja')
+        ? parseFloat((registroForm as any).mermaTransparenteBaja || '0') || 0
+        : 0;
+      const mPego = visibleKeys.has('mermaBlancoPego')
+        ? parseFloat((registroForm as any).mermaBlancoPego || '0') || 0
+        : 0;
       const mTotal = mAlta + mPollo + mColor + mBaja + mPego;
 
       const payload = {
@@ -1268,30 +1303,32 @@ export default function ProduccionPage() {
                   </div>
                 </div>
 
-                {/* 5 Clasificaciones Exactas de Merma / Scrap (MOLIDO 1 al 5) */}
+                {/* Clasificación Dinámica e Inteligente de Merma / Scrap */}
                 <div className="space-y-3 pt-1">
                   <div className="flex items-center justify-between ml-1">
                     <label className="text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest flex items-center gap-1.5">
                       <span className="w-2 h-2 rounded-full bg-rose-500" />
                       Clasificación de Merma / Scrap (kg)
                     </label>
-                    <span className="text-[9px] font-bold text-slate-400">
-                      Entrada a Inventario Peletizado
+                    <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">
+                      {camposMermaVisibles.length === 1
+                        ? '1 campo aplicable'
+                        : `${camposMermaVisibles.length} campos aplicables`}
                     </span>
                   </div>
 
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    {CLASIFICACIONES_MERMA.map((item) => {
+                  <div className={`grid grid-cols-1 ${camposMermaVisibles.length > 1 ? 'sm:grid-cols-2' : ''} gap-3`}>
+                    {camposMermaVisibles.map((item) => {
                       const val = (registroForm as any)[item.key] || '';
                       return (
                         <div key={item.key} className="space-y-1">
                           <label className="text-[10px] font-bold text-slate-600 dark:text-slate-300 flex items-center justify-between px-1">
                             <span className="flex items-center gap-1.5">
-                              <span className={`w-2 h-2 rounded-full ${item.color} shrink-0`} />
-                              {item.label}
+                              <span className={`w-2 h-2 rounded-full ${item.colorClass} shrink-0`} />
+                              <span className="font-semibold">{item.label}</span>
                             </span>
-                            <span className="text-[9px] font-semibold text-slate-400 uppercase tracking-wider">
-                              {item.codigo.toUpperCase()}
+                            <span className="text-[9px] font-semibold text-slate-400 uppercase tracking-wider shrink-0 ml-1">
+                              {item.molidoBadge}
                             </span>
                           </label>
                           <div className="relative">
@@ -1313,7 +1350,7 @@ export default function ProduccionPage() {
 
                   {/* Totalizador en Vivo */}
                   {(() => {
-                    const mTotalLive = CLASIFICACIONES_MERMA.reduce(
+                    const mTotalLive = camposMermaVisibles.reduce(
                       (sum, c) => sum + (parseFloat((registroForm as any)[c.key] || '0') || 0),
                       0
                     );
