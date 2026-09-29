@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
+import { revalidatePath } from 'next/cache';
 import { prisma } from '@/lib/db';
 import { authOptions } from '@/lib/auth-options';
 import { calcularDesgloseMerma, aplicarMermaAInventario, revertirMermaDeInventario } from '@/lib/merma-logic';
@@ -133,7 +134,15 @@ export async function PUT(
             return reg;
         });
 
-        return NextResponse.json(registroActualizado);
+        revalidatePath('/produccion');
+        revalidatePath('/produccion/historial');
+        revalidatePath('/inventario');
+
+        return NextResponse.json({
+            success: true,
+            message: 'Registro actualizado correctamente',
+            data: registroActualizado,
+        });
     } catch (error) {
         console.error('Error al actualizar registro de producción:', error);
         return NextResponse.json({ error: 'Error al actualizar registro' }, { status: 500 });
@@ -220,7 +229,14 @@ export async function DELETE(
             }
         });
 
-        return NextResponse.json({ message: 'Registro eliminado' });
+        revalidatePath('/produccion');
+        revalidatePath('/produccion/historial');
+        revalidatePath('/inventario');
+
+        return NextResponse.json({
+            success: true,
+            message: 'Registro eliminado correctamente',
+        });
     } catch (error) {
         console.error('Error al eliminar registro de producción:', error);
         return NextResponse.json({ error: 'Error al eliminar registro' }, { status: 500 });

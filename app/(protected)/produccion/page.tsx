@@ -378,13 +378,16 @@ export default function ProduccionPage() {
           body: JSON.stringify(payload),
         });
       }
-      if (res.ok) {
+
+      const data = await res.json().catch(() => ({}));
+
+      if (res.ok || data?.success) {
         setShowRegistroModal(false);
         setShowRegistrosListModal(false);
         resetRegistroForm();
         toast({
           title: "Éxito",
-          description: "Registro guardado correctamente",
+          description: data?.message || (isEditRegistro ? "Registro actualizado correctamente" : "Turno registrado correctamente"),
         });
 
         try {
@@ -394,10 +397,9 @@ export default function ProduccionPage() {
           console.error("Error al actualizar la lista de producciones tras guardar el registro:", err);
         }
       } else {
-        const data = await res.json().catch(() => ({ error: 'Error desconocido' }));
         toast({
           title: "Error",
-          description: data.error || "Ocurrió un error al guardar el registro",
+          description: data?.error || data?.message || "Ocurrió un error al guardar el registro",
           variant: "destructive",
         });
       }
@@ -1378,10 +1380,10 @@ export default function ProduccionPage() {
                   <button
                     type="submit"
                     disabled={saving}
-                    className="flex-[2] flex items-center justify-center gap-3 px-6 py-4 rounded-2xl bg-indigo-600 text-xs font-black uppercase tracking-widest text-white hover:bg-indigo-700 disabled:opacity-50 transition-all shadow-xl shadow-indigo-100 dark:shadow-none"
+                    className="flex-[2] flex items-center justify-center gap-3 px-6 py-4 rounded-2xl bg-indigo-600 text-xs font-black uppercase tracking-widest text-white hover:bg-indigo-700 disabled:opacity-50 transition-all shadow-xl shadow-indigo-100 dark:shadow-none cursor-pointer disabled:cursor-not-allowed"
                   >
                     {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
-                    {isEditRegistro ? 'ACTUALIZAR' : 'GUARDAR'}
+                    {saving ? 'GUARDANDO...' : (isEditRegistro ? 'ACTUALIZAR' : 'GUARDAR')}
                   </button>
                 </div>
               </form>

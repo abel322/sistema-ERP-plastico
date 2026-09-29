@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
+import { revalidatePath } from 'next/cache';
 import { prisma } from '@/lib/db';
 import { authOptions } from '@/lib/auth-options';
 import { determinarDestinoProducto } from '@/lib/producto-terminado-logic';
@@ -97,6 +98,8 @@ export async function POST(
 
     // Desglose de merma tipificado en 5 variantes (MOLIDO 1 a MOLIDO 5)
     const desglose = calcularDesgloseMerma(body);
+    const finalMerma = desglose.mermaTotal || 0;
+    let totalCantidad = 0;
 
     const registro = await prisma.$transaction(async (tx) => {
       // 1. Crear registro de turno
@@ -125,7 +128,7 @@ export async function POST(
       const todosRegistros = await tx.registroProduccion.findMany({
         where: { produccionId: id },
       });
-      const totalCantidad = todosRegistros.reduce((sum, r) => sum + r.cantidad, 0);
+      totalCantidad = todosRegistros.reduce((sum, r) => sum + r.cantidad, 0);
       const totalMerma = todosRegistros.reduce((sum, r) => sum + (r.merma || 0), 0);
       const totalMermaAlta = todosRegistros.reduce((sum, r) => sum + ((r as any).mermaTransparenteAlta || (r as any).mermaCristal || r.mermaSinImpresion || 0), 0);
       const totalMermaPollo = todosRegistros.reduce((sum, r) => sum + ((r as any).mermaBlancoPollo || 0), 0);
@@ -313,7 +316,18 @@ export async function POST(
       }
     }
 
-    return NextResponse.json(registro, { status: 201 });
+    revalidatePath('/produccion');
+    revalidatePath('/produccion/historial');
+    revalidatePath('/inventario');
+
+    return NextResponse.json(
+      {
+        success: true,
+        message: 'Turno registrado correctamente',
+        data: registro,
+      },
+      { status: 201 }
+    );
   } catch (error) {
     console.error('Error al crear registro:', error);
     return NextResponse.json({ error: 'Error al crear registro' }, { status: 500 });
