@@ -95,6 +95,7 @@ export default function EditarCompletoPage() {
           esTermoencogible: !!(data.pesoMaximoBobina),
           // Calcular esBolsaASA
           esBolsaASA: data.esBolsaASA || !!(data.anchoTroquelASA || data.fuelleASA),
+          llevaPostizo: data.llevaPostizo ?? false,
         };
         
         setFormData(formDataWithVirtuals);
@@ -1342,6 +1343,12 @@ export default function EditarCompletoPage() {
                 </select>
               </div>
 
+              {!formData.sldTipoSelladora && (
+                <div className="p-4 bg-purple-50 border border-purple-200 rounded-xl text-purple-800 text-sm">
+                  Seleccione un tipo de selladora arriba (por ejemplo, <strong>Selladora de Válvula</strong>) para desplegar todos los parámetros de máquina y ajustes de sellado.
+                </div>
+              )}
+
               {formData.sldTipoSelladora && (
                 <>
                   {/* Parámetros Generales */}
@@ -1844,6 +1851,288 @@ export default function EditarCompletoPage() {
                     </div>
                   </div>
 
+                  {/* Tornillos de Ajuste de Cabezal */}
+                  <div className="border-t pt-6">
+                    <h3 className="text-lg font-semibold text-gray-900 mb-4">Tornillos de Ajuste de Cabezal</h3>
+                    <div className="space-y-4">
+                      {/* Movimiento Horizontal Lado Derecho */}
+                      <div className="bg-gray-50 p-4 rounded-xl border border-gray-200">
+                        <h4 className="text-sm font-semibold text-gray-700 mb-3">Movimiento Horizontal Lado Derecho</h4>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">
+                              Tornillo Derecho
+                            </label>
+                            <input
+                              type="number"
+                              step="0.01"
+                              value={formData.tornilloDerMovHorizCabezalDer ?? ''}
+                              onChange={(e) => handleChange('tornilloDerMovHorizCabezalDer', e.target.value !== '' ? parseFloat(e.target.value) : null)}
+                              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent bg-white"
+                              placeholder="0.00"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">
+                              Tornillo Izquierdo
+                            </label>
+                            <input
+                              type="number"
+                              step="0.01"
+                              value={formData.tornilloIzqMovHorizCabezalDer ?? ''}
+                              onChange={(e) => handleChange('tornilloIzqMovHorizCabezalDer', e.target.value !== '' ? parseFloat(e.target.value) : null)}
+                              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent bg-white"
+                              placeholder="0.00"
+                            />
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Movimiento Horizontal Lado Izquierdo */}
+                      <div className="bg-gray-50 p-4 rounded-xl border border-gray-200">
+                        <h4 className="text-sm font-semibold text-gray-700 mb-3">Movimiento Horizontal Lado Izquierdo</h4>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">
+                              Tornillo Derecho
+                            </label>
+                            <input
+                              type="number"
+                              step="0.01"
+                              value={formData.tornilloDerMovHorizCabezalIzq ?? ''}
+                              onChange={(e) => handleChange('tornilloDerMovHorizCabezalIzq', e.target.value !== '' ? parseFloat(e.target.value) : null)}
+                              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent bg-white"
+                              placeholder="0.00"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">
+                              Tornillo Izquierdo
+                            </label>
+                            <input
+                              type="number"
+                              step="0.01"
+                              value={formData.tornilloIzqMovHorizCabezalIzq ?? ''}
+                              onChange={(e) => handleChange('tornilloIzqMovHorizCabezalIzq', e.target.value !== '' ? parseFloat(e.target.value) : null)}
+                              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent bg-white"
+                              placeholder="0.00"
+                            />
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Amortiguadores de Cabezal */}
+                      <div className="bg-gray-50 p-4 rounded-xl border border-gray-200">
+                        <h4 className="text-sm font-semibold text-gray-700 mb-3">Amortiguadores de Cabezal</h4>
+                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">
+                              Tornillo A
+                            </label>
+                            <input
+                              type="number"
+                              step="0.01"
+                              value={formData.tornilloAmortiguadorCabezalA ?? ''}
+                              onChange={(e) => handleChange('tornilloAmortiguadorCabezalA', e.target.value !== '' ? parseFloat(e.target.value) : null)}
+                              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent bg-white"
+                              placeholder="0.00"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">
+                              Tornillo B
+                            </label>
+                            <input
+                              type="number"
+                              step="0.01"
+                              value={formData.tornilloAmortiguadorCabezalB ?? ''}
+                              onChange={(e) => handleChange('tornilloAmortiguadorCabezalB', e.target.value !== '' ? parseFloat(e.target.value) : null)}
+                              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent bg-white"
+                              placeholder="0.00"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">
+                              Tornillo C
+                            </label>
+                            <input
+                              type="number"
+                              step="0.01"
+                              value={formData.tornilloAmortiguadorCabezalC ?? ''}
+                              onChange={(e) => handleChange('tornilloAmortiguadorCabezalC', e.target.value !== '' ? parseFloat(e.target.value) : null)}
+                              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent bg-white"
+                              placeholder="0.00"
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Fuelles y Medidas del Triángulo */}
+                  <div className="border-t pt-6">
+                    <h3 className="text-lg font-semibold text-gray-900 mb-4">Fuelles y Medidas del Triángulo</h3>
+                    
+                    <div className="bg-gray-50 p-4 rounded-xl border border-gray-200 mb-4">
+                      <h4 className="text-sm font-semibold text-gray-700 mb-3">Fuelles de Bolsa</h4>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">
+                            Superior Izquierdo
+                          </label>
+                          <input
+                            type="number"
+                            step="0.01"
+                            value={formData.fuelleSuperiorIzquierdo ?? ''}
+                            onChange={(e) => handleChange('fuelleSuperiorIzquierdo', e.target.value !== '' ? parseFloat(e.target.value) : null)}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent bg-white"
+                            placeholder="0.00"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">
+                            Superior Derecho
+                          </label>
+                          <input
+                            type="number"
+                            step="0.01"
+                            value={formData.fuelleSuperiorDerecho ?? ''}
+                            onChange={(e) => handleChange('fuelleSuperiorDerecho', e.target.value !== '' ? parseFloat(e.target.value) : null)}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent bg-white"
+                            placeholder="0.00"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">
+                            Inferior Izquierdo
+                          </label>
+                          <input
+                            type="number"
+                            step="0.01"
+                            value={formData.fuelleInferiorIzquierdo ?? ''}
+                            onChange={(e) => handleChange('fuelleInferiorIzquierdo', e.target.value !== '' ? parseFloat(e.target.value) : null)}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent bg-white"
+                            placeholder="0.00"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">
+                            Inferior Derecho
+                          </label>
+                          <input
+                            type="number"
+                            step="0.01"
+                            value={formData.fuelleInferiorDerecho ?? ''}
+                            onChange={(e) => handleChange('fuelleInferiorDerecho', e.target.value !== '' ? parseFloat(e.target.value) : null)}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent bg-white"
+                            placeholder="0.00"
+                          />
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          Ancho de Bolsa después del Triángulo (cm)
+                        </label>
+                        <input
+                          type="number"
+                          step="0.01"
+                          value={formData.anchoBolsaDespuesTriangulo ?? ''}
+                          onChange={(e) => handleChange('anchoBolsaDespuesTriangulo', e.target.value !== '' ? parseFloat(e.target.value) : null)}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                          placeholder="0.00"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          Distancia Barra Roscada antes del Triángulo (cm)
+                        </label>
+                        <input
+                          type="number"
+                          step="0.01"
+                          value={formData.distanciaBarraRoscadaTriangulo ?? ''}
+                          onChange={(e) => handleChange('distanciaBarraRoscadaTriangulo', e.target.value !== '' ? parseFloat(e.target.value) : null)}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                          placeholder="0.00"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          Longitud (cm)
+                        </label>
+                        <input
+                          type="number"
+                          step="0.01"
+                          value={formData.longitudBolsa ?? ''}
+                          onChange={(e) => handleChange('longitudBolsa', e.target.value !== '' ? parseFloat(e.target.value) : null)}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                          placeholder="0.00"
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Sensores y Sincronización */}
+                  <div className="border-t pt-6">
+                    <h3 className="text-lg font-semibold text-gray-900 mb-4">Sensores y Sincronización</h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          Feeding Bag Angle (Posición Servo)
+                        </label>
+                        <input
+                          type="number"
+                          step="0.01"
+                          value={formData.feedingBagAngle ?? ''}
+                          onChange={(e) => handleChange('feedingBagAngle', e.target.value !== '' ? parseFloat(e.target.value) : null)}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                          placeholder="0.00"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          Distancia Sensor Registro Color (cm)
+                        </label>
+                        <input
+                          type="number"
+                          step="0.01"
+                          value={formData.distanciaSensorRegistroColor ?? ''}
+                          onChange={(e) => handleChange('distanciaSensorRegistroColor', e.target.value !== '' ? parseFloat(e.target.value) : null)}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                          placeholder="0.00"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          Distancia Sensor Movimiento (cm)
+                        </label>
+                        <input
+                          type="number"
+                          step="0.01"
+                          value={formData.distanciaSensorMovimiento ?? ''}
+                          onChange={(e) => handleChange('distanciaSensorMovimiento', e.target.value !== '' ? parseFloat(e.target.value) : null)}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                          placeholder="0.00"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          Distancia de Presellado (cm)
+                        </label>
+                        <input
+                          type="number"
+                          step="0.01"
+                          value={formData.distanciaPresellado ?? ''}
+                          onChange={(e) => handleChange('distanciaPresellado', e.target.value !== '' ? parseFloat(e.target.value) : null)}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                          placeholder="0.00"
+                        />
+                      </div>
+                    </div>
+                  </div>
+
                   {/* Parámetros de Presión y Soplado */}
                   <div className="border-t pt-6">
                     <h3 className="text-lg font-semibold text-gray-900 mb-4">Presiones y Soplado</h3>
@@ -1944,6 +2233,131 @@ export default function EditarCompletoPage() {
                           </div>
                         </>
                       )}
+                    </div>
+                  </div>
+
+                  {/* Tiempos, Sellado Silicona y Opciones */}
+                  <div className="border-t pt-6">
+                    <h3 className="text-lg font-semibold text-gray-900 mb-4">Tiempos, Sellado Silicona y Opciones</h3>
+                    
+                    {/* Grid para Silicona */}
+                    <div className="bg-gray-50 p-4 rounded-xl border border-gray-200 mb-4">
+                      <h4 className="text-sm font-semibold text-gray-700 mb-3">Sellado Silicona Lateral</h4>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">
+                            Sellado Silicona Lateral Iniciar
+                          </label>
+                          <input
+                            type="number"
+                            step="0.01"
+                            value={formData.selladoSiliconaLateralIniciar ?? ''}
+                            onChange={(e) => handleChange('selladoSiliconaLateralIniciar', e.target.value !== '' ? parseFloat(e.target.value) : null)}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent bg-white"
+                            placeholder="0.00"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">
+                            Sellado Silicona Lateral Final
+                          </label>
+                          <input
+                            type="number"
+                            step="0.01"
+                            value={formData.selladoSiliconaLateralFinal ?? ''}
+                            onChange={(e) => handleChange('selladoSiliconaLateralFinal', e.target.value !== '' ? parseFloat(e.target.value) : null)}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent bg-white"
+                            placeholder="0.00"
+                          />
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Inputs numéricos: Tiempo Precalentar, Temporizador, Plancha */}
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          Tiempo Precalentar
+                        </label>
+                        <input
+                          type="number"
+                          step="0.01"
+                          value={formData.tiempoPrecalentar ?? ''}
+                          onChange={(e) => handleChange('tiempoPrecalentar', e.target.value !== '' ? parseFloat(e.target.value) : null)}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                          placeholder="0.00"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          Temporizador
+                        </label>
+                        <input
+                          type="number"
+                          step="0.01"
+                          value={formData.temporizador ?? ''}
+                          onChange={(e) => handleChange('temporizador', e.target.value !== '' ? parseFloat(e.target.value) : null)}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                          placeholder="0.00"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          Plancha
+                        </label>
+                        <input
+                          type="number"
+                          step="0.01"
+                          value={formData.plancha ?? ''}
+                          onChange={(e) => handleChange('plancha', e.target.value !== '' ? parseFloat(e.target.value) : null)}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                          placeholder="0.00"
+                        />
+                      </div>
+                    </div>
+
+                    {/* Campos de texto: Montaje de Bobina, Diseño de Impresión (Válvula) */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          Montaje de Bobina
+                        </label>
+                        <input
+                          type="text"
+                          value={formData.montajeBobina || ''}
+                          onChange={(e) => handleChange('montajeBobina', e.target.value)}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                          placeholder="Ej: Cara hacia arriba / Bobina invertida"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          Diseño de Impresión (Válvula)
+                        </label>
+                        <input
+                          type="text"
+                          value={formData.disenoImpresionValvula || ''}
+                          onChange={(e) => handleChange('disenoImpresionValvula', e.target.value)}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                          placeholder="Detalles del diseño o referencia"
+                        />
+                      </div>
+                    </div>
+
+                    {/* Switch / Checkbox booleano: ¿Lleva Postizo? */}
+                    <div className="pt-2">
+                      <label className="inline-flex items-center gap-3 cursor-pointer select-none p-3 bg-gray-50 rounded-xl border border-gray-200 hover:bg-gray-100/70 transition-colors">
+                        <input
+                          type="checkbox"
+                          checked={!!formData.llevaPostizo}
+                          onChange={(e) => handleChange('llevaPostizo', e.target.checked)}
+                          className="w-5 h-5 text-purple-600 rounded border-gray-300 focus:ring-purple-500 focus:ring-offset-0 transition-colors cursor-pointer"
+                        />
+                        <div>
+                          <span className="text-sm font-semibold text-gray-800">¿Lleva Postizo?</span>
+                          <p className="text-xs text-gray-500">Marcar si el proceso de sellado requiere la colocación de postizo.</p>
+                        </div>
+                      </label>
                     </div>
                   </div>
                 </>

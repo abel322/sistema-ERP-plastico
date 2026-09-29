@@ -265,6 +265,42 @@ export async function PUT(
         sldSoplarTerminar: body.sldSoplarTerminar || null,
         sldSiliconaInicioVentoza: body.sldSiliconaInicioVentoza || null,
         sldSiliconaTerminarVentoza: body.sldSiliconaTerminarVentoza || null,
+
+        // Ajuste de Tornillos de Movimiento Horizontal de Cabezal
+        tornilloDerMovHorizCabezalDer: body.tornilloDerMovHorizCabezalDer !== undefined && body.tornilloDerMovHorizCabezalDer !== null && body.tornilloDerMovHorizCabezalDer !== '' ? parseFloat(body.tornilloDerMovHorizCabezalDer) : null,
+        tornilloIzqMovHorizCabezalDer: body.tornilloIzqMovHorizCabezalDer !== undefined && body.tornilloIzqMovHorizCabezalDer !== null && body.tornilloIzqMovHorizCabezalDer !== '' ? parseFloat(body.tornilloIzqMovHorizCabezalDer) : null,
+        tornilloDerMovHorizCabezalIzq: body.tornilloDerMovHorizCabezalIzq !== undefined && body.tornilloDerMovHorizCabezalIzq !== null && body.tornilloDerMovHorizCabezalIzq !== '' ? parseFloat(body.tornilloDerMovHorizCabezalIzq) : null,
+        tornilloIzqMovHorizCabezalIzq: body.tornilloIzqMovHorizCabezalIzq !== undefined && body.tornilloIzqMovHorizCabezalIzq !== null && body.tornilloIzqMovHorizCabezalIzq !== '' ? parseFloat(body.tornilloIzqMovHorizCabezalIzq) : null,
+
+        // Tornillos de Amortiguador de Cabezal
+        tornilloAmortiguadorCabezalA: body.tornilloAmortiguadorCabezalA !== undefined && body.tornilloAmortiguadorCabezalA !== null && body.tornilloAmortiguadorCabezalA !== '' ? parseFloat(body.tornilloAmortiguadorCabezalA) : null,
+        tornilloAmortiguadorCabezalB: body.tornilloAmortiguadorCabezalB !== undefined && body.tornilloAmortiguadorCabezalB !== null && body.tornilloAmortiguadorCabezalB !== '' ? parseFloat(body.tornilloAmortiguadorCabezalB) : null,
+        tornilloAmortiguadorCabezalC: body.tornilloAmortiguadorCabezalC !== undefined && body.tornilloAmortiguadorCabezalC !== null && body.tornilloAmortiguadorCabezalC !== '' ? parseFloat(body.tornilloAmortiguadorCabezalC) : null,
+
+        // Sensores, Posición y Servo
+        feedingBagAngle: body.feedingBagAngle !== undefined && body.feedingBagAngle !== null && body.feedingBagAngle !== '' ? parseFloat(body.feedingBagAngle) : null,
+        distanciaSensorRegistroColor: body.distanciaSensorRegistroColor !== undefined && body.distanciaSensorRegistroColor !== null && body.distanciaSensorRegistroColor !== '' ? parseFloat(body.distanciaSensorRegistroColor) : null,
+        distanciaSensorMovimiento: body.distanciaSensorMovimiento !== undefined && body.distanciaSensorMovimiento !== null && body.distanciaSensorMovimiento !== '' ? parseFloat(body.distanciaSensorMovimiento) : null,
+        distanciaPresellado: body.distanciaPresellado !== undefined && body.distanciaPresellado !== null && body.distanciaPresellado !== '' ? parseFloat(body.distanciaPresellado) : null,
+        distanciaBarraRoscadaTriangulo: body.distanciaBarraRoscadaTriangulo !== undefined && body.distanciaBarraRoscadaTriangulo !== null && body.distanciaBarraRoscadaTriangulo !== '' ? parseFloat(body.distanciaBarraRoscadaTriangulo) : null,
+
+        // Fuelles y Medidas de Bolsa
+        fuelleSuperiorDerecho: body.fuelleSuperiorDerecho !== undefined && body.fuelleSuperiorDerecho !== null && body.fuelleSuperiorDerecho !== '' ? parseFloat(body.fuelleSuperiorDerecho) : null,
+        fuelleSuperiorIzquierdo: body.fuelleSuperiorIzquierdo !== undefined && body.fuelleSuperiorIzquierdo !== null && body.fuelleSuperiorIzquierdo !== '' ? parseFloat(body.fuelleSuperiorIzquierdo) : null,
+        fuelleInferiorDerecho: body.fuelleInferiorDerecho !== undefined && body.fuelleInferiorDerecho !== null && body.fuelleInferiorDerecho !== '' ? parseFloat(body.fuelleInferiorDerecho) : null,
+        fuelleInferiorIzquierdo: body.fuelleInferiorIzquierdo !== undefined && body.fuelleInferiorIzquierdo !== null && body.fuelleInferiorIzquierdo !== '' ? parseFloat(body.fuelleInferiorIzquierdo) : null,
+        anchoBolsaDespuesTriangulo: body.anchoBolsaDespuesTriangulo !== undefined && body.anchoBolsaDespuesTriangulo !== null && body.anchoBolsaDespuesTriangulo !== '' ? parseFloat(body.anchoBolsaDespuesTriangulo) : null,
+        longitudBolsa: body.longitudBolsa !== undefined && body.longitudBolsa !== null && body.longitudBolsa !== '' ? parseFloat(body.longitudBolsa) : null,
+
+        // Operación, Tiempos y Silicona Lateral
+        selladoSiliconaLateralIniciar: body.selladoSiliconaLateralIniciar !== undefined && body.selladoSiliconaLateralIniciar !== null && body.selladoSiliconaLateralIniciar !== '' ? parseFloat(body.selladoSiliconaLateralIniciar) : null,
+        selladoSiliconaLateralFinal: body.selladoSiliconaLateralFinal !== undefined && body.selladoSiliconaLateralFinal !== null && body.selladoSiliconaLateralFinal !== '' ? parseFloat(body.selladoSiliconaLateralFinal) : null,
+        tiempoPrecalentar: body.tiempoPrecalentar !== undefined && body.tiempoPrecalentar !== null && body.tiempoPrecalentar !== '' ? parseFloat(body.tiempoPrecalentar) : null,
+        temporizador: body.temporizador !== undefined && body.temporizador !== null && body.temporizador !== '' ? parseFloat(body.temporizador) : null,
+        plancha: body.plancha !== undefined && body.plancha !== null && body.plancha !== '' ? parseFloat(body.plancha) : null,
+        montajeBobina: body.montajeBobina || null,
+        disenoImpresionValvula: body.disenoImpresionValvula || null,
+        llevaPostizo: body.llevaPostizo !== undefined && body.llevaPostizo !== null ? Boolean(body.llevaPostizo) : false,
       }
     });
 

@@ -481,6 +481,42 @@ model ProductoCliente {
   // Bolsa de pollo - silicona
   sldSiliconaInicioVentoza      Int?
   sldSiliconaTerminarVentoza    Int?
+
+  // Ajuste de Tornillos de Movimiento Horizontal de Cabezal
+  tornilloDerMovHorizCabezalDer Float?
+  tornilloIzqMovHorizCabezalDer Float?
+  tornilloDerMovHorizCabezalIzq Float?
+  tornilloIzqMovHorizCabezalIzq Float?
+
+  // Tornillos de Amortiguador de Cabezal
+  tornilloAmortiguadorCabezalA  Float?
+  tornilloAmortiguadorCabezalB  Float?
+  tornilloAmortiguadorCabezalC  Float?
+
+  // Sensores, Posición y Servo
+  feedingBagAngle               Float? // Posición del servo
+  distanciaSensorRegistroColor  Float?
+  distanciaSensorMovimiento     Float?
+  distanciaPresellado           Float?
+  distanciaBarraRoscadaTriangulo Float?
+
+  // Fuelles y Medidas de Bolsa
+  fuelleSuperiorDerecho         Float?
+  fuelleSuperiorIzquierdo       Float?
+  fuelleInferiorDerecho         Float?
+  fuelleInferiorIzquierdo       Float?
+  anchoBolsaDespuesTriangulo    Float?
+  longitudBolsa                 Float?
+
+  // Operación, Tiempos y Silicona Lateral
+  selladoSiliconaLateralIniciar Float?
+  selladoSiliconaLateralFinal   Float?
+  tiempoPrecalentar             Float?
+  temporizador                  Float?
+  plancha                       Float?
+  montajeBobina                 String?
+  disenoImpresionValvula        String?
+  llevaPostizo                  Boolean? @default(false)
   
   createdAt       DateTime      @default(now())
   updatedAt       DateTime      @updatedAt
