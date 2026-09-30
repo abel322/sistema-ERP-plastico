@@ -119,170 +119,491 @@ const generateHTML = (tipo: string, data: any, periodo: { inicio: string; fin: s
         </body></html>
       `;
 
-    case 'ficha-tecnica':
+    case 'ficha-tecnica': {
+      const regDia = data.parametrosSellado?.find((p: any) => p.turno === 'DIA') || data;
+      const regTarde = data.parametrosSellado?.find((p: any) => p.turno === 'TARDE') || regDia;
+      
+      const v = (val: any, unit = '') => (val !== null && val !== undefined && val !== '' ? `${val}${unit ? ' ' + unit : ''}` : '-');
+      const boolBadge = (val: boolean) => val 
+        ? '<span style="color:#059669;font-weight:700;">SÍ</span>' 
+        : '<span style="color:#64748b;font-weight:600;">NO</span>';
+
       return `
         <!DOCTYPE html><html><head>
+        <meta charset="utf-8">
+        <title>Ficha Técnica - ${data.nombreProducto}</title>
         <style>
           * { margin: 0; padding: 0; box-sizing: border-box; }
-          body { font-family: 'Segoe UI', Arial, sans-serif; padding: 30px; color: #1e293b; background: #fff; line-height: 1.4; }
-          .header-table { width: 100%; border-collapse: collapse; margin-bottom: 20px; border: 2px solid #1e40af; }
-          .header-table td { padding: 10px; border: 1px solid #cbd5e1; }
-          .logo-cell { width: 25%; text-align: center; }
-          .title-cell { width: 50%; text-align: center; font-size: 24px; font-weight: 800; color: #1e40af; text-transform: uppercase; }
-          .info-cell { width: 25%; font-size: 10px; color: #64748b; }
+          body { 
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; 
+            padding: 24px; 
+            color: #0f172a; 
+            background: #fff; 
+            font-size: 10px; 
+            line-height: 1.35; 
+          }
           
-          .section { margin-bottom: 20px; border: 1px solid #e2e8f0; border-radius: 8px; overflow: hidden; }
-          .section-header { background: #1e40af; color: white; padding: 8px 15px; font-size: 14px; font-weight: 700; text-transform: uppercase; display: flex; align-items: center; gap: 10px; }
-          .section-content { padding: 15px; display: grid; grid-template-columns: repeat(2, 1fr); gap: 15px; }
+          @media print {
+            @page {
+              size: A4 portrait;
+              margin: 8mm 10mm 8mm 10mm;
+            }
+            body { 
+              padding: 0 !important; 
+              background: #fff !important; 
+              -webkit-print-color-adjust: exact; 
+              print-color-adjust: exact; 
+            }
+            .page-break { page-break-before: always; break-before: always; }
+            .no-break { page-break-inside: avoid; break-inside: avoid; }
+            .no-print { display: none; }
+          }
+
+          .header-table { 
+            width: 100%; 
+            border-collapse: collapse; 
+            margin-bottom: 12px; 
+            border: 2px solid #0f172a; 
+          }
+          .header-table td { 
+            padding: 8px 12px; 
+            border: 1px solid #cbd5e1; 
+            vertical-align: middle; 
+          }
+          .logo-cell { width: 22%; text-align: left; }
+          .title-cell { 
+            width: 53%; 
+            text-align: center; 
+            font-size: 16px; 
+            font-weight: 900; 
+            color: #0f172a; 
+            letter-spacing: 0.5px;
+            text-transform: uppercase; 
+          }
+          .info-cell { width: 25%; font-size: 9px; color: #475569; text-align: right; }
+          
+          .section { 
+            margin-bottom: 12px; 
+            border: 1px solid #cbd5e1; 
+            border-radius: 6px; 
+            overflow: hidden; 
+            page-break-inside: avoid;
+            break-inside: avoid;
+          }
+          .section-header { 
+            background: #0f172a; 
+            color: #ffffff; 
+            padding: 6px 12px; 
+            font-size: 11px; 
+            font-weight: 800; 
+            text-transform: uppercase; 
+            letter-spacing: 0.5px;
+            display: flex; 
+            justify-content: space-between;
+            align-items: center; 
+          }
+          .section-content { 
+            padding: 10px 12px; 
+            background: #ffffff; 
+          }
+          
+          .grid-2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; }
+          .grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+          .grid-4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+          .grid-6 { display: grid; grid-template-columns: repeat(6, 1fr); gap: 6px; }
           
           .data-item { display: flex; flex-direction: column; }
-          .data-label { font-size: 9px; font-weight: 800; color: #64748b; text-transform: uppercase; margin-bottom: 2px; }
-          .data-value { font-size: 12px; font-weight: 600; color: #1e293b; }
-          
-          .grid-3 { grid-template-columns: repeat(3, 1fr); }
-          .grid-4 { grid-template-columns: repeat(4, 1fr); }
-          .span-2 { grid-column: span 2; }
-          
-          .formulation-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-top: 5px; }
-          .form-tag { background: #f1f5f9; border: 1px solid #e2e8f0; padding: 5px; border-radius: 4px; text-align: center; }
-          .form-label { font-size: 8px; color: #64748b; display: block; }
-          .form-val { font-size: 11px; font-weight: 700; color: #1e40af; }
-          
-          .colors-flex { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 5px; }
-          .color-tag { border: 1px solid #e2e8f0; padding: 4px 10px; border-radius: 4px; font-size: 10px; font-weight: 600; background: #f8fafc; }
-          
-          .footer-info { margin-top: 30px; border-top: 1px solid #e2e8f0; padding-top: 15px; text-align: center; font-size: 9px; color: #94a3b8; }
-          @media print { .no-print { display: none; } }
+          .data-label { 
+            font-size: 8px; 
+            font-weight: 800; 
+            color: #64748b; 
+            text-transform: uppercase; 
+            letter-spacing: 0.3px; 
+            margin-bottom: 2px; 
+          }
+          .data-value { 
+            font-size: 10.5px; 
+            font-weight: 700; 
+            color: #0f172a; 
+          }
+          .data-value.highlight { color: #1d4ed8; }
+
+          /* Tabla comparativa de sellado */
+          .table-sellado { 
+            width: 100%; 
+            border-collapse: collapse; 
+            font-size: 9.5px; 
+            margin-top: 2px;
+          }
+          .table-sellado th, .table-sellado td { 
+            padding: 4.5px 8px; 
+            border: 1px solid #e2e8f0; 
+          }
+          .table-sellado th { 
+            background: #f1f5f9; 
+            font-weight: 800; 
+            text-transform: uppercase; 
+            font-size: 8.5px; 
+            color: #334155; 
+          }
+          .table-sellado th.dia-header { 
+            background: #fef3c7; 
+            color: #92400e; 
+            text-align: center; 
+            width: 25%;
+          }
+          .table-sellado th.tarde-header { 
+            background: #e0e7ff; 
+            color: #3730a3; 
+            text-align: center; 
+            width: 25%;
+          }
+          .table-sellado td.center { text-align: center; font-weight: 700; }
+          .table-sellado tr:nth-child(even) td { background: #fafafa; }
+          .table-subheading { 
+            background: #f8fafc; 
+            font-weight: 800; 
+            color: #0f172a; 
+            text-transform: uppercase; 
+            font-size: 8.5px; 
+            letter-spacing: 0.5px;
+          }
+
+          /* Cuadrícula de Zonas Térmicas */
+          .zones-grid { 
+            display: grid; 
+            grid-template-columns: repeat(10, 1fr); 
+            gap: 4px; 
+            margin-top: 6px; 
+          }
+          .zone-box { 
+            border: 1px solid #cbd5e1; 
+            background: #f8fafc; 
+            padding: 3px 2px; 
+            border-radius: 4px; 
+            text-align: center; 
+          }
+          .zone-name { font-size: 7.5px; font-weight: 800; color: #64748b; display: block; }
+          .zone-val { font-size: 9.5px; font-weight: 800; color: #0f172a; }
+
+          /* Tarjetas de formulación */
+          .formulation-grid { 
+            display: grid; 
+            grid-template-columns: repeat(4, 1fr); 
+            gap: 6px; 
+          }
+          .form-card { 
+            background: #f8fafc; 
+            border: 1px solid #e2e8f0; 
+            padding: 6px 8px; 
+            border-radius: 4px; 
+            text-align: center; 
+          }
+          .form-title { font-size: 8px; font-weight: 800; color: #475569; text-transform: uppercase; }
+          .form-percent { font-size: 12px; font-weight: 900; color: #1d4ed8; margin-top: 2px; }
+
+          .footer-info { 
+            margin-top: 14px; 
+            border-top: 1px solid #cbd5e1; 
+            padding-top: 8px; 
+            text-align: center; 
+            font-size: 8px; 
+            color: #64748b; 
+          }
         </style>
         </head><body>
         
+        <!-- ENCABEZADO OFICIAL -->
         <table class="header-table">
           <tr>
-            <td class="logo-cell"><h2 style="color: #1e40af; font-weight: 900;">ERP</h2><p style="font-size: 8px; font-weight: 700;">INDUSTRIAL</p></td>
-            <td class="title-cell">Ficha Técnica de Producto</td>
+            <td class="logo-cell">
+              <div style="font-size: 16px; font-weight: 900; color: #0f172a; line-height: 1;">PLÁSTICOS ERP</div>
+              <div style="font-size: 7.5px; font-weight: 800; color: #64748b; letter-spacing: 0.8px; margin-top: 2px;">GESTIÓN INDUSTRIAL Y MANUFACTURA</div>
+            </td>
+            <td class="title-cell">
+              FICHA TÉCNICA DE FABRICACIÓN
+            </td>
             <td class="info-cell">
-              <strong>Código:</strong> FT-${data.codigoProducto || data.id.slice(0, 8)}<br>
-              <strong>Emisión:</strong> ${format(new Date(), 'dd/MM/yyyy')}<br>
-              <strong>Versión:</strong> 1.0
+              <div><strong>CÓDIGO:</strong> FT-${data.codigoProducto || data.id.slice(0, 8).toUpperCase()}</div>
+              <div><strong>EMISIÓN:</strong> ${format(new Date(), 'dd/MM/yyyy HH:mm')}</div>
+              <div><strong>REV:</strong> 2.0 (ACTUALIZADA)</div>
             </td>
           </tr>
         </table>
 
+        <!-- SECCIÓN 1: DATOS GENERALES Y ESPECIFICACIONES BÁSICAS -->
         <div class="section">
-          <div class="section-header">Identificación del Producto</div>
-          <div class="section-content grid-3">
-            <div class="data-item span-2"><span class="data-label">Nombre del Producto</span><span class="data-value">${data.nombreProducto}</span></div>
-            <div class="data-item"><span class="data-label">Tipo</span><span class="data-value">${data.tipoProducto}</span></div>
-            <div class="data-item span-2"><span class="data-label">Cliente</span><span class="data-value">${data.cliente?.nombre || 'N/A'}</span></div>
-            <div class="data-item"><span class="data-label">RIF Cliente</span><span class="data-value">${data.cliente?.rif || 'N/A'}</span></div>
+          <div class="section-header">
+            <span>1. Identificación y Especificaciones Generales</span>
+            <span style="font-size: 9px; opacity: 0.85;">DATOS DEL PRODUCTO Y CLIENTE</span>
           </div>
-        </div>
-
-        <div class="section">
-          <div class="section-header">Especificaciones Físicas y Dimensiones</div>
-          <div class="section-content grid-4">
-            <div class="data-item"><span class="data-label">Ancho</span><span class="data-value">${data.ancho ? data.ancho + ' cm' : '-'}</span></div>
-            <div class="data-item"><span class="data-label">Largo</span><span class="data-value">${data.largo ? data.largo + ' cm' : '-'}</span></div>
-            <div class="data-item"><span class="data-label">Calibre</span><span class="data-value">${data.calibre ? data.calibre + ' µ' : '-'}</span></div>
-            <div class="data-item"><span class="data-label">Material</span><span class="data-value">${data.material || '-'}</span></div>
-            
-            <div class="data-item"><span class="data-label">Peso x Unidad</span><span class="data-value">${data.pesoPorUnidad ? data.pesoPorUnidad + ' g' : '-'}</span></div>
-            <div class="data-item"><span class="data-label">Unidad Venta</span><span class="data-value">${data.unidadVenta}</span></div>
-            <div class="data-item"><span class="data-label">Impresión</span><span class="data-value">${data.conImpresion ? 'SÍ' : 'NO'}</span></div>
-            <div class="data-item"><span class="data-label">Pigmento</span><span class="data-value">${data.conPigmento ? 'SÍ' : 'NO'}</span></div>
-            
-            ${data.tipoProducto === 'Bobina' ? `
-              <div class="data-item"><span class="data-label">Ancho Bobina</span><span class="data-value">${data.anchoBobina ? data.anchoBobina + ' cm' : '-'}</span></div>
-              <div class="data-item"><span class="data-label">Peso Máx Bobina</span><span class="data-value">${data.pesoMaximoBobina ? data.pesoMaximoBobina + ' kg' : '-'}</span></div>
-              <div class="data-item"><span class="data-label">Tipo Bobina</span><span class="data-value">${data.tipoBobinaCliente || '-'}</span></div>
-              <div class="data-item"><span class="data-label">Muleteado</span><span class="data-value">${data.muleteado ? 'SÍ' : 'NO'}</span></div>
-            ` : `
-              <div class="data-item"><span class="data-label">Tipo Sellado</span><span class="data-value">${data.tipoSellado || '-'}</span></div>
-              <div class="data-item"><span class="data-label">Estructura</span><span class="data-value">${data.tipoSelladoEstructura || '-'}</span></div>
-              <div class="data-item"><span class="data-label">Bolsas x Rollo</span><span class="data-value">${data.bolsasPorRollo || '-'}</span></div>
-              <div class="data-item"><span class="data-label">Rollos x Bulto</span><span class="data-value">${data.rollosPorBulto || '-'}</span></div>
-            `}
-          </div>
-        </div>
-
-        ${data.conImpresion ? `
-          <div class="section">
-            <div class="section-header">Parámetros de Serigrafía e Impresión</div>
-            <div class="section-content grid-3">
-              <div class="data-item"><span class="data-label">Tipo Impresión</span><span class="data-value">${data.tipoImpresion || '-'}</span></div>
-              <div class="data-item"><span class="data-label">Cilindro</span><span class="data-value">${data.cilindro || '-'}</span></div>
-              <div class="data-item"><span class="data-label">Repeticiones</span><span class="data-value">${data.repeticionesImagen || '-'}</span></div>
-              <div class="data-item span-2">
-                <span class="data-label">Colores de Impresión</span>
-                <div class="colors-flex">
-                  ${[1,2,3,4,5,6].map(i => data[`color${i}`] ? `<span class="color-tag">C${i}: ${data[`color${i}`]}</span>` : '').join('')}
-                </div>
-              </div>
-              <div class="data-item"><span class="data-label">Tratador Serigrafía</span><span class="data-value">${data.serigrafiaTratadorIntensidad || '-'}</span></div>
-            </div>
-          </div>
-        ` : ''}
-
-        <div class="section">
-          <div class="section-header">Formulación de Mezcla (%)</div>
           <div class="section-content">
-            <div class="data-item span-2">
-              <div class="formulation-grid">
+            <div class="grid-4" style="margin-bottom: 8px;">
+              <div class="data-item"><span class="data-label">Cliente</span><span class="data-value highlight">${data.cliente?.nombre || 'N/A'}</span></div>
+              <div class="data-item"><span class="data-label">RIF Cliente</span><span class="data-value">${data.cliente?.rif || 'N/A'}</span></div>
+              <div class="data-item"><span class="data-label">Nombre del Producto</span><span class="data-value highlight">${data.nombreProducto}</span></div>
+              <div class="data-item"><span class="data-label">Código Interno</span><span class="data-value">${data.codigoProducto || '-'}</span></div>
+            </div>
+
+            <div class="grid-4" style="margin-bottom: 8px; padding-top: 8px; border-top: 1px dashed #e2e8f0;">
+              <div class="data-item"><span class="data-label">Tipo de Producto</span><span class="data-value">${data.tipoProducto}</span></div>
+              <div class="data-item"><span class="data-label">Tipo de Bolsa</span><span class="data-value">${v(data.tipoBolsa)}</span></div>
+              <div class="data-item"><span class="data-label">Material Base</span><span class="data-value">${v(data.material)}</span></div>
+              <div class="data-item"><span class="data-label">Unidad de Venta</span><span class="data-value">${data.unidadVenta || 'Unidades'}</span></div>
+            </div>
+
+            <div class="grid-6" style="margin-bottom: 8px; padding-top: 8px; border-top: 1px dashed #e2e8f0;">
+              <div class="data-item"><span class="data-label">Ancho</span><span class="data-value">${v(data.ancho, 'cm')}</span></div>
+              <div class="data-item"><span class="data-label">Largo</span><span class="data-value">${v(data.largo, 'cm')}</span></div>
+              <div class="data-item"><span class="data-label">Calibre</span><span class="data-value">${v(data.calibre, 'µ')}</span></div>
+              <div class="data-item"><span class="data-label">Fuelle</span><span class="data-value">${v(data.anchoFuelle || data.fuelleASA, 'cm')}</span></div>
+              <div class="data-item"><span class="data-label">Peso x Unidad</span><span class="data-value highlight">${v(data.pesoPorUnidad, 'g')}</span></div>
+              <div class="data-item"><span class="data-label">Ancho Bobina</span><span class="data-value">${v(data.anchoBobina, 'cm')}</span></div>
+            </div>
+
+            <div class="grid-3" style="padding-top: 8px; border-top: 1px dashed #e2e8f0;">
+              <div class="data-item"><span class="data-label">¿Lleva Impresión?</span><span class="data-value">${boolBadge(Boolean(data.conImpresion))}</span></div>
+              <div class="data-item"><span class="data-label">¿Lleva Pigmento?</span><span class="data-value">${boolBadge(Boolean(data.conPigmento))}</span></div>
+              <div class="data-item"><span class="data-label">¿Lleva Postizo?</span><span class="data-value">${boolBadge(Boolean(data.llevaPostizo || regDia.llevaPostizo))}</span></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- SECCIÓN 2: FORMULACIÓN Y BALANCE DE MATERIALES (TOLVA) -->
+        <div class="section">
+          <div class="section-header">
+            <span>2. Formulación y Balance de Materiales (Tolva)</span>
+            <span style="font-size: 9px; opacity: 0.85;">DOSIFICACIÓN TOTAL: 100%</span>
+          </div>
+          <div class="section-content">
+            <div class="grid-3" style="margin-bottom: 8px;">
+              <div class="form-card" style="border-left: 3px solid #0284c7; text-align: left;">
+                <span class="form-title">Material Recuperado / Molido</span>
+                <div class="form-percent" style="color: #0284c7;">${v(data.molido, '%')}</div>
+              </div>
+              <div class="form-card" style="border-left: 3px solid #059669; text-align: left;">
+                <span class="form-title">Peletizado Asignado</span>
+                <div style="font-size: 10px; font-weight: 800; color: #0f172a; margin-top: 2px;">${data.peletizado?.nombre || (data.peletizadoId ? 'Peletizado Asignado' : 'Ninguno')}</div>
+                <div class="form-percent" style="color: #059669; font-size: 11px;">${v(data.peletizadoPorcentaje, '%')}</div>
+              </div>
+              <div class="form-card" style="border-left: 3px solid #6366f1; text-align: left;">
+                <span class="form-title">Resinas Vírgenes Base</span>
+                <div style="font-size: 9px; font-weight: 700; color: #334155; margin-top: 2px;">
+                  ${[
+                    { k: 'form3003', l: '3003' }, { k: 'formLineal', l: 'Lineal' },
+                    { k: 'formFB7000', l: 'FB7000' }, { k: 'form0240', l: '0240' },
+                    { k: 'form0348', l: '0348' }, { k: 'form7000F', l: '7000F' }
+                  ].filter(r => data[r.k] && Number(data[r.k]) > 0).map(r => `${r.l}: ${data[r.k]}%`).join(' | ') || 'No configuradas'}
+                </div>
+              </div>
+            </div>
+
+            <!-- Aditivos y Pigmentos -->
+            <div style="padding-top: 6px; border-top: 1px dashed #e2e8f0;">
+              <span class="data-label" style="margin-bottom: 4px; display: block;">Aditivos y Pigmentos Activos (% Adicional):</span>
+              <div style="display: flex; gap: 8px; flex-wrap: wrap;">
                 ${[
-                  {k: 'molido', l: 'Molido'}, {k: 'formFB7000', l: 'FB7000'}, {k: 'form3003', l: '3003'}, {k: 'formLineal', l: 'Lineal'}, {k: 'form0240', l: '0240'},
-                  {k: 'form0348', l: '0348'}, {k: 'form7000F', l: '7000F'}, {k: 'formDeslizante', l: 'Deslizante'}, {k: 'formMasterbachBlanco', l: 'MB Blanco'}
-                ].map(f => data[f.k] ? `
-                  <div class="form-tag"><span class="form-label">${f.l}</span><span class="form-val">${data[f.k]}%</span></div>
-                ` : '').join('')}
+                  { k: 'formDeslizante', l: 'Deslizante' },
+                  { k: 'formMasterbachBlanco', l: 'MB Blanco' },
+                  { k: 'formMasterbachNegro', l: 'MB Negro' },
+                  { k: 'formMasterbachAzul', l: 'MB Azul' },
+                  { k: 'formMasterbachAmarillo', l: 'MB Amarillo' },
+                ].filter(a => data[a.k] && Number(data[a.k]) > 0).map(a => `
+                  <div style="background: #f1f5f9; border: 1px solid #cbd5e1; border-radius: 4px; padding: 3px 8px; font-size: 9px;">
+                    <span style="color: #475569; font-weight: 600;">${a.l}:</span> 
+                    <strong style="color: #0f172a;">${data[a.k]}%</strong>
+                  </div>
+                `).join('') || '<span style="color: #94a3b8; font-style: italic;">Sin aditivos ni masterbatch configurados.</span>'}
               </div>
             </div>
           </div>
         </div>
 
+        <!-- SECCIÓN 3: ESPECIFICACIONES DE EXTRUSIÓN Y SERIGRAFÍA -->
         <div class="section">
-          <div class="section-header">Parámetros de Extrusión</div>
-          <div class="section-content grid-4">
-            <div class="data-item"><span class="data-label">Máquina</span><span class="data-value">${data.extMaquinaExtrusora || '-'}</span></div>
-            <div class="data-item"><span class="data-label">Diám. Cabezal</span><span class="data-value">${data.extDiametroCabezal ? data.extDiametroCabezal + ' mm' : '-'}</span></div>
-            <div class="data-item"><span class="data-label">Temp. Ambiente</span><span class="data-value">${data.extTemperaturaAmbiente ? data.extTemperaturaAmbiente + ' °C' : '-'}</span></div>
-            <div class="data-item"><span class="data-label">Motor Principal</span><span class="data-value">${data.extMotorPrincipal || '-'}</span></div>
-            
-            <div class="data-item"><span class="data-label">Tracción</span><span class="data-value">${data.extTraccion || '-'}</span></div>
-            <div class="data-item"><span class="data-label">Soplador</span><span class="data-value">${data.extSopladorPrincipal || '-'}</span></div>
-            <div class="data-item"><span class="data-label">Abertura Blower</span><span class="data-value">${data.extAberturaBlower || '-'}</span></div>
-            <div class="data-item"><span class="data-label">Cuello Globo</span><span class="data-value">${data.extCuelloGlobo || '-'}</span></div>
-            
-            <div class="data-item"><span class="data-label">Temp. Cuello</span><span class="data-value">${data.extTemperaturaCuelloGlobo ? data.extTemperaturaCuelloGlobo + ' °C' : '-'}</span></div>
-            <div class="data-item"><span class="data-label">Tracción Rebob.</span><span class="data-value">${data.extTraccionRebobinador || '-'}</span></div>
-            <div class="data-item"><span class="data-label">Winding 1</span><span class="data-value">${data.extRebobinadorWinding1 || '-'}</span></div>
-            <div class="data-item"><span class="data-label">Winding 2</span><span class="data-value">${data.extRebobinadorWinding2 || '-'}</span></div>
-            
-            <div class="data-item"><span class="data-label">Intens. Tratador</span><span class="data-value">${data.extIntensidadTratador || '-'}</span></div>
-            <div class="data-item"><span class="data-label">Flujo Blower</span><span class="data-value">${data.extOrientacionFlujoBlower || '-'}</span></div>
-            <div class="data-item"><span class="data-label">Blower Interno</span><span class="data-value">${data.extOrientacionFlujoBlowerInterno || '-'}</span></div>
-            <div class="data-item"><span class="data-label">Blower Externo</span><span class="data-value">${data.extOrientacionFlujoBlowerExterno || '-'}</span></div>
+          <div class="section-header">
+            <span>3. Especificaciones de Extrusión y Serigrafía</span>
+            <span style="font-size: 9px; opacity: 0.85;">PARÁMETROS DE CABEZAL Y TRATAMIENTO</span>
           </div>
-          
-          <div style="padding: 15px; border-top: 1px solid #e2e8f0; background: #f8fafc;">
-            <p class="data-label" style="margin-bottom: 10px; color: #1e40af;">Control de Temperaturas por Zona (°C)</p>
-            <div style="display: grid; grid-template-columns: repeat(10, 1fr); gap: 5px;">
-              ${Array.from({length: 20}, (_, i) => i + 1).map(i => `
-                <div style="border: 1px solid #e2e8f0; background: #fff; padding: 4px; border-radius: 4px; text-align: center;">
-                  <span style="font-size: 7px; color: #64748b; display: block; font-weight: 800;">Z${i}</span>
-                  <span style="font-size: 10px; font-weight: 700; color: #1e293b;">${data[`extTemperaturaZ${i}`] || '-'}</span>
-                </div>
-              `).join('')}
+          <div class="section-content">
+            <div class="grid-4" style="margin-bottom: 8px;">
+              <div class="data-item"><span class="data-label">Máquina Extrusora</span><span class="data-value">${v(data.extMaquinaExtrusora)}</span></div>
+              <div class="data-item"><span class="data-label">Diámetro Cabezal</span><span class="data-value">${v(data.extDiametroCabezal, 'mm')}</span></div>
+              <div class="data-item"><span class="data-label">Temp. Ambiente Ext.</span><span class="data-value">${v(data.extTemperaturaAmbiente, '°C')}</span></div>
+              <div class="data-item"><span class="data-label">Motor Principal</span><span class="data-value">${v(data.extMotorPrincipal)}</span></div>
             </div>
+
+            <div class="grid-4" style="margin-bottom: 8px; padding-top: 6px; border-top: 1px dashed #e2e8f0;">
+              <div class="data-item"><span class="data-label">Tracción</span><span class="data-value">${v(data.extTraccion)}</span></div>
+              <div class="data-item"><span class="data-label">Soplador Principal</span><span class="data-value">${v(data.extSopladorPrincipal)}</span></div>
+              <div class="data-item"><span class="data-label">Abertura Blower</span><span class="data-value">${v(data.extAberturaBlower)}</span></div>
+              <div class="data-item"><span class="data-label">Cuello Globo / Temp</span><span class="data-value">${v(data.extCuelloGlobo)} (${v(data.extTemperaturaCuelloGlobo, '°C')})</span></div>
+            </div>
+
+            <div class="grid-4" style="margin-bottom: 8px; padding-top: 6px; border-top: 1px dashed #e2e8f0;">
+              <div class="data-item"><span class="data-label">Tracción Rebobinador</span><span class="data-value">${v(data.extTraccionRebobinador)}</span></div>
+              <div class="data-item"><span class="data-label">Winding 1 / Winding 2</span><span class="data-value">${v(data.extRebobinadorWinding1)} / ${v(data.extRebobinadorWinding2)}</span></div>
+              <div class="data-item"><span class="data-label">Tratador Corona Ext.</span><span class="data-value">${v(data.extIntensidadTratador || data.intensidadTratador)}</span></div>
+              <div class="data-item"><span class="data-label">Flujo Blower</span><span class="data-value">${v(data.extOrientacionFlujoBlower)}</span></div>
+            </div>
+
+            <!-- Perfil Térmico Extrusión Z1 a Z20 -->
+            <div style="margin-top: 6px; padding-top: 6px; border-top: 1px dashed #e2e8f0;">
+              <span class="data-label" style="color: #1d4ed8;">Perfil Térmico de Zonas de Extrusión (°C):</span>
+              <div class="zones-grid">
+                ${Array.from({ length: 20 }, (_, i) => i + 1).map(i => `
+                  <div class="zone-box">
+                    <span class="zone-name">Z${i}</span>
+                    <span class="zone-val">${data[`extTemperaturaZ${i}`] || '-'}</span>
+                  </div>
+                `).join('')}
+              </div>
+            </div>
+
+            <!-- Serigrafía (si aplica) -->
+            ${data.conImpresion ? `
+              <div style="margin-top: 8px; padding-top: 8px; border-top: 1px solid #cbd5e1;">
+                <span class="data-label" style="color: #0f172a; margin-bottom: 4px; display: block;">Detalle de Serigrafía e Impresión:</span>
+                <div class="grid-4" style="margin-bottom: 6px;">
+                  <div class="data-item"><span class="data-label">Tipo de Impresión</span><span class="data-value">${v(data.tipoImpresion)}</span></div>
+                  <div class="data-item"><span class="data-label">Desarrollo Cilindro</span><span class="data-value highlight">${v(data.cilindro, 'cm')}</span></div>
+                  <div class="data-item"><span class="data-label">Repeticiones Imagen</span><span class="data-value">${v(data.repeticionesImagen)}</span></div>
+                  <div class="data-item"><span class="data-label">Tratador Serigrafía</span><span class="data-value">${v(data.serigrafiaTratadorIntensidad)}</span></div>
+                </div>
+                <div class="data-item">
+                  <span class="data-label">Colores de Tinta:</span>
+                  <div style="display: flex; gap: 6px; flex-wrap: wrap; margin-top: 2px;">
+                    ${[1, 2, 3, 4, 5, 6].filter(i => data[`color${i}`]).map(i => `
+                      <span style="background: #f8fafc; border: 1px solid #cbd5e1; padding: 2px 6px; border-radius: 4px; font-size: 8.5px; font-weight: 700;">
+                        C${i}: ${data[`color${i}`]}
+                      </span>
+                    `).join('') || '<span style="color: #94a3b8;">No especificados</span>'}
+                  </div>
+                </div>
+              </div>
+            ` : ''}
           </div>
         </div>
 
-        <div class="footer-info">
-          Este documento es propiedad de ERP INDUSTRIAL. La información contenida es confidencial y para uso técnico exclusivo.<br>
-          Generado automáticamente por el Sistema de Gestión ERP el ${format(new Date(), 'dd/MM/yyyy HH:mm')}
+        <!-- SECCIÓN 4: PARÁMETROS TÉCNICOS DE SELLADO (DÍA vs TARDE) -->
+        <div class="section no-break">
+          <div class="section-header">
+            <span>4. Parámetros Técnicos de Sellado (Comparativa de Turnos)</span>
+            <span style="font-size: 9px; opacity: 0.85;">TURNO DÍA ☀️ vs TURNO TARDE 🌙</span>
+          </div>
+          <div class="section-content" style="padding: 0;">
+            <table class="table-sellado">
+              <thead>
+                <tr>
+                  <th style="text-align: left; width: 50%;">Parámetro Técnico de Fabricación</th>
+                  <th class="dia-header">Turno Día ☀️</th>
+                  <th class="tarde-header">Turno Tarde 🌙</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr class="table-subheading"><td colspan="3">1. Control de Temperaturas (°C)</td></tr>
+                <tr><td>Temperatura Superior (°C)</td><td class="center">${v(regDia.temperaturaSuperior)}</td><td class="center">${v(regTarde.temperaturaSuperior)}</td></tr>
+                <tr><td>Temperatura Inferior (°C)</td><td class="center">${v(regDia.temperaturaInferior)}</td><td class="center">${v(regTarde.temperaturaInferior)}</td></tr>
+                <tr><td>Temperatura Válvula (°C)</td><td class="center">${v(regDia.temperaturaValvula)}</td><td class="center">${v(regTarde.temperaturaValvula)}</td></tr>
+                <tr><td>Temperatura Cuchilla (°C)</td><td class="center">${v(regDia.temperaturaCuchilla)}</td><td class="center">${v(regTarde.temperaturaCuchilla)}</td></tr>
+                <tr><td>Temperatura Presellado A (°C)</td><td class="center">${v(regDia.preselladoA)}</td><td class="center">${v(regTarde.preselladoA)}</td></tr>
+                <tr><td>Temperatura Presellado B (°C)</td><td class="center">${v(regDia.preselladoB)}</td><td class="center">${v(regTarde.preselladoB)}</td></tr>
+                <tr><td>Temperatura Ambiente en Máquina (°C)</td><td class="center">${v(regDia.temperaturaAmbiente)}</td><td class="center">${v(regTarde.temperaturaAmbiente)}</td></tr>
+
+                <tr class="table-subheading"><td colspan="3">2. Tiempos, Accesorios y Operación</td></tr>
+                <tr><td>Tiempo Límite / Tiempo Soldador (ms)</td><td class="center">${v(regDia.tiempoLimite)}</td><td class="center">${v(regTarde.tiempoLimite)}</td></tr>
+                <tr><td>Microperforaciones</td><td class="center">${v(regDia.microperforaciones)}</td><td class="center">${v(regTarde.microperforaciones)}</td></tr>
+                <tr><td>Muleteado</td><td class="center">${v(regDia.muleteado)}</td><td class="center">${v(regTarde.muleteado)}</td></tr>
+                <tr><td>Presión de Troquel de Válvula (PSI)</td><td class="center">${v(regDia.presionTroquelValvula)}</td><td class="center">${v(regTarde.presionTroquelValvula)}</td></tr>
+
+                <tr class="table-subheading"><td colspan="3">3. Velocidades, Balancines y Presiones</td></tr>
+                <tr><td>Velocidad de Máquina (GPM) | Ciclo de Trabajo (%)</td><td class="center">${v(regDia.gpm)} GPM | ${v(regDia.cicloTrabajo)}%</td><td class="center">${v(regTarde.gpm)} GPM | ${v(regTarde.cicloTrabajo)}%</td></tr>
+                <tr><td>Velocidad Transportador / Banda (cm)</td><td class="center">${v(regDia.velocidadTransportador)}</td><td class="center">${v(regTarde.velocidadTransportador)}</td></tr>
+                <tr><td>Rodillo Ancho Válvula (cm)</td><td class="center">${v(regDia.rodilloAnchoValvula)}</td><td class="center">${v(regTarde.rodilloAnchoValvula)}</td></tr>
+                <tr><td>Presión Balancín 1 | Balancín 2 | Balancín 3 (bar)</td><td class="center">${v(regDia.presionBalancin1)} / ${v(regDia.presionBalancin2)} / ${v(regDia.presionBalancin3)}</td><td class="center">${v(regTarde.presionBalancin1)} / ${v(regTarde.presionBalancin2)} / ${v(regTarde.presionBalancin3)}</td></tr>
+                <tr><td>Presión Soplado Arriba | Abajo (bar)</td><td class="center">${v(regDia.presionSopladoArriba)} / ${v(regDia.presionSopladoAbajo)}</td><td class="center">${v(regTarde.presionSopladoArriba)} / ${v(regTarde.presionSopladoAbajo)}</td></tr>
+                <tr><td>Presión Rodillo Servo L | Servo R (bar)</td><td class="center">${v(regDia.presionRodilloServoL)} / ${v(regDia.presionRodilloServoR)}</td><td class="center">${v(regTarde.presionRodilloServoL)} / ${v(regTarde.presionRodilloServoR)}</td></tr>
+                <tr><td>Soplar Inicio | Soplar Terminar</td><td class="center">${v(regDia.soplarInicio)} / ${v(regDia.soplarTerminar)}</td><td class="center">${v(regTarde.soplarInicio)} / ${v(regTarde.soplarTerminar)}</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- SECCIÓN 5: AJUSTES MECÁNICOS, FUELLES Y GEOMETRÍA DE VÁLVULA -->
+        <div class="section no-break">
+          <div class="section-header">
+            <span>5. Ajustes Mecánicos, Fuelles y Geometría de Válvula</span>
+            <span style="font-size: 9px; opacity: 0.85;">CALIBRACIÓN Y REGLAJES DE MÁQUINA</span>
+          </div>
+          <div class="section-content">
+            <!-- Alturas y Sensores -->
+            <div class="grid-4" style="margin-bottom: 8px;">
+              <div class="data-item"><span class="data-label">Altura Cabezal Ext. Der.</span><span class="data-value">${v(regDia.alturaCabezalExtDerecho ?? data.alturaCabezalExtDerecho, 'cm')}</span></div>
+              <div class="data-item"><span class="data-label">Altura Cabezal Ext. Izq.</span><span class="data-value">${v(regDia.alturaCabezalExtIzquierdo ?? data.alturaCabezalExtIzquierdo, 'cm')}</span></div>
+              <div class="data-item"><span class="data-label">Banda Transportadora</span><span class="data-value">${v(regDia.bandaTransportadora ?? data.bandaTransportadora, 'cm')}</span></div>
+              <div class="data-item"><span class="data-label">Medida Portabobina</span><span class="data-value">${v(regDia.medidaPortabobina ?? data.medidaPortabobina, 'cm')}</span></div>
+            </div>
+
+            <div class="grid-4" style="margin-bottom: 8px; padding-top: 6px; border-top: 1px dashed #e2e8f0;">
+              <div class="data-item"><span class="data-label">Ajuste Sensor Fail</span><span class="data-value">${v(regDia.ajusteSensorFail ?? data.ajusteSensorFail)}</span></div>
+              <div class="data-item"><span class="data-label">Ángulo Alimentación Bolsa</span><span class="data-value">${v(regDia.feedingBagAngle ?? data.feedingBagAngle, '°')}</span></div>
+              <div class="data-item"><span class="data-label">Dist. Sensor Registro Color</span><span class="data-value">${v(regDia.distanciaSensorRegistroColor ?? data.distanciaSensorRegistroColor, 'cm')}</span></div>
+              <div class="data-item"><span class="data-label">Dist. Sensor Movimiento / Presell.</span><span class="data-value">${v(regDia.distanciaSensorMovimiento ?? data.distanciaSensorMovimiento, 'cm')} / ${v(regDia.distanciaPresellado ?? data.distanciaPresellado, 'cm')}</span></div>
+            </div>
+
+            <!-- Medidas de Fuelles y Fondos -->
+            <div class="grid-4" style="margin-bottom: 8px; padding-top: 6px; border-top: 1px dashed #e2e8f0;">
+              <div class="data-item"><span class="data-label">Ancho Válvula / Solapa</span><span class="data-value highlight">${v(data.anchoValvula, 'cm')} / ${v(data.anchoSolapa, 'cm')}</span></div>
+              <div class="data-item"><span class="data-label">Fuelle Sup. (Izq / Der)</span><span class="data-value">${v(regDia.fuelleSuperiorIzquierdo ?? data.fuelleSuperiorIzquierdo, 'cm')} / ${v(regDia.fuelleSuperiorDerecho ?? data.fuelleSuperiorDerecho, 'cm')}</span></div>
+              <div class="data-item"><span class="data-label">Fuelle Inf. (Izq / Der)</span><span class="data-value">${v(regDia.fuelleInferiorIzquierdo ?? data.fuelleInferiorIzquierdo, 'cm')} / ${v(regDia.fuelleInferiorDerecho ?? data.fuelleInferiorDerecho, 'cm')}</span></div>
+              <div class="data-item"><span class="data-label">Bolsa Después Triángulo / Long.</span><span class="data-value">${v(regDia.anchoBolsaDespuesTriangulo ?? data.anchoBolsaDespuesTriangulo, 'cm')} / ${v(regDia.longitudBolsa ?? data.longitudBolsa, 'cm')}</span></div>
+            </div>
+
+            <!-- Tornillería y Calibración -->
+            <div class="grid-4" style="padding-top: 6px; border-top: 1px dashed #e2e8f0;">
+              <div class="data-item"><span class="data-label">Tornillo Espárrago</span><span class="data-value">${v(regDia.tornilloEsparrago ?? data.tornilloEsparrago)}</span></div>
+              <div class="data-item"><span class="data-label">Amortiguador Cabezal (A, B, C)</span><span class="data-value">${v(regDia.tornilloAmortiguadorCabezalA ?? data.tornilloAmortiguadorCabezalA)} / ${v(regDia.tornilloAmortiguadorCabezalB ?? data.tornilloAmortiguadorCabezalB)} / ${v(regDia.tornilloAmortiguadorCabezalC ?? data.tornilloAmortiguadorCabezalC)}</span></div>
+              <div class="data-item"><span class="data-label">Mov. Horiz. Cabezal Der (D/I)</span><span class="data-value">${v(regDia.tornilloDerMovHorizCabezalDer ?? data.tornilloDerMovHorizCabezalDer)} / ${v(regDia.tornilloIzqMovHorizCabezalDer ?? data.tornilloIzqMovHorizCabezalDer)}</span></div>
+              <div class="data-item"><span class="data-label">Mov. Horiz. Cabezal Izq (D/I)</span><span class="data-value">${v(regDia.tornilloDerMovHorizCabezalIzq ?? data.tornilloDerMovHorizCabezalIzq)} / ${v(regDia.tornilloIzqMovHorizCabezalIzq ?? data.tornilloIzqMovHorizCabezalIzq)}</span></div>
+            </div>
+
+            ${(data.tipoBolsa === 'asa' || data.esBolsaASA) ? `
+              <div class="grid-3" style="margin-top: 6px; padding-top: 6px; border-top: 1px dashed #e2e8f0;">
+                <div class="data-item"><span class="data-label">Fuelle ASA</span><span class="data-value">${v(data.fuelleASA, 'cm')}</span></div>
+                <div class="data-item"><span class="data-label">Ancho Troquel ASA</span><span class="data-value">${v(data.anchoTroquelASA, 'cm')}</span></div>
+                <div class="data-item"><span class="data-label">Largo Troquel ASA</span><span class="data-value">${v(data.largoTroquelASA, 'cm')}</span></div>
+              </div>
+            ` : ''}
+          </div>
+        </div>
+
+        <!-- FIRMAS Y PIE TÉCNICO -->
+        <div style="margin-top: 14px; page-break-inside: avoid; break-inside: avoid;">
+          <table style="width: 100%; border-collapse: collapse; text-align: center; margin-bottom: 8px;">
+            <tr>
+              <td style="width: 33%; padding: 12px; border: 1px solid #cbd5e1; background: #fafafa;">
+                <div style="height: 30px;"></div>
+                <div style="border-top: 1px solid #0f172a; padding-top: 4px; font-weight: 800; font-size: 8.5px;">SUPERVISOR DE PRODUCCIÓN</div>
+              </td>
+              <td style="width: 33%; padding: 12px; border: 1px solid #cbd5e1; background: #fafafa;">
+                <div style="height: 30px;"></div>
+                <div style="border-top: 1px solid #0f172a; padding-top: 4px; font-weight: 800; font-size: 8.5px;">CONTROL DE CALIDAD</div>
+              </td>
+              <td style="width: 33%; padding: 12px; border: 1px solid #cbd5e1; background: #fafafa;">
+                <div style="height: 30px;"></div>
+                <div style="border-top: 1px solid #0f172a; padding-top: 4px; font-weight: 800; font-size: 8.5px;">OPERARIO DE MÁQUINA</div>
+              </td>
+            </tr>
+          </table>
+          <div class="footer-info">
+            Este documento es propiedad confidencial de ERP INDUSTRIAL. Prohibida su reproducción sin autorización.<br>
+            Generado automáticamente por el Sistema de Gestión Industrial el ${format(new Date(), 'dd/MM/yyyy HH:mm')}
+          </div>
         </div>
         
         </body></html>
       `;
+    }
 
     default:
       return '<html><body><h1>Tipo de reporte no válido</h1></body></html>';
