@@ -1413,10 +1413,10 @@ export default function ReportesPage() {
                               </span>
                             </div>
                             <p className="text-[10px] font-bold text-amber-600 dark:text-amber-400 mt-1">
-                              {previewData.consolidadoCategorias?.productoTerminado?.cantidadLotes > 0
-                                ? `${previewData.consolidadoCategorias.productoTerminado.cantidadLotes} ${previewData.consolidadoCategorias.productoTerminado.cantidadLotes === 1 ? 'lote listo' : 'lotes listos'} para despacho`
-                                : previewData.consolidadoCategorias?.productoTerminado?.totalUnidades > 0
-                                  ? `${previewData.consolidadoCategorias.productoTerminado.totalUnidades.toLocaleString('es-VE')} unidades disponibles`
+                              {previewData.consolidadoCategorias?.productoTerminado?.totalUnidades > 0
+                                ? `${Number(previewData.consolidadoCategorias.productoTerminado.totalUnidades).toLocaleString('es-VE')} Unidades listas para despacho`
+                                : previewData.consolidadoCategorias?.productoTerminado?.cantidadLotes > 0
+                                  ? `${previewData.consolidadoCategorias.productoTerminado.cantidadLotes} ${previewData.consolidadoCategorias.productoTerminado.cantidadLotes === 1 ? 'lote listo' : 'lotes listos'} para despacho`
                                   : '0 lotes listos para despacho'}
                             </p>
                           </div>

@@ -458,9 +458,11 @@ export async function getReporteInventario(filtros: FiltrosReporteInventario = {
         unidades: Math.round(und),
         isKg,
         unidad: isKg ? 'KG' : 'UND',
-        stockFisico: isKg 
-          ? `${pesoKg.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} KG`
-          : `${Math.round(und).toLocaleString('es-VE')} UND`,
+        stockFisico: und > 0 && pesoKg > 0
+          ? `${Math.round(und).toLocaleString('es-VE')} UND (${pesoKg.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} KG)`
+          : isKg
+            ? `${pesoKg.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} KG`
+            : `${Math.round(und).toLocaleString('es-VE')} UND`,
         estado: p.estado === 'ListoDespacho' ? 'Listo para Despacho' : p.estado,
         fechaIngreso: format(new Date(p.createdAt), 'dd/MM/yyyy'),
         createdAt: p.createdAt,

@@ -478,9 +478,11 @@ const generateHTML = (tipo: string, data: any, periodo: { inicio: string; fin: s
                 </tr>
                 <tr>
                   <td><strong>Producto Terminado</strong></td>
-                  <td class="text-right"><strong>${(cat.productoTerminado?.totalKg || 0) > 0 
-                    ? `${Number(cat.productoTerminado.totalKg).toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} KG` 
-                    : `${Number(cat.productoTerminado?.totalUnidades || 0).toLocaleString('es-VE')} UND`}</strong></td>
+                  <td class="text-right"><strong>${(cat.productoTerminado?.totalKg || 0) > 0 && (cat.productoTerminado?.totalUnidades || 0) > 0
+                    ? `${Number(cat.productoTerminado.totalKg).toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} KG (${Number(cat.productoTerminado.totalUnidades).toLocaleString('es-VE')} UND)`
+                    : (cat.productoTerminado?.totalKg || 0) > 0 
+                      ? `${Number(cat.productoTerminado.totalKg).toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} KG` 
+                      : `${Number(cat.productoTerminado?.totalUnidades || 0).toLocaleString('es-VE')} UND`}</strong></td>
                   <td class="text-center">${cat.productoTerminado?.cantidadLotes || cat.productoTerminado?.itemsCount || 0} ${(cat.productoTerminado?.cantidadLotes || cat.productoTerminado?.itemsCount || 0) === 1 ? 'artículo/lote' : 'artículos/lotes'}</td>
                   <td class="text-center"><span class="badge badge-success">LISTO DESPACHO</span></td>
                   <td style="font-size: 8px; color: #475569;">Lotes en almacén listos para despacho a clientes</td>
@@ -667,7 +669,7 @@ const generateHTML = (tipo: string, data: any, periodo: { inicio: string; fin: s
 
             <!-- Subtabla Producto Terminado (Lotes en Almacén / Listos para Despacho) -->
             <div style="background: #e2e8f0; padding: 4px 8px; font-weight: 800; font-size: 8px; text-transform: uppercase; color: #1e3a8a; border-top: 1px solid #cbd5e1;">
-              4.4 PRODUCTO TERMINADO (LOTES EN ALMACÉN / LISTOS PARA DESPACHO) (${lotesPt.length} ${lotesPt.length === 1 ? 'Lote' : 'Lotes'})
+              4.4 PRODUCTO TERMINADO - LOTES EN ALMACÉN (${lotesPt.length} ${lotesPt.length === 1 ? 'Lote' : 'Lotes'})
             </div>
             <table class="report-table">
               <thead>
@@ -684,7 +686,7 @@ const generateHTML = (tipo: string, data: any, periodo: { inicio: string; fin: s
                   <tr>
                     <td><strong>${l.lote || l.codigoLote}</strong></td>
                     <td><strong>${l.productoCliente || `${l.producto} - ${l.cliente}`}</strong></td>
-                    <td class="text-right"><strong>${l.stockFisico || (l.pesoKg > 0 ? `${Number(l.pesoKg).toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} KG` : `${Number(l.cantidad).toLocaleString('es-VE')} UND`)}</strong></td>
+                    <td class="text-right"><strong>${l.stockFisico || (l.unidades > 0 && l.pesoKg > 0 ? `${Number(l.unidades).toLocaleString('es-VE')} UND (${Number(l.pesoKg).toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} KG)` : l.pesoKg > 0 ? `${Number(l.pesoKg).toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} KG` : `${Number(l.cantidad).toLocaleString('es-VE')} UND`)}</strong></td>
                     <td class="text-center">${l.fechaIngreso || (l.createdAt ? format(new Date(l.createdAt), 'dd/MM/yyyy') : '-')}</td>
                     <td class="text-center"><span class="badge badge-success">${l.estado || 'Listo para Despacho'}</span></td>
                   </tr>
