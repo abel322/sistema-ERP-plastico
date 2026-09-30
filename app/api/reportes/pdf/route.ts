@@ -329,6 +329,7 @@ const generateHTML = (tipo: string, data: any, periodo: { inicio: string; fin: s
       const listPelet = inventarios.filter((i: any) => i.categoria === 'Peletizado');
       const listAdit = inventarios.filter((i: any) => i.categoria === 'Aditivo');
       const listPt = inventarios.filter((i: any) => i.categoria === 'ProductoTerminado');
+      const lotesPt = cat.productoTerminado?.desgloseLotes || [];
 
       return `
         <!DOCTYPE html><html><head>
@@ -477,10 +478,12 @@ const generateHTML = (tipo: string, data: any, periodo: { inicio: string; fin: s
                 </tr>
                 <tr>
                   <td><strong>Producto Terminado</strong></td>
-                  <td class="text-right"><strong>${(cat.productoTerminado?.totalKg || 0) > 0 ? `${cat.productoTerminado.totalKg.toLocaleString()} KG` : `${(cat.productoTerminado?.totalUnidades || 0).toLocaleString()} UND`}</strong></td>
-                  <td class="text-center">${cat.productoTerminado?.itemsCount || 0}</td>
-                  <td class="text-center"><span class="badge badge-neutral">ALMACÉN PT</span></td>
-                  <td style="font-size: 8px; color: #475569;">Bolsas y Bobinas terminadas para despacho</td>
+                  <td class="text-right"><strong>${(cat.productoTerminado?.totalKg || 0) > 0 
+                    ? `${Number(cat.productoTerminado.totalKg).toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} KG` 
+                    : `${Number(cat.productoTerminado?.totalUnidades || 0).toLocaleString('es-VE')} UND`}</strong></td>
+                  <td class="text-center">${cat.productoTerminado?.cantidadLotes || cat.productoTerminado?.itemsCount || 0} ${(cat.productoTerminado?.cantidadLotes || cat.productoTerminado?.itemsCount || 0) === 1 ? 'artículo/lote' : 'artículos/lotes'}</td>
+                  <td class="text-center"><span class="badge badge-success">LISTO DESPACHO</span></td>
+                  <td style="font-size: 8px; color: #475569;">Lotes en almacén listos para despacho a clientes</td>
                 </tr>
               </tbody>
             </table>
@@ -659,6 +662,37 @@ const generateHTML = (tipo: string, data: any, periodo: { inicio: string; fin: s
                     <td class="text-center"><span class="badge badge-success">${i.estadoStock}</span></td>
                   </tr>
                 `).join('')}
+              </tbody>
+            </table>
+
+            <!-- Subtabla Producto Terminado (Lotes en Almacén / Listos para Despacho) -->
+            <div style="background: #e2e8f0; padding: 4px 8px; font-weight: 800; font-size: 8px; text-transform: uppercase; color: #1e3a8a; border-top: 1px solid #cbd5e1;">
+              4.4 PRODUCTO TERMINADO (LOTES EN ALMACÉN / LISTOS PARA DESPACHO) (${lotesPt.length} ${lotesPt.length === 1 ? 'Lote' : 'Lotes'})
+            </div>
+            <table class="report-table">
+              <thead>
+                <tr>
+                  <th style="width: 22%;">LOTE</th>
+                  <th style="width: 38%;">PRODUCTO / CLIENTE</th>
+                  <th class="text-right" style="width: 16%;">STOCK FÍSICO (KG / UND)</th>
+                  <th class="text-center" style="width: 12%;">FECHA INGRESO</th>
+                  <th class="text-center" style="width: 12%;">ESTADO</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${lotesPt.length > 0 ? lotesPt.map((l: any) => `
+                  <tr>
+                    <td><strong>${l.lote || l.codigoLote}</strong></td>
+                    <td><strong>${l.productoCliente || `${l.producto} - ${l.cliente}`}</strong></td>
+                    <td class="text-right"><strong>${l.stockFisico || (l.pesoKg > 0 ? `${Number(l.pesoKg).toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} KG` : `${Number(l.cantidad).toLocaleString('es-VE')} UND`)}</strong></td>
+                    <td class="text-center">${l.fechaIngreso || (l.createdAt ? format(new Date(l.createdAt), 'dd/MM/yyyy') : '-')}</td>
+                    <td class="text-center"><span class="badge badge-success">${l.estado || 'Listo para Despacho'}</span></td>
+                  </tr>
+                `).join('') : `
+                  <tr>
+                    <td colspan="5" class="text-center" style="padding: 8px; color: #64748b;">No hay lotes de producto terminado registrados en este período.</td>
+                  </tr>
+                `}
               </tbody>
             </table>
           </div>

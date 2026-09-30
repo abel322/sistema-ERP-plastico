@@ -348,13 +348,21 @@ export async function getReporteInventario(filtros: FiltrosReporteInventario = {
 
     const fechaFiltro: any = {};
     if (fInicio) {
-      fechaFiltro.gte = new Date(`${fInicio}T00:00:00.000Z`);
+      const inicio = new Date(fInicio);
+      inicio.setHours(0, 0, 0, 0);
+      const utcInicio = new Date(`${fInicio}T00:00:00.000Z`);
+      fechaFiltro.gte = new Date(Math.min(inicio.getTime(), utcInicio.getTime() - 14 * 3600 * 1000));
     }
     if (fFin) {
-      fechaFiltro.lte = new Date(`${fFin}T23:59:59.999Z`);
+      const fin = new Date(fFin);
+      fin.setHours(23, 59, 59, 999);
+      // Ensure we cover up to 14 hours past UTC midnight to encompass all local timezones (e.g., UTC-4)
+      const utcFin = new Date(`${fFin}T23:59:59.999Z`);
+      const utcFinWithBuffer = new Date(utcFin.getTime() + 14 * 3600 * 1000);
+      fechaFiltro.lte = new Date(Math.max(fin.getTime(), utcFinWithBuffer.getTime()));
     }
 
-    // 1. Obtener todos los artículos de inventario
+    // 1. Obtener todos los artículos de inventario base
     const whereInventario: any = {};
     if (filtros.userId) {
       whereInventario.userId = filtros.userId;
@@ -371,12 +379,102 @@ export async function getReporteInventario(filtros: FiltrosReporteInventario = {
       ],
     });
 
-    // 2. Conteo de ítems por estado de stock
+    // 2. Consultar los lotes de Producto Terminado disponibles / listos para despacho
+    const wherePT: any = {
+      estado: { in: ['ListoDespacho', 'PendienteArea'] },
+      cantidadDisponible: { gt: 0 },
+    };
+    if (filtros.userId) {
+      wherePT.userId = filtros.userId;
+    }
+    if (fechaFiltro.lte) {
+      wherePT.createdAt = {
+        ...(fechaFiltro.gte ? { gte: fechaFiltro.gte } : {}),
+        lte: fechaFiltro.lte,
+      };
+    }
+
+    const productosTerminadosDb = await prisma.productoTerminado.findMany({
+      where: wherePT,
+      include: {
+        cliente: {
+          include: {
+            productos: true,
+          }
+        },
+        productoCliente: true,
+        produccion: {
+          include: {
+            productoCliente: true,
+          }
+        }
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    let totalKgLotesTerminados = 0;
+    let totalUndLotesTerminados = 0;
+
+    const lotesTerminadosDetallados = productosTerminadosDb.map(p => {
+      const isKg = p.unidad === 'Kilogramos' || p.tipoProducto === 'Bobina';
+      const cant = Number(p.cantidadDisponible) || 0;
+      
+      let pesoKg = 0;
+      let und = 0;
+
+      if (isKg) {
+        pesoKg = cant;
+        totalKgLotesTerminados += pesoKg;
+      } else {
+        und = cant;
+        totalUndLotesTerminados += und;
+        const pesoPorUnidadGramos = Number(p.productoCliente?.pesoPorUnidad) || 
+          Number(p.produccion?.productoCliente?.pesoPorUnidad) || 
+          Number(p.cliente?.productos?.[0]?.pesoPorUnidad) || 0;
+        if (pesoPorUnidadGramos > 0) {
+          pesoKg = (cant * pesoPorUnidadGramos) / 1000;
+          totalKgLotesTerminados += pesoKg;
+        }
+      }
+
+      // Resolver nombre de producto descriptivo
+      const nombreProducto = p.productoCliente?.nombreProducto || 
+        p.produccion?.productoCliente?.nombreProducto || 
+        p.cliente?.productos?.[0]?.nombreProducto || 
+        (p.descripcion && !p.descripcion.toLowerCase().includes('ingresado desde') ? p.descripcion : null) || 
+        (p.tipoProducto === 'Bobina' ? 'Bobina Plástica' : 'Bolsa Plástica');
+
+      const clienteNombre = p.cliente?.nombre || 'General';
+
+      return {
+        id: p.id,
+        lote: p.codigoLote || p.loteOrigen || 'S/L',
+        codigoLote: p.codigoLote || p.loteOrigen || 'S/L',
+        producto: nombreProducto,
+        cliente: clienteNombre,
+        productoCliente: `${nombreProducto} - ${clienteNombre}`,
+        cantidad: cant,
+        pesoKg: Number(pesoKg.toFixed(2)),
+        unidades: Math.round(und),
+        isKg,
+        unidad: isKg ? 'KG' : 'UND',
+        stockFisico: isKg 
+          ? `${pesoKg.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} KG`
+          : `${Math.round(und).toLocaleString('es-VE')} UND`,
+        estado: p.estado === 'ListoDespacho' ? 'Listo para Despacho' : p.estado,
+        fechaIngreso: format(new Date(p.createdAt), 'dd/MM/yyyy'),
+        createdAt: p.createdAt,
+      };
+    });
+
+    const cantidadLotes = lotesTerminadosDetallados.length;
+
+    // 3. Conteo de ítems por estado de stock
     const stockBajo = inventarios.filter(i => Number(i.cantidad) <= Number(i.stockMinimo));
     const stockOptimo = inventarios.filter(i => Number(i.cantidad) > Number(i.stockMinimo));
-    const totalItems = inventarios.length;
+    const totalItems = inventarios.length + cantidadLotes;
 
-    // 3. Valor monetario total del inventario
+    // 4. Valor monetario total del inventario
     const valorInventario = inventarios.reduce((acc, i) => {
       const costo = Number(i.costo) || 0;
       return acc + (Number(i.cantidad) * costo);
@@ -386,7 +484,7 @@ export async function getReporteInventario(filtros: FiltrosReporteInventario = {
       ? `$ ${valorInventario.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
       : '$ 0,00';
 
-    // 4. Agrupación por Categoría y Desgloses Especiales (Materia Prima, Peletizado, Aditivos, Producto Terminado)
+    // 5. Agrupación por Categoría y Desgloses Especiales (Materia Prima, Peletizado, Aditivos, Producto Terminado)
     const itemsMateriaPrima = inventarios.filter(i => i.categoria === CategoriaInventario.MateriaPrima);
     const itemsPeletizado = inventarios.filter(i => i.categoria === CategoriaInventario.Peletizado);
     const itemsAditivo = inventarios.filter(i => i.categoria === CategoriaInventario.Aditivo);
@@ -407,6 +505,9 @@ export async function getReporteInventario(filtros: FiltrosReporteInventario = {
         totalBobinasTerminadasKg += cant;
       }
     });
+
+    const totalKgTerminado = totalBobinasTerminadasKg + totalKgLotesTerminados;
+    const totalUndTerminado = totalBolsasTerminadas + totalUndLotesTerminados;
 
     // Molidos 1 al 5 en Peletizado
     const molidosDetalle = [
@@ -464,11 +565,12 @@ export async function getReporteInventario(filtros: FiltrosReporteInventario = {
       {
         categoria: 'Producto Terminado',
         categoriaKey: CategoriaInventario.ProductoTerminado,
-        items: itemsProductoTerminado.length,
-        stockTotal: totalBobinasTerminadasKg > 0 ? totalBobinasTerminadasKg : totalBolsasTerminadas,
-        unidad: totalBobinasTerminadasKg > 0 ? 'Kg' : 'Und',
+        items: itemsProductoTerminado.length + cantidadLotes,
+        stockTotal: totalKgTerminado > 0 ? totalKgTerminado : totalUndTerminado,
+        unidad: totalKgTerminado > 0 ? 'Kg' : 'Und',
         valorTotal: itemsProductoTerminado.reduce((acc, i) => acc + (Number(i.cantidad) * (Number(i.costo) || 0)), 0),
         stockBajo: itemsProductoTerminado.filter(i => Number(i.cantidad) <= Number(i.stockMinimo)).length,
+        cantidadLotes,
       },
     ];
 
@@ -567,8 +669,8 @@ export async function getReporteInventario(filtros: FiltrosReporteInventario = {
     const balanceNeto = totalKilosEntrantes - totalKilosSalientes;
     const totalMovimientos = movimientosDb.length;
 
-    // 7. Todos los artículos serializados para listados
-    const inventariosListado = inventarios.map(i => ({
+    // 7. Todos los artículos serializados para listados (incluyendo lotes de producto terminado)
+    const inventariosListadoBase = inventarios.map(i => ({
       id: i.id,
       nombre: i.nombre,
       codigo: i.codigo,
@@ -589,13 +691,32 @@ export async function getReporteInventario(filtros: FiltrosReporteInventario = {
           : 'Óptimo',
     }));
 
+    const lotesListadoParaInventarios = lotesTerminadosDetallados.map(l => ({
+      id: l.id,
+      nombre: `${l.producto} (${l.cliente})`,
+      codigo: l.lote,
+      categoria: CategoriaInventario.ProductoTerminado,
+      categoriaLabel: 'Producto Terminado',
+      cantidad: l.isKg ? l.pesoKg : (l.unidades || l.cantidad),
+      unidad: l.unidad,
+      stockMinimo: 0,
+      stockMaximo: null,
+      costo: 0,
+      valorTotal: 0,
+      ubicacion: 'Almacén Producto Terminado',
+      proveedor: l.cliente,
+      estadoStock: 'Óptimo',
+    }));
+
+    const inventariosListado = [...inventariosListadoBase, ...lotesListadoParaInventarios];
+
     return {
       totales: {
         totalItems,
         valorInventario: Number(valorInventario.toFixed(2)),
         valorInventarioFormatted,
         itemsStockBajo: stockBajo.length,
-        itemsStockOptimo: stockOptimo.length,
+        itemsStockOptimo: stockOptimo.length + cantidadLotes,
         totalMovimientos,
         kilosEntrantes: Number(totalKilosEntrantes.toFixed(2)),
         kilosSalientes: Number(totalKilosSalientes.toFixed(2)),
@@ -650,9 +771,10 @@ export async function getReporteInventario(filtros: FiltrosReporteInventario = {
           })),
         },
         productoTerminado: {
-          totalKg: Number(totalBobinasTerminadasKg.toFixed(2)),
-          totalUnidades: Math.round(totalBolsasTerminadas),
-          itemsCount: itemsProductoTerminado.length,
+          totalKg: Number(totalKgTerminado.toFixed(2)),
+          totalUnidades: Math.round(totalUndTerminado),
+          itemsCount: itemsProductoTerminado.length + cantidadLotes,
+          cantidadLotes,
           desglose: itemsProductoTerminado.map(i => ({
             id: i.id,
             nombre: i.nombre,
@@ -662,6 +784,7 @@ export async function getReporteInventario(filtros: FiltrosReporteInventario = {
             stockMinimo: Number(i.stockMinimo),
             alerta: Number(i.cantidad) <= Number(i.stockMinimo),
           })),
+          desgloseLotes: lotesTerminadosDetallados,
         },
       },
       alertasStockBajo,

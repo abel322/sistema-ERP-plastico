@@ -1406,22 +1406,48 @@ export default function ReportesPage() {
                             <div className="mt-2">
                               <span className="text-2xl font-black text-slate-900 dark:text-white">
                                 {previewData.consolidadoCategorias?.productoTerminado?.totalKg > 0 
-                                  ? `${previewData.consolidadoCategorias.productoTerminado.totalKg.toLocaleString()} KG` 
-                                  : `${(previewData.consolidadoCategorias?.productoTerminado?.totalUnidades || 0).toLocaleString()} UND`}
+                                  ? `${Number(previewData.consolidadoCategorias.productoTerminado.totalKg).toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} KG` 
+                                  : previewData.consolidadoCategorias?.productoTerminado?.totalUnidades > 0
+                                    ? `${Number(previewData.consolidadoCategorias.productoTerminado.totalUnidades).toLocaleString('es-VE')} UND`
+                                    : '0,00 KG'}
                               </span>
                             </div>
-                            <p className="text-[10px] text-slate-500 mt-1">Bolsas y bobinas listas para cliente</p>
+                            <p className="text-[10px] font-bold text-amber-600 dark:text-amber-400 mt-1">
+                              {previewData.consolidadoCategorias?.productoTerminado?.cantidadLotes > 0
+                                ? `${previewData.consolidadoCategorias.productoTerminado.cantidadLotes} ${previewData.consolidadoCategorias.productoTerminado.cantidadLotes === 1 ? 'lote listo' : 'lotes listos'} para despacho`
+                                : previewData.consolidadoCategorias?.productoTerminado?.totalUnidades > 0
+                                  ? `${previewData.consolidadoCategorias.productoTerminado.totalUnidades.toLocaleString('es-VE')} unidades disponibles`
+                                  : '0 lotes listos para despacho'}
+                            </p>
                           </div>
 
                           <div className="mt-3 pt-2.5 border-t border-slate-200/60 dark:border-slate-700/60 space-y-1">
-                            <div className="flex justify-between items-center text-[10px]">
-                              <span className="text-slate-600 dark:text-slate-300 font-bold">Total Artículos PT:</span>
-                              <span className="font-black text-slate-900 dark:text-white">{previewData.consolidadoCategorias?.productoTerminado?.itemsCount || 0}</span>
-                            </div>
-                            <div className="flex justify-between items-center text-[10px]">
-                              <span className="text-slate-600 dark:text-slate-300 font-bold">Estado Despacho:</span>
-                              <span className="text-emerald-600 font-bold">Disponible</span>
-                            </div>
+                            {previewData.consolidadoCategorias?.productoTerminado?.desgloseLotes && previewData.consolidadoCategorias.productoTerminado.desgloseLotes.length > 0 ? (
+                              previewData.consolidadoCategorias.productoTerminado.desgloseLotes.slice(0, 3).map((l: any) => (
+                                <div key={l.id} className="flex justify-between items-center text-[10px]">
+                                  <span className="text-slate-600 dark:text-slate-300 font-bold truncate max-w-[120px]" title={l.productoCliente || l.lote}>
+                                    {l.lote}
+                                  </span>
+                                  <div className="flex items-center gap-1.5">
+                                    <span className="font-black text-slate-900 dark:text-white">
+                                      {l.stockFisico || `${Number(l.cantidad).toLocaleString('es-VE')} ${l.unidad}`}
+                                    </span>
+                                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" title="Listo para despacho" />
+                                  </div>
+                                </div>
+                              ))
+                            ) : (
+                              <>
+                                <div className="flex justify-between items-center text-[10px]">
+                                  <span className="text-slate-600 dark:text-slate-300 font-bold">Total Lotes PT:</span>
+                                  <span className="font-black text-slate-900 dark:text-white">{previewData.consolidadoCategorias?.productoTerminado?.itemsCount || 0}</span>
+                                </div>
+                                <div className="flex justify-between items-center text-[10px]">
+                                  <span className="text-slate-600 dark:text-slate-300 font-bold">Estado Despacho:</span>
+                                  <span className="text-emerald-600 font-bold">Disponible</span>
+                                </div>
+                              </>
+                            )}
                           </div>
                         </div>
                       </div>

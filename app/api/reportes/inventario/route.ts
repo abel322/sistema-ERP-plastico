@@ -76,6 +76,16 @@ export async function GET(request: Request) {
       }
       csvLines.push('');
 
+      // Lotes de Producto Terminado en Almacén
+      if (reportData.consolidadoCategorias?.productoTerminado?.desgloseLotes?.length > 0) {
+        csvLines.push('PRODUCTO TERMINADO (LOTES EN ALMACEN / LISTOS PARA DESPACHO)');
+        csvLines.push('Lote,Producto / Cliente,Stock Fisico,Fecha Ingreso,Estado');
+        reportData.consolidadoCategorias.productoTerminado.desgloseLotes.forEach((l: any) => {
+          csvLines.push(`"${l.lote}","${l.productoCliente}","${l.stockFisico}","${l.fechaIngreso}","${l.estado}"`);
+        });
+        csvLines.push('');
+      }
+
       // Listado Completo de Existencias
       csvLines.push('CATALOGO COMPLETO DE EXISTENCIAS');
       csvLines.push('Codigo,Articulo,Categoria,Stock Actual,Stock Minimo,Unidad,Costo Unitario,Valor Estimado,Estado');
