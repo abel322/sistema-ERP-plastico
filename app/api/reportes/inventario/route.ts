@@ -1,13 +1,10 @@
 import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
-import { prisma } from '@/lib/db';
-import { CategoriaInventario, TipoMovimiento } from '@prisma/client';
 import { authOptions } from '@/lib/auth-options';
+import { getReporteInventario } from '@/app/actions/reportes';
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
-
-
 
 export async function GET(request: Request) {
   try {
@@ -17,93 +14,88 @@ export async function GET(request: Request) {
     }
 
     const { searchParams } = new URL(request.url);
-    const categoria = searchParams.get('categoria') as CategoriaInventario | null;
-    const fechaInicio = searchParams.get('fechaInicio');
-    const fechaFin = searchParams.get('fechaFin');
+    const categoria = searchParams.get('categoria');
+    const fechaInicio = searchParams.get('fechaInicio') || searchParams.get('desde');
+    const fechaFin = searchParams.get('fechaFin') || searchParams.get('hasta');
+    const formato = searchParams.get('formato');
 
-    // Obtener todos los items de inventario
-    const whereInventario: Record<string, unknown> = {};
-    if (categoria) whereInventario.categoria = categoria;
+    const reportData = await getReporteInventario({
+      fechaInicio,
+      fechaFin,
+      categoria,
+    });
 
-    const inventarios = await prisma.inventario.findMany({
-      where: whereInventario,
-      include: {
-        movimientos: {
-          where: {
-            ...(fechaInicio || fechaFin ? {
-              fecha: {
-                ...(fechaInicio && { gte: new Date(fechaInicio) }),
-                ...(fechaFin && { lte: new Date(fechaFin) })
-              }
-            } : {})
-          },
-          orderBy: { fecha: 'desc' }
-        }
+    if (formato === 'csv') {
+      const csvLines: string[] = [];
+
+      // Encabezado general
+      csvLines.push('REPORTE DE ESTADO DE INVENTARIO Y MOVIMIENTOS');
+      csvLines.push(`Periodo: ${fechaInicio || 'Inicio'} a ${fechaFin || 'Fin'}`);
+      csvLines.push('');
+
+      // Resumen de Totales
+      csvLines.push('RESUMEN DE TOTALES');
+      csvLines.push(`Total Articulos,${reportData.totales.totalItems}`);
+      csvLines.push(`Valor Estimado Total,${reportData.totales.valorInventarioFormatted}`);
+      csvLines.push(`Items en Stock Bajo / Critico,${reportData.totales.itemsStockBajo}`);
+      csvLines.push(`Items en Nivel Optimo,${reportData.totales.itemsStockOptimo}`);
+      csvLines.push(`Total Transacciones Kardex,${reportData.totales.totalMovimientos}`);
+      csvLines.push(`Total Kilos Entrantes (+),${reportData.totales.kilosEntrantes} Kg`);
+      csvLines.push(`Total Kilos Salientes (-),${reportData.totales.kilosSalientes} Kg`);
+      csvLines.push(`Balance Neto Periodo,${reportData.totales.balanceNeto} Kg`);
+      csvLines.push('');
+
+      // Resumen por Categorias
+      csvLines.push('RESUMEN POR CATEGORIA');
+      csvLines.push('Categoria,Total Existencia,Unidad,Items Registrados,Items en Stock Bajo');
+      csvLines.push(`Materia Prima Virgen,${reportData.consolidadoCategorias.materiaPrima.totalKg},Kg,${reportData.consolidadoCategorias.materiaPrima.itemsCount},${reportData.consolidadoCategorias.materiaPrima.stockBajoCount}`);
+      csvLines.push(`Peletizado / Recuperado (Molido 1 al 5),${reportData.consolidadoCategorias.peletizado.totalKg},Kg,${reportData.consolidadoCategorias.peletizado.itemsCount},${reportData.consolidadoCategorias.peletizado.desglose.filter((i: any) => i.alerta).length}`);
+      csvLines.push(`Aditivos & Masterbatch,${reportData.consolidadoCategorias.aditivos.totalKg},Kg,${reportData.consolidadoCategorias.aditivos.itemsCount},${reportData.consolidadoCategorias.aditivos.desglose.filter((i: any) => i.alerta).length}`);
+      csvLines.push(`Producto Terminado,${reportData.consolidadoCategorias.productoTerminado.totalKg > 0 ? reportData.consolidadoCategorias.productoTerminado.totalKg : reportData.consolidadoCategorias.productoTerminado.totalUnidades},${reportData.consolidadoCategorias.productoTerminado.totalKg > 0 ? 'Kg' : 'Und'},${reportData.consolidadoCategorias.productoTerminado.itemsCount},0`);
+      csvLines.push('');
+
+      // Alertas de Stock Bajo
+      csvLines.push('ALERTAS DE STOCK CRITICO');
+      csvLines.push('Codigo,Articulo,Categoria,Stock Actual,Stock Minimo,Unidad,Deficit,Estado');
+      reportData.alertasStockBajo.forEach((a: any) => {
+        csvLines.push(`"${a.codigo}","${a.nombre}","${a.categoriaLabel}",${a.stockActual},${a.stockMinimo},"${a.unidad}",${a.diferencia},"${a.estado}"`);
+      });
+      if (reportData.alertasStockBajo.length === 0) {
+        csvLines.push('No hay articulos en stock critico');
       }
-    });
+      csvLines.push('');
 
-    // Items con stock bajo
-    const stockBajo = inventarios.filter(i => i.cantidad <= i.stockMinimo);
+      // Kardex de Movimientos
+      csvLines.push('KARDEX DEL PERIODO (HISTORIAL DE ENTRADAS Y SALIDAS)');
+      csvLines.push('Fecha,Codigo,Articulo,Categoria,Tipo,Cantidad,Unidad,Concepto / Motivo,Referencia,Responsable');
+      reportData.kardex.movimientos.forEach((m: any) => {
+        csvLines.push(`"${m.fechaFormatted}","${m.codigo}","${m.articulo}","${m.categoriaLabel}","${m.tipo}",${m.cantidad},"${m.unidad}","${m.concepto.replace(/"/g, '""')}","${m.referencia.replace(/"/g, '""')}","${m.responsable.replace(/"/g, '""')}"`);
+      });
+      if (reportData.kardex.movimientos.length === 0) {
+        csvLines.push('No se registraron movimientos en este periodo');
+      }
+      csvLines.push('');
 
-    // Items con stock alto (si hay máximo definido)
-    const stockAlto = inventarios.filter(i => i.stockMaximo && i.cantidad >= i.stockMaximo);
+      // Listado Completo de Existencias
+      csvLines.push('CATALOGO COMPLETO DE EXISTENCIAS');
+      csvLines.push('Codigo,Articulo,Categoria,Stock Actual,Stock Minimo,Unidad,Costo Unitario,Valor Estimado,Estado');
+      reportData.inventarios.forEach((i: any) => {
+        csvLines.push(`"${i.codigo}","${i.nombre}","${i.categoriaLabel}",${i.cantidad},${i.stockMinimo},"${i.unidad}",${i.costo},${i.valorTotal},"${i.estadoStock}"`);
+      });
 
-    // Resumen por categoría
-    const resumenPorCategoria: Record<string, { items: number; valorTotal: number; stockBajo: number }> = {};
-    for (const cat of Object.values(CategoriaInventario)) {
-      const itemsCat = inventarios.filter(i => i.categoria === cat);
-      resumenPorCategoria[cat] = {
-        items: itemsCat.length,
-        valorTotal: itemsCat.reduce((acc, i) => acc + (i.cantidad * (i.costo || 0)), 0),
-        stockBajo: itemsCat.filter(i => i.cantidad <= i.stockMinimo).length
-      };
+      const csvContent = csvLines.join('\n');
+
+      return new NextResponse(csvContent, {
+        headers: {
+          'Content-Type': 'text/csv; charset=utf-8',
+          'Content-Disposition': `attachment; filename="reporte_inventario_${fechaInicio || 'periodo'}_${fechaFin || ''}.csv"`,
+        },
+      });
     }
 
-    // Movimientos recientes
-    const movimientosRecientes = await prisma.movimientoInventario.findMany({
-      where: {
-        ...(fechaInicio || fechaFin ? {
-          fecha: {
-            ...(fechaInicio && { gte: new Date(fechaInicio) }),
-            ...(fechaFin && { lte: new Date(fechaFin) })
-          }
-        } : {})
-      },
-      include: { inventario: true },
-      orderBy: { fecha: 'desc' },
-      take: 50
-    });
-
-    // Resumen de movimientos por tipo
-    const resumenMovimientos: Record<string, { cantidad: number; count: number }> = {};
-    for (const tipo of Object.values(TipoMovimiento)) {
-      const movs = movimientosRecientes.filter(m => m.tipo === tipo);
-      resumenMovimientos[tipo] = {
-        cantidad: movs.reduce((acc, m) => acc + m.cantidad, 0),
-        count: movs.length
-      };
-    }
-
-    // Totales
-    const totales = {
-      totalItems: inventarios.length,
-      valorInventario: inventarios.reduce((acc, i) => acc + (i.cantidad * (i.costo || 0)), 0),
-      itemsStockBajo: stockBajo.length,
-      itemsStockAlto: stockAlto.length,
-      totalMovimientos: movimientosRecientes.length
-    };
-
-    return NextResponse.json({
-      inventarios,
-      stockBajo,
-      stockAlto,
-      resumenPorCategoria,
-      movimientosRecientes,
-      resumenMovimientos,
-      totales
-    });
-  } catch (error) {
+    return NextResponse.json(reportData);
+  } catch (error: any) {
     console.error('Error al obtener reporte de inventario:', error);
-    return NextResponse.json({ error: 'Error interno del servidor' }, { status: 500 });
+    return NextResponse.json({ error: error.message || 'Error interno del servidor' }, { status: 500 });
   }
 }

@@ -1,5 +1,5 @@
 import { prisma } from '@/lib/db';
-import { AreaProduccion, EstadoProduccion } from '@prisma/client';
+import { AreaProduccion, EstadoProduccion, CategoriaInventario, TipoMovimiento } from '@prisma/client';
 import { format } from 'date-fns';
 
 export interface FiltrosReporteProduccion {
@@ -331,3 +331,354 @@ export async function getReporteProduccion(filtros: FiltrosReporteProduccion = {
     throw new Error(error.message || 'Error al obtener reporte de producción');
   }
 }
+
+export interface FiltrosReporteInventario {
+  fechaInicio?: string | null;
+  fechaFin?: string | null;
+  desde?: string | null;
+  hasta?: string | null;
+  categoria?: CategoriaInventario | string | null;
+  userId?: string | null;
+}
+
+export async function getReporteInventario(filtros: FiltrosReporteInventario = {}) {
+  try {
+    const fInicio = filtros.fechaInicio || filtros.desde;
+    const fFin = filtros.fechaFin || filtros.hasta;
+
+    const fechaFiltro: any = {};
+    if (fInicio) {
+      fechaFiltro.gte = new Date(`${fInicio}T00:00:00.000Z`);
+    }
+    if (fFin) {
+      fechaFiltro.lte = new Date(`${fFin}T23:59:59.999Z`);
+    }
+
+    // 1. Obtener todos los artículos de inventario
+    const whereInventario: any = {};
+    if (filtros.userId) {
+      whereInventario.userId = filtros.userId;
+    }
+    if (filtros.categoria && Object.values(CategoriaInventario).includes(filtros.categoria as CategoriaInventario)) {
+      whereInventario.categoria = filtros.categoria as CategoriaInventario;
+    }
+
+    const inventarios = await prisma.inventario.findMany({
+      where: whereInventario,
+      orderBy: [
+        { categoria: 'asc' },
+        { nombre: 'asc' },
+      ],
+    });
+
+    // 2. Conteo de ítems por estado de stock
+    const stockBajo = inventarios.filter(i => Number(i.cantidad) <= Number(i.stockMinimo));
+    const stockOptimo = inventarios.filter(i => Number(i.cantidad) > Number(i.stockMinimo));
+    const totalItems = inventarios.length;
+
+    // 3. Valor monetario total del inventario
+    const valorInventario = inventarios.reduce((acc, i) => {
+      const costo = Number(i.costo) || 0;
+      return acc + (Number(i.cantidad) * costo);
+    }, 0);
+
+    const valorInventarioFormatted = valorInventario > 0
+      ? `$ ${valorInventario.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+      : '$ 0,00';
+
+    // 4. Agrupación por Categoría y Desgloses Especiales (Materia Prima, Peletizado, Aditivos, Producto Terminado)
+    const itemsMateriaPrima = inventarios.filter(i => i.categoria === CategoriaInventario.MateriaPrima);
+    const itemsPeletizado = inventarios.filter(i => i.categoria === CategoriaInventario.Peletizado);
+    const itemsAditivo = inventarios.filter(i => i.categoria === CategoriaInventario.Aditivo);
+    const itemsProductoTerminado = inventarios.filter(i => i.categoria === CategoriaInventario.ProductoTerminado);
+
+    const kgMateriaPrima = itemsMateriaPrima.reduce((acc, i) => acc + (Number(i.cantidad) || 0), 0);
+    const kgPeletizado = itemsPeletizado.reduce((acc, i) => acc + (Number(i.cantidad) || 0), 0);
+    const kgAditivos = itemsAditivo.reduce((acc, i) => acc + (Number(i.cantidad) || 0), 0);
+    
+    let totalBolsasTerminadas = 0;
+    let totalBobinasTerminadasKg = 0;
+    itemsProductoTerminado.forEach(i => {
+      const cant = Number(i.cantidad) || 0;
+      const u = (i.unidad || '').toLowerCase();
+      if (u.includes('und') || u.includes('unidad') || u.includes('bolsa')) {
+        totalBolsasTerminadas += cant;
+      } else {
+        totalBobinasTerminadasKg += cant;
+      }
+    });
+
+    // Molidos 1 al 5 en Peletizado
+    const molidosDetalle = [
+      { molido: 'MOLIDO 1', tipo: 'Transparente Alta', codigoKey: 'molido 1' },
+      { molido: 'MOLIDO 2', tipo: 'Blanco Pollo', codigoKey: 'molido 2' },
+      { molido: 'MOLIDO 3', tipo: 'Color', codigoKey: 'molido 3' },
+      { molido: 'MOLIDO 4', tipo: 'Transparente Baja', codigoKey: 'molido 4' },
+      { molido: 'MOLIDO 5', tipo: 'Blanco Pego', codigoKey: 'molido 5' },
+    ].map(m => {
+      const match = itemsPeletizado.find(item => 
+        item.codigo.toLowerCase().includes(m.codigoKey) || 
+        item.nombre.toLowerCase().includes(m.tipo.toLowerCase())
+      );
+      return {
+        molido: m.molido,
+        tipo: m.tipo,
+        nombre: match?.nombre || `Peletizado ${m.tipo}`,
+        codigo: match?.codigo || m.codigoKey,
+        cantidad: match ? Number(match.cantidad) : 0,
+        stockMinimo: match ? Number(match.stockMinimo) : 0,
+        unidad: match?.unidad || 'Kg',
+      };
+    });
+
+    // Resumen estructurado por categoría (para tablas de compatibilidad)
+    const resumenPorCategoria: Record<string, { items: number; valorTotal: number; stockBajo: number; stockTotal: number }> = {};
+    const porCategoriaArray = [
+      {
+        categoria: 'Materia Prima',
+        categoriaKey: CategoriaInventario.MateriaPrima,
+        items: itemsMateriaPrima.length,
+        stockTotal: kgMateriaPrima,
+        unidad: 'Kg',
+        valorTotal: itemsMateriaPrima.reduce((acc, i) => acc + (Number(i.cantidad) * (Number(i.costo) || 0)), 0),
+        stockBajo: itemsMateriaPrima.filter(i => Number(i.cantidad) <= Number(i.stockMinimo)).length,
+      },
+      {
+        categoria: 'Peletizado / Recuperado',
+        categoriaKey: CategoriaInventario.Peletizado,
+        items: itemsPeletizado.length,
+        stockTotal: kgPeletizado,
+        unidad: 'Kg',
+        valorTotal: itemsPeletizado.reduce((acc, i) => acc + (Number(i.cantidad) * (Number(i.costo) || 0)), 0),
+        stockBajo: itemsPeletizado.filter(i => Number(i.cantidad) <= Number(i.stockMinimo)).length,
+      },
+      {
+        categoria: 'Aditivos & Masterbatch',
+        categoriaKey: CategoriaInventario.Aditivo,
+        items: itemsAditivo.length,
+        stockTotal: kgAditivos,
+        unidad: 'Kg',
+        valorTotal: itemsAditivo.reduce((acc, i) => acc + (Number(i.cantidad) * (Number(i.costo) || 0)), 0),
+        stockBajo: itemsAditivo.filter(i => Number(i.cantidad) <= Number(i.stockMinimo)).length,
+      },
+      {
+        categoria: 'Producto Terminado',
+        categoriaKey: CategoriaInventario.ProductoTerminado,
+        items: itemsProductoTerminado.length,
+        stockTotal: totalBobinasTerminadasKg > 0 ? totalBobinasTerminadasKg : totalBolsasTerminadas,
+        unidad: totalBobinasTerminadasKg > 0 ? 'Kg' : 'Und',
+        valorTotal: itemsProductoTerminado.reduce((acc, i) => acc + (Number(i.cantidad) * (Number(i.costo) || 0)), 0),
+        stockBajo: itemsProductoTerminado.filter(i => Number(i.cantidad) <= Number(i.stockMinimo)).length,
+      },
+    ];
+
+    porCategoriaArray.forEach(cat => {
+      resumenPorCategoria[cat.categoriaKey] = {
+        items: cat.items,
+        valorTotal: cat.valorTotal,
+        stockBajo: cat.stockBajo,
+        stockTotal: cat.stockTotal,
+      };
+    });
+
+    // 5. Alertas de Stock Bajo / Crítico
+    const categoriaNombreMap: Record<string, string> = {
+      MateriaPrima: 'Materia Prima',
+      Peletizado: 'Peletizado',
+      Aditivo: 'Aditivo',
+      ProductoTerminado: 'Producto Terminado',
+    };
+
+    const alertasStockBajo = stockBajo.map(item => {
+      const cant = Number(item.cantidad);
+      const min = Number(item.stockMinimo);
+      const deficit = Math.max(0, min - cant);
+      const esAgotado = cant <= 0;
+      return {
+        id: item.id,
+        nombre: item.nombre,
+        codigo: item.codigo,
+        categoria: item.categoria,
+        categoriaLabel: categoriaNombreMap[item.categoria] || item.categoria,
+        stockActual: cant,
+        stockMinimo: min,
+        diferencia: deficit,
+        unidad: item.unidad || 'Kg',
+        costo: Number(item.costo) || 0,
+        estado: esAgotado ? 'Agotado' : 'Stock Bajo',
+        ubicacion: item.ubicacion || 'Almacén Principal',
+      };
+    });
+
+    // 6. Consultar Movimientos de Inventario en el rango de fechas
+    const whereMovimientos: any = {};
+    if (Object.keys(fechaFiltro).length > 0) {
+      whereMovimientos.fecha = fechaFiltro;
+    }
+
+    const movimientosDb = await prisma.movimientoInventario.findMany({
+      where: whereMovimientos,
+      include: {
+        inventario: true,
+      },
+      orderBy: { fecha: 'desc' },
+      take: 200,
+    });
+
+    // Totales del Kardex
+    let totalKilosEntrantes = 0;
+    let totalKilosSalientes = 0;
+    let countEntradas = 0;
+    let countSalidas = 0;
+
+    const movimientosDetallados = movimientosDb.map(m => {
+      const cant = Number(m.cantidad) || 0;
+      const isEntrada = m.tipo === TipoMovimiento.Entrada || m.tipo === TipoMovimiento.Devolucion;
+      const isSalida = m.tipo === TipoMovimiento.Salida;
+
+      if (isEntrada) {
+        totalKilosEntrantes += cant;
+        countEntradas++;
+      } else if (isSalida) {
+        totalKilosSalientes += cant;
+        countSalidas++;
+      } else if (m.tipo === TipoMovimiento.Ajuste) {
+        // En ajuste se puede considerar entrada o salida según motivo
+        countEntradas++;
+      }
+
+      return {
+        id: m.id,
+        fecha: format(new Date(m.fecha), 'yyyy-MM-dd'),
+        fechaFormatted: format(new Date(m.fecha), 'dd/MM/yyyy HH:mm'),
+        articulo: m.inventario?.nombre || 'Artículo eliminado',
+        codigo: m.inventario?.codigo || '-',
+        categoria: m.inventario?.categoria || '-',
+        categoriaLabel: categoriaNombreMap[m.inventario?.categoria || ''] || m.inventario?.categoria || '-',
+        tipo: m.tipo,
+        cantidad: cant,
+        unidad: m.inventario?.unidad || 'Kg',
+        concepto: m.motivo || m.referencia || (isEntrada ? 'Ingreso a Almacén' : 'Salida / Consumo'),
+        referencia: m.referencia || '-',
+        responsable: m.responsable || 'Almacén',
+      };
+    });
+
+    const balanceNeto = totalKilosEntrantes - totalKilosSalientes;
+    const totalMovimientos = movimientosDb.length;
+
+    // 7. Todos los artículos serializados para listados
+    const inventariosListado = inventarios.map(i => ({
+      id: i.id,
+      nombre: i.nombre,
+      codigo: i.codigo,
+      categoria: i.categoria,
+      categoriaLabel: categoriaNombreMap[i.categoria] || i.categoria,
+      cantidad: Number(i.cantidad),
+      unidad: i.unidad,
+      stockMinimo: Number(i.stockMinimo),
+      stockMaximo: i.stockMaximo ? Number(i.stockMaximo) : null,
+      costo: Number(i.costo) || 0,
+      valorTotal: Number(i.cantidad) * (Number(i.costo) || 0),
+      ubicacion: i.ubicacion || '-',
+      proveedor: i.proveedor || '-',
+      estadoStock: Number(i.cantidad) <= 0 
+        ? 'Agotado' 
+        : Number(i.cantidad) <= Number(i.stockMinimo) 
+          ? 'Stock Bajo' 
+          : 'Óptimo',
+    }));
+
+    return {
+      totales: {
+        totalItems,
+        valorInventario: Number(valorInventario.toFixed(2)),
+        valorInventarioFormatted,
+        itemsStockBajo: stockBajo.length,
+        itemsStockOptimo: stockOptimo.length,
+        totalMovimientos,
+        kilosEntrantes: Number(totalKilosEntrantes.toFixed(2)),
+        kilosSalientes: Number(totalKilosSalientes.toFixed(2)),
+        balanceNeto: Number(balanceNeto.toFixed(2)),
+        countEntradas,
+        countSalidas,
+        // Compatibilidad con KPI cards genéricas
+        items: totalItems,
+        valorTotal: Number(valorInventario.toFixed(2)),
+      },
+      consolidadoCategorias: {
+        materiaPrima: {
+          totalKg: Number(kgMateriaPrima.toFixed(2)),
+          itemsCount: itemsMateriaPrima.length,
+          stockBajoCount: itemsMateriaPrima.filter(i => Number(i.cantidad) <= Number(i.stockMinimo)).length,
+          desglose: itemsMateriaPrima.map(i => ({
+            id: i.id,
+            nombre: i.nombre,
+            codigo: i.codigo,
+            cantidad: Number(i.cantidad),
+            unidad: i.unidad,
+            stockMinimo: Number(i.stockMinimo),
+            costo: Number(i.costo) || 0,
+            alerta: Number(i.cantidad) <= Number(i.stockMinimo),
+          })),
+        },
+        peletizado: {
+          totalKg: Number(kgPeletizado.toFixed(2)),
+          itemsCount: itemsPeletizado.length,
+          desgloseMolidos: molidosDetalle,
+          desglose: itemsPeletizado.map(i => ({
+            id: i.id,
+            nombre: i.nombre,
+            codigo: i.codigo,
+            cantidad: Number(i.cantidad),
+            unidad: i.unidad,
+            stockMinimo: Number(i.stockMinimo),
+            alerta: Number(i.cantidad) <= Number(i.stockMinimo),
+          })),
+        },
+        aditivos: {
+          totalKg: Number(kgAditivos.toFixed(2)),
+          itemsCount: itemsAditivo.length,
+          desglose: itemsAditivo.map(i => ({
+            id: i.id,
+            nombre: i.nombre,
+            codigo: i.codigo,
+            cantidad: Number(i.cantidad),
+            unidad: i.unidad,
+            stockMinimo: Number(i.stockMinimo),
+            alerta: Number(i.cantidad) <= Number(i.stockMinimo),
+          })),
+        },
+        productoTerminado: {
+          totalKg: Number(totalBobinasTerminadasKg.toFixed(2)),
+          totalUnidades: Math.round(totalBolsasTerminadas),
+          itemsCount: itemsProductoTerminado.length,
+          desglose: itemsProductoTerminado.map(i => ({
+            id: i.id,
+            nombre: i.nombre,
+            codigo: i.codigo,
+            cantidad: Number(i.cantidad),
+            unidad: i.unidad,
+            stockMinimo: Number(i.stockMinimo),
+            alerta: Number(i.cantidad) <= Number(i.stockMinimo),
+          })),
+        },
+      },
+      alertasStockBajo,
+      kardex: {
+        kilosEntrantes: Number(totalKilosEntrantes.toFixed(2)),
+        kilosSalientes: Number(totalKilosSalientes.toFixed(2)),
+        balanceNeto: Number(balanceNeto.toFixed(2)),
+        totalMovimientos,
+        movimientos: movimientosDetallados,
+      },
+      inventarios: inventariosListado,
+      porCategoria: porCategoriaArray,
+      resumenPorCategoria,
+    };
+  } catch (error: any) {
+    console.error('Error en getReporteInventario:', error);
+    throw new Error(error.message || 'Error al obtener reporte de inventario');
+  }
+}
+

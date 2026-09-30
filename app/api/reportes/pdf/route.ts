@@ -316,29 +316,383 @@ const generateHTML = (tipo: string, data: any, periodo: { inicio: string; fin: s
         </body></html>
       `;
 
-    case 'inventario':
+    case 'inventario': {
+      const tot = data.totales || {};
+      const cat = data.consolidadoCategorias || {};
+      const alertas = data.alertasStockBajo || [];
+      const kardex = data.kardex || {};
+      const movimientos = kardex.movimientos || [];
+      const inventarios = data.inventarios || [];
+
+      // Filtrar clasificados para catálogo
+      const listMp = inventarios.filter((i: any) => i.categoria === 'MateriaPrima');
+      const listPelet = inventarios.filter((i: any) => i.categoria === 'Peletizado');
+      const listAdit = inventarios.filter((i: any) => i.categoria === 'Aditivo');
+      const listPt = inventarios.filter((i: any) => i.categoria === 'ProductoTerminado');
+
       return `
-        <!DOCTYPE html><html><head>${headerStyle}</head><body>
-        ${header}
-        <h1 class="title">Reporte de Inventario</h1>
-        <div class="stats">
-          <div class="stat-card"><div class="stat-value">${data.totales?.items || 0}</div><div class="stat-label">Total Items</div></div>
-          <div class="stat-card"><div class="stat-value">Bs. ${data.totales?.valorTotal?.toLocaleString() || 0}</div><div class="stat-label">Valor Total</div></div>
-          <div class="stat-card"><div class="stat-value">${data.totales?.itemsStockBajo || 0}</div><div class="stat-label">Stock Bajo</div></div>
+        <!DOCTYPE html><html><head>
+        <meta charset="utf-8">
+        <title>Reporte de Estado de Inventario y Movimientos - ERP Plásticos</title>
+        <style>
+          * { margin: 0; padding: 0; box-sizing: border-box; }
+          body { 
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; 
+            padding: 24px; 
+            color: #0f172a; 
+            background: #fff; 
+            font-size: 10px; 
+            line-height: 1.35; 
+          }
+          @media print {
+            @page {
+              size: A4 portrait;
+              margin: 8mm 10mm 8mm 10mm;
+            }
+            body { padding: 0 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+            .no-break { page-break-inside: avoid; break-inside: avoid; }
+            .page-break { page-break-before: always; break-before: always; }
+          }
+
+          /* Header institucional */
+          .header-table { width: 100%; border-collapse: collapse; margin-bottom: 14px; border-bottom: 2px solid #0f172a; padding-bottom: 8px; }
+          .header-table td { vertical-align: middle; border: none; padding: 4px; }
+          .logo-cell { width: 32%; }
+          .title-cell { width: 44%; text-align: center; }
+          .info-cell { width: 24%; text-align: right; font-size: 8px; color: #475569; }
+
+          /* KPIs ejecutivos */
+          .kpi-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-bottom: 14px; }
+          .kpi-card { background: #f8fafc; border: 1px solid #cbd5e1; border-radius: 6px; padding: 8px 10px; }
+          .kpi-title { font-size: 8px; font-weight: 800; color: #64748b; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 2px; }
+          .kpi-val { font-size: 14px; font-weight: 900; color: #0f172a; }
+          .kpi-sub { font-size: 8px; font-weight: 700; color: #64748b; margin-top: 2px; }
+
+          /* Secciones */
+          .section { margin-bottom: 14px; border: 1px solid #cbd5e1; border-radius: 6px; overflow: hidden; }
+          .section-header { background: #0f172a; color: #fff; padding: 5px 10px; font-weight: 800; font-size: 9px; text-transform: uppercase; letter-spacing: 0.6px; display: flex; justify-content: space-between; align-items: center; }
+          .section-content { padding: 8px 10px; }
+
+          /* Tablas */
+          table.report-table { width: 100%; border-collapse: collapse; font-size: 8.5px; }
+          table.report-table th { background: #f1f5f9; color: #334155; font-weight: 800; text-transform: uppercase; font-size: 8px; padding: 5px 6px; border: 1px solid #cbd5e1; text-align: left; }
+          table.report-table td { padding: 4.5px 6px; border: 1px solid #cbd5e1; color: #0f172a; }
+          table.report-table tr:nth-child(even) { background: #f8fafc; }
+          .text-right { text-align: right; }
+          .text-center { text-align: center; }
+
+          /* Badges */
+          .badge { display: inline-block; padding: 1.5px 5px; border-radius: 4px; font-size: 7.5px; font-weight: 800; text-transform: uppercase; }
+          .badge-danger { background: #fee2e2; color: #b91c1c; border: 1px solid #f87171; }
+          .badge-warning { background: #fef3c7; color: #b45309; border: 1px solid #fcd34d; }
+          .badge-success { background: #dcfce7; color: #15803d; border: 1px solid #86efac; }
+          .badge-neutral { background: #f1f5f9; color: #475569; border: 1px solid #cbd5e1; }
+
+          /* Footer y firmas */
+          .footer-info { margin-top: 14px; border-top: 1px solid #cbd5e1; padding-top: 6px; text-align: center; font-size: 8px; color: #64748b; }
+        </style>
+        </head><body>
+
+        <!-- ENCABEZADO INSTITUCIONAL -->
+        <table class="header-table">
+          <tr>
+            <td class="logo-cell">
+              <div style="font-size: 16px; font-weight: 900; color: #0f172a; line-height: 1;">PLÁSTICOS ERP</div>
+              <div style="font-size: 7.5px; font-weight: 800; color: #64748b; letter-spacing: 0.8px; margin-top: 2px;">GESTIÓN INDUSTRIAL Y MANUFACTURA</div>
+            </td>
+            <td class="title-cell">
+              <div style="font-size: 13px; font-weight: 900; color: #1e3a8a; text-transform: uppercase; letter-spacing: 0.5px;">REPORTE DE ESTADO DE INVENTARIO Y MOVIMIENTOS</div>
+              <div style="font-size: 8px; font-weight: 700; color: #475569; margin-top: 2px;">PERÍODO: ${periodo.inicio || 'Inicio'} &bull; ${periodo.fin || 'Fin'}</div>
+            </td>
+            <td class="info-cell">
+              <div><strong>CÓDIGO:</strong> REP-INV-01</div>
+              <div><strong>EMISIÓN:</strong> ${format(new Date(), 'dd/MM/yyyy HH:mm')}</div>
+              <div><strong>ESTADO:</strong> OFICIAL AUDITABLE</div>
+            </td>
+          </tr>
+        </table>
+
+        <!-- 1. KPIS GENERALES -->
+        <div class="kpi-grid">
+          <div class="kpi-card" style="border-left: 4px solid #4f46e5;">
+            <div class="kpi-title">Total Artículos</div>
+            <div class="kpi-val" style="color: #4f46e5;">${tot.totalItems || 0}</div>
+            <div class="kpi-sub">${tot.itemsStockOptimo || 0} en nivel óptimo</div>
+          </div>
+          <div class="kpi-card" style="border-left: 4px solid #059669;">
+            <div class="kpi-title">Valor Estimado Total</div>
+            <div class="kpi-val" style="color: #059669;">${tot.valorInventarioFormatted || '$ 0,00'}</div>
+            <div class="kpi-sub">Costo de reposición estimado</div>
+          </div>
+          <div class="kpi-card" style="border-left: 4px solid #dc2626;">
+            <div class="kpi-title">Stock Crítico / Bajo</div>
+            <div class="kpi-val" style="color: #dc2626;">${tot.itemsStockBajo || 0}</div>
+            <div class="kpi-sub">Requiere compra o molienda</div>
+          </div>
+          <div class="kpi-card" style="border-left: 4px solid #0284c7;">
+            <div class="kpi-title">Movimientos en Período</div>
+            <div class="kpi-val" style="color: #0284c7;">${tot.totalMovimientos || 0}</div>
+            <div class="kpi-sub">+${(tot.kilosEntrantes || 0).toLocaleString()} kg | -${(tot.kilosSalientes || 0).toLocaleString()} kg</div>
+          </div>
         </div>
-        <h2 class="section-title">Resumen por Categoría</h2>
-        <table>
-          <thead><tr><th>Categoría</th><th>Items</th><th>Valor Total</th></tr></thead>
-          <tbody>${data.porCategoria?.map((c: any) => `<tr><td>${c.categoria}</td><td>${c.items}</td><td>Bs. ${c.valorTotal.toLocaleString()}</td></tr>`).join('') || ''}</tbody>
-        </table>
-        <h2 class="section-title">Detalle de Inventario</h2>
-        <table>
-          <thead><tr><th>Código</th><th>Nombre</th><th>Categoría</th><th>Stock</th><th>Mínimo</th><th>Unidad</th><th>Costo</th><th>Valor</th></tr></thead>
-          <tbody>${data.inventario?.slice(0, 50).map((i: any) => `<tr><td>${i.codigo}</td><td>${i.nombre}</td><td>${i.categoria}</td><td>${i.cantidad}</td><td>${i.stockMinimo}</td><td>${i.unidad}</td><td>Bs. ${i.costo || 0}</td><td>Bs. ${(i.cantidad * (i.costo || 0)).toLocaleString()}</td></tr>`).join('') || ''}</tbody>
-        </table>
-        ${footer}
+
+        <!-- 2. RESUMEN CONSOLIDADO POR CATEGORÍA -->
+        <div class="section no-break">
+          <div class="section-header">
+            <span>1. Resumen Consolidado por Categoría de Material</span>
+            <span style="font-size: 8px; opacity: 0.85;">BALANCE EN PLANTA</span>
+          </div>
+          <div class="section-content" style="padding: 0;">
+            <table class="report-table">
+              <thead>
+                <tr>
+                  <th style="width: 25%;">Categoría de Almacén</th>
+                  <th class="text-right" style="width: 20%;">Stock Total Físico</th>
+                  <th class="text-center" style="width: 15%;">Artículos</th>
+                  <th class="text-center" style="width: 18%;">Alertas Críticas</th>
+                  <th style="width: 22%;">Desglose Resumido</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><strong>Materia Prima Virgen</strong></td>
+                  <td class="text-right"><strong>${(cat.materiaPrima?.totalKg || 0).toLocaleString()} KG</strong></td>
+                  <td class="text-center">${cat.materiaPrima?.itemsCount || 0}</td>
+                  <td class="text-center">${(cat.materiaPrima?.stockBajoCount || 0) > 0 ? `<span class="badge badge-danger">${cat.materiaPrima.stockBajoCount} BAJO MÍNIMO</span>` : '<span class="badge badge-success">OK</span>'}</td>
+                  <td style="font-size: 8px; color: #475569;">FB7000, Lineal, 3003, 0240, 7000F</td>
+                </tr>
+                <tr>
+                  <td><strong>Peletizado / Recuperado</strong></td>
+                  <td class="text-right"><strong>${(cat.peletizado?.totalKg || 0).toLocaleString()} KG</strong></td>
+                  <td class="text-center">${cat.peletizado?.itemsCount || 0}</td>
+                  <td class="text-center"><span class="badge badge-neutral">CIRCULANTE</span></td>
+                  <td style="font-size: 8px; color: #475569;">Molidos 1, 2, 3, 4 y 5 clasificados</td>
+                </tr>
+                <tr>
+                  <td><strong>Aditivos & Masterbatch</strong></td>
+                  <td class="text-right"><strong>${(cat.aditivos?.totalKg || 0).toLocaleString()} KG</strong></td>
+                  <td class="text-center">${cat.aditivos?.itemsCount || 0}</td>
+                  <td class="text-center"><span class="badge badge-success">ÓPTIMO</span></td>
+                  <td style="font-size: 8px; color: #475569;">Deslizante, Pigmentos Bco/Neg/Az/Am</td>
+                </tr>
+                <tr>
+                  <td><strong>Producto Terminado</strong></td>
+                  <td class="text-right"><strong>${(cat.productoTerminado?.totalKg || 0) > 0 ? `${cat.productoTerminado.totalKg.toLocaleString()} KG` : `${(cat.productoTerminado?.totalUnidades || 0).toLocaleString()} UND`}</strong></td>
+                  <td class="text-center">${cat.productoTerminado?.itemsCount || 0}</td>
+                  <td class="text-center"><span class="badge badge-neutral">ALMACÉN PT</span></td>
+                  <td style="font-size: 8px; color: #475569;">Bolsas y Bobinas terminadas para despacho</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- 3. ALERTAS DE STOCK CRÍTICO / REPOSICIÓN -->
+        <div class="section no-break">
+          <div class="section-header" style="background: #991b1b;">
+            <span>2. Alertas de Stock Crítico y Necesidad de Reposición</span>
+            <span style="font-size: 8px; opacity: 0.85;">PRIORIDAD ALTA: COMPRAS & MOLIENDA</span>
+          </div>
+          <div class="section-content" style="padding: 0;">
+            <table class="report-table">
+              <thead>
+                <tr>
+                  <th style="width: 14%;">Código</th>
+                  <th style="width: 28%;">Artículo / Material</th>
+                  <th style="width: 16%;">Categoría</th>
+                  <th class="text-right" style="width: 12%;">Stock Actual</th>
+                  <th class="text-right" style="width: 12%;">Stock Mínimo</th>
+                  <th class="text-right" style="width: 10%;">Déficit</th>
+                  <th class="text-center" style="width: 8%;">Estado</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${alertas.length > 0 ? alertas.map((a: any) => `
+                  <tr>
+                    <td><strong>${a.codigo}</strong></td>
+                    <td><strong>${a.nombre}</strong></td>
+                    <td>${a.categoriaLabel}</td>
+                    <td class="text-right"><strong style="color: #b91c1c;">${a.stockActual.toLocaleString()}</strong> ${a.unidad}</td>
+                    <td class="text-right">${a.stockMinimo.toLocaleString()} ${a.unidad}</td>
+                    <td class="text-right"><strong style="color: #b91c1c;">-${a.diferencia.toLocaleString()}</strong></td>
+                    <td class="text-center"><span class="badge ${a.stockActual <= 0 ? 'badge-danger' : 'badge-warning'}">${a.estado}</span></td>
+                  </tr>
+                `).join('') : '<tr><td colspan="7" class="text-center" style="padding: 10px; color: #059669; font-weight: 700;">No existen artículos en nivel crítico de inventario.</td></tr>'}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- 4. KARDEX DEL PERÍODO (HISTORIAL DE MOVIMIENTOS) -->
+        <div class="section no-break">
+          <div class="section-header">
+            <span>3. Kardex del Período (Entradas vs Salidas Registradas)</span>
+            <span style="font-size: 8px; opacity: 0.85;">BALANCE: NETO ${(kardex.balanceNeto || 0).toLocaleString()} KG</span>
+          </div>
+          <div class="section-content" style="padding: 0;">
+            <!-- Mini Balance Bar -->
+            <div style="background: #f8fafc; border-bottom: 1px solid #cbd5e1; padding: 6px 10px; display: flex; justify-content: space-between; font-size: 8.5px;">
+              <div><strong>Kilos Entrantes (+):</strong> <span style="color: #15803d; font-weight: 800;">+${(kardex.kilosEntrantes || 0).toLocaleString()} Kg</span></div>
+              <div><strong>Kilos Salientes (-):</strong> <span style="color: #b91c1c; font-weight: 800;">-${(kardex.kilosSalientes || 0).toLocaleString()} Kg</span></div>
+              <div><strong>Balance Neto:</strong> <strong style="color: #0f172a;">${(kardex.balanceNeto || 0).toLocaleString()} Kg</strong></div>
+              <div><strong>Total Movimientos:</strong> <strong>${movimientos.length}</strong> transacciones</div>
+            </div>
+            <table class="report-table">
+              <thead>
+                <tr>
+                  <th style="width: 12%;">Fecha</th>
+                  <th style="width: 25%;">Artículo</th>
+                  <th style="width: 12%;">Código</th>
+                  <th class="text-center" style="width: 10%;">Tipo</th>
+                  <th class="text-right" style="width: 11%;">Cantidad</th>
+                  <th style="width: 18%;">Concepto / Referencia</th>
+                  <th style="width: 12%;">Responsable</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${movimientos.length > 0 ? movimientos.slice(0, 35).map((m: any) => `
+                  <tr>
+                    <td>${m.fechaFormatted || m.fecha}</td>
+                    <td><strong>${m.articulo}</strong></td>
+                    <td style="color: #475569;">${m.codigo}</td>
+                    <td class="text-center">
+                      <span class="badge ${m.tipo === 'Entrada' ? 'badge-success' : m.tipo === 'Salida' ? 'badge-danger' : 'badge-neutral'}">${m.tipo}</span>
+                    </td>
+                    <td class="text-right"><strong>${m.cantidad.toLocaleString()}</strong> ${m.unidad}</td>
+                    <td style="color: #334155;">${m.concepto || m.referencia || '-'}</td>
+                    <td>${m.responsable || 'Almacén'}</td>
+                  </tr>
+                `).join('') : '<tr><td colspan="7" class="text-center" style="padding: 10px; color: #94a3b8;">No se registraron movimientos en este período.</td></tr>'}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- 5. CATÁLOGO COMPLETO DE EXISTENCIAS -->
+        <div class="section no-break page-break">
+          <div class="section-header">
+            <span>4. Catálogo Detallado de Existencias por Categoría</span>
+            <span style="font-size: 8px; opacity: 0.85;">AUDITORÍA DE STOCK FÍSICO</span>
+          </div>
+          <div class="section-content" style="padding: 0;">
+            <!-- Subtabla Materia Prima -->
+            <div style="background: #e2e8f0; padding: 4px 8px; font-weight: 800; font-size: 8px; text-transform: uppercase; color: #1e3a8a;">
+              4.1 Resinas y Materia Prima Virgen (${listMp.length} Ítems)
+            </div>
+            <table class="report-table">
+              <thead>
+                <tr>
+                  <th style="width: 18%;">Código</th>
+                  <th style="width: 32%;">Nombre Material</th>
+                  <th class="text-right" style="width: 15%;">Stock Actual</th>
+                  <th class="text-right" style="width: 15%;">Stock Mínimo</th>
+                  <th class="text-right" style="width: 10%;">Costo</th>
+                  <th class="text-center" style="width: 10%;">Estado</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${listMp.map((i: any) => `
+                  <tr>
+                    <td>${i.codigo}</td>
+                    <td><strong>${i.nombre}</strong></td>
+                    <td class="text-right"><strong>${i.cantidad.toLocaleString()}</strong> ${i.unidad}</td>
+                    <td class="text-right">${i.stockMinimo.toLocaleString()} ${i.unidad}</td>
+                    <td class="text-right">${i.costo ? `$ ${i.costo}` : '-'}</td>
+                    <td class="text-center"><span class="badge ${i.cantidad <= i.stockMinimo ? 'badge-danger' : 'badge-success'}">${i.estadoStock}</span></td>
+                  </tr>
+                `).join('')}
+              </tbody>
+            </table>
+
+            <!-- Subtabla Peletizado -->
+            <div style="background: #e2e8f0; padding: 4px 8px; font-weight: 800; font-size: 8px; text-transform: uppercase; color: #1e3a8a; border-top: 1px solid #cbd5e1;">
+              4.2 Peletizado y Material Recuperado - MOLIDO 1 AL 5 (${listPelet.length} Ítems)
+            </div>
+            <table class="report-table">
+              <thead>
+                <tr>
+                  <th style="width: 18%;">Código</th>
+                  <th style="width: 32%;">Nombre Material</th>
+                  <th class="text-right" style="width: 15%;">Stock Actual</th>
+                  <th class="text-right" style="width: 15%;">Stock Mínimo</th>
+                  <th class="text-right" style="width: 10%;">Costo</th>
+                  <th class="text-center" style="width: 10%;">Estado</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${listPelet.map((i: any) => `
+                  <tr>
+                    <td><strong>${i.codigo}</strong></td>
+                    <td>${i.nombre}</td>
+                    <td class="text-right"><strong>${i.cantidad.toLocaleString()}</strong> ${i.unidad}</td>
+                    <td class="text-right">${i.stockMinimo.toLocaleString()} ${i.unidad}</td>
+                    <td class="text-right">${i.costo ? `$ ${i.costo}` : '-'}</td>
+                    <td class="text-center"><span class="badge badge-success">${i.estadoStock}</span></td>
+                  </tr>
+                `).join('')}
+              </tbody>
+            </table>
+
+            <!-- Subtabla Aditivos -->
+            <div style="background: #e2e8f0; padding: 4px 8px; font-weight: 800; font-size: 8px; text-transform: uppercase; color: #1e3a8a; border-top: 1px solid #cbd5e1;">
+              4.3 Aditivos y Masterbatch (${listAdit.length} Ítems)
+            </div>
+            <table class="report-table">
+              <thead>
+                <tr>
+                  <th style="width: 18%;">Código</th>
+                  <th style="width: 32%;">Nombre Material</th>
+                  <th class="text-right" style="width: 15%;">Stock Actual</th>
+                  <th class="text-right" style="width: 15%;">Stock Mínimo</th>
+                  <th class="text-right" style="width: 10%;">Costo</th>
+                  <th class="text-center" style="width: 10%;">Estado</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${listAdit.map((i: any) => `
+                  <tr>
+                    <td>${i.codigo}</td>
+                    <td>${i.nombre}</td>
+                    <td class="text-right"><strong>${i.cantidad.toLocaleString()}</strong> ${i.unidad}</td>
+                    <td class="text-right">${i.stockMinimo.toLocaleString()} ${i.unidad}</td>
+                    <td class="text-right">${i.costo ? `$ ${i.costo}` : '-'}</td>
+                    <td class="text-center"><span class="badge badge-success">${i.estadoStock}</span></td>
+                  </tr>
+                `).join('')}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- FIRMAS Y PIE DE PÁGINA -->
+        <div style="margin-top: 16px; page-break-inside: avoid; break-inside: avoid;">
+          <table style="width: 100%; border-collapse: collapse; text-align: center; margin-bottom: 8px;">
+            <tr>
+              <td style="width: 33%; padding: 12px; border: 1px solid #cbd5e1; background: #fafafa;">
+                <div style="height: 30px;"></div>
+                <div style="border-top: 1px solid #0f172a; padding-top: 4px; font-weight: 800; font-size: 8.5px;">RESPONSABLE DE ALMACÉN</div>
+                <div style="font-size: 7.5px; color: #64748b; margin-top: 1px;">Control Físico y Despachos</div>
+              </td>
+              <td style="width: 33%; padding: 12px; border: 1px solid #cbd5e1; background: #fafafa;">
+                <div style="height: 30px;"></div>
+                <div style="border-top: 1px solid #0f172a; padding-top: 4px; font-weight: 800; font-size: 8.5px;">CONTROL DE PRODUCCIÓN</div>
+                <div style="font-size: 7.5px; color: #64748b; margin-top: 1px;">Consumo de Tolva y Recuperación</div>
+              </td>
+              <td style="width: 33%; padding: 12px; border: 1px solid #cbd5e1; background: #fafafa;">
+                <div style="height: 30px;"></div>
+                <div style="border-top: 1px solid #0f172a; padding-top: 4px; font-weight: 800; font-size: 8.5px;">GERENCIA DE PLANTA</div>
+                <div style="font-size: 7.5px; color: #64748b; margin-top: 1px;">Aprobación y Auditoría</div>
+              </td>
+            </tr>
+          </table>
+          <div class="footer-info">
+            Reporte oficial generado por el Sistema ERP Industrial para control de inventario y movimientos el ${format(new Date(), 'dd/MM/yyyy HH:mm')}
+          </div>
+        </div>
+
         </body></html>
       `;
+    }
 
     case 'ficha-tecnica': {
       const regDia = data.parametrosSellado?.find((p: any) => p.turno === 'DIA') || data;

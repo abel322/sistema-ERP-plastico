@@ -5,7 +5,8 @@ import { FormSelect } from '@/components/forms/form-select';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import { 
   FileText, Download, FileSpreadsheet, Calendar, Filter, BarChart3, PieChart, TrendingUp, ChevronRight, ChevronLeft,
-  Layers, Cpu, Flame, Settings, Sparkles, Sun, Moon, CheckCircle2, XCircle, FlaskConical, Wrench, Search
+  Layers, Cpu, Flame, Settings, Sparkles, Sun, Moon, CheckCircle2, XCircle, FlaskConical, Wrench, Search,
+  Package, AlertTriangle, ArrowLeftRight, ArrowDownLeft, ArrowUpRight, DollarSign, Boxes, ShieldAlert, Archive
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { format, subDays, startOfMonth } from 'date-fns';
@@ -44,6 +45,18 @@ export default function ReportesPage() {
   const [turnosSearch, setTurnosSearch] = useState('');
   const turnosPorPagina = 8;
 
+  // Estados para Kardex de Inventario
+  const [kardexPage, setKardexPage] = useState(1);
+  const [kardexSearch, setKardexSearch] = useState('');
+  const [kardexTipo, setKardexTipo] = useState<'TODOS' | 'Entrada' | 'Salida'>('TODOS');
+  const kardexPorPagina = 8;
+
+  // Estados para Catálogo Completo de Inventario
+  const [invTab, setInvTab] = useState<'TODAS' | 'MateriaPrima' | 'Peletizado' | 'Aditivo' | 'ProductoTerminado'>('TODAS');
+  const [invSearch, setInvSearch] = useState('');
+  const [invPage, setInvPage] = useState(1);
+  const invPorPagina = 8;
+
   // Cargar clientes al montar o al cambiar a ficha técnica
   useEffect(() => {
     if (tipoReporte === 'ficha-tecnica' && clientes.length === 0) {
@@ -67,34 +80,19 @@ export default function ReportesPage() {
     }
   }, [clienteId]);
 
-  const handlePeriodoChange = (value: string) => {
-    setPeriodo(value);
-    const today = new Date();
-    switch (value) {
-      case 'hoy':
-        setFechaInicio(format(today, 'yyyy-MM-dd'));
-        setFechaFin(format(today, 'yyyy-MM-dd'));
-        break;
-      case 'semana':
-        setFechaInicio(format(subDays(today, 7), 'yyyy-MM-dd'));
-        setFechaFin(format(today, 'yyyy-MM-dd'));
-        break;
-      case 'mes':
-        setFechaInicio(format(startOfMonth(today), 'yyyy-MM-dd'));
-        setFechaFin(format(today, 'yyyy-MM-dd'));
-        break;
-    }
-  };
-
-  const fetchPreview = async () => {
+  const fetchPreview = async (fInicio?: string, fFin?: string, tReporte?: string) => {
     setLoading(true);
     try {
+      const inicio = typeof fInicio === 'string' ? fInicio : fechaInicio;
+      const fin = typeof fFin === 'string' ? fFin : fechaFin;
+      const tipo = typeof tReporte === 'string' ? tReporte : tipoReporte;
+
       const params = new URLSearchParams({
-        fechaInicio,
-        fechaFin,
+        fechaInicio: inicio,
+        fechaFin: fin,
       });
       
-      if (tipoReporte === 'ficha-tecnica') {
+      if (tipo === 'ficha-tecnica') {
         if (!productoId) {
           alert('Por favor selecciona un producto');
           setLoading(false);
@@ -103,7 +101,7 @@ export default function ReportesPage() {
         params.set('productoId', productoId);
       }
       
-      const res = await fetch(`/api/reportes/${tipoReporte}?${params.toString()}`);
+      const res = await fetch(`/api/reportes/${tipo}?${params.toString()}`);
       const data = await res.json();
       setPreviewData(data);
     } catch (error) {
@@ -112,6 +110,40 @@ export default function ReportesPage() {
       setLoading(false);
     }
   };
+
+  // Cargar automáticamente preview al cambiar de tipo de reporte (excepto ficha técnica que requiere selección)
+  useEffect(() => {
+    if (tipoReporte !== 'ficha-tecnica') {
+      fetchPreview(fechaInicio, fechaFin, tipoReporte);
+    }
+  }, [tipoReporte]);
+
+  const handlePeriodoChange = (value: string) => {
+    setPeriodo(value);
+    const today = new Date();
+    let newInicio = fechaInicio;
+    let newFin = fechaFin;
+    switch (value) {
+      case 'hoy':
+        newInicio = format(today, 'yyyy-MM-dd');
+        newFin = format(today, 'yyyy-MM-dd');
+        break;
+      case 'semana':
+        newInicio = format(subDays(today, 7), 'yyyy-MM-dd');
+        newFin = format(today, 'yyyy-MM-dd');
+        break;
+      case 'mes':
+        newInicio = format(startOfMonth(today), 'yyyy-MM-dd');
+        newFin = format(today, 'yyyy-MM-dd');
+        break;
+    }
+    setFechaInicio(newInicio);
+    setFechaFin(newFin);
+    if (value !== 'custom' && tipoReporte !== 'ficha-tecnica') {
+      fetchPreview(newInicio, newFin, tipoReporte);
+    }
+  };
+
 
   const downloadCSV = async () => {
     setLoading(true);
@@ -341,7 +373,7 @@ export default function ReportesPage() {
               </AnimatePresence>
 
               <button
-                onClick={fetchPreview}
+                onClick={() => fetchPreview()}
                 disabled={loading}
                 className="w-full py-4 bg-indigo-600 text-white rounded-2xl hover:bg-indigo-700 disabled:opacity-50 transition-all font-black text-[10px] uppercase tracking-widest shadow-xl shadow-indigo-100 dark:shadow-none flex items-center justify-center gap-3"
               >
@@ -409,8 +441,8 @@ export default function ReportesPage() {
                 animate={{ opacity: 1 }}
                 className="space-y-8"
               >
-                {/* KPIs para Ventas e Inventario */}
-                {tipoReporte !== 'ficha-tecnica' && tipoReporte !== 'produccion' && previewData.totales && (
+                {/* KPIs para Ventas */}
+                {tipoReporte === 'ventas' && previewData.totales && (
                   <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
                     {Object.entries(previewData.totales).map(([key, value]: [string, any]) => (
                       <div key={key} className="bg-slate-50 dark:bg-slate-800/50 p-5 rounded-[2rem] border border-slate-100 dark:border-slate-800 transition-colors">
@@ -1158,57 +1190,673 @@ export default function ReportesPage() {
                   </div>
                 )}
 
-                {/* Tabla de Resultados (Ventas / Inventario) */}
-                {tipoReporte !== 'ficha-tecnica' && tipoReporte !== 'produccion' && (previewData.porCliente || previewData.porCategoria) && (
+                {/* REPORTE DE INVENTARIO INDUSTRIAL */}
+                {tipoReporte === 'inventario' && (
+                  <div className="space-y-6">
+                    {/* A. 5 Tarjetas Métricas Superiores */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3.5">
+                      {/* Card 1: TOTAL ITEMS */}
+                      <div className="bg-slate-50 dark:bg-slate-800/50 p-4 rounded-[1.8rem] border border-slate-100 dark:border-slate-800 transition-colors">
+                        <div className="flex items-center justify-between mb-2">
+                          <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">TOTAL ITEMS</span>
+                          <div className="w-7 h-7 rounded-xl bg-indigo-50 dark:bg-indigo-950/40 flex items-center justify-center text-indigo-600">
+                            <Package className="w-3.5 h-3.5" />
+                          </div>
+                        </div>
+                        <p className="text-2xl font-black text-slate-900 dark:text-white leading-tight">
+                          {previewData.totales?.totalItems ?? previewData.inventarios?.length ?? 0}
+                        </p>
+                        <p className="text-[10px] font-medium text-slate-500 mt-1.5">
+                          Artículos en catálogo
+                        </p>
+                      </div>
+
+                      {/* Card 2: VALOR INVENTARIO */}
+                      <div className="bg-slate-50 dark:bg-slate-800/50 p-4 rounded-[1.8rem] border border-emerald-100 dark:border-emerald-950/40 transition-colors">
+                        <div className="flex items-center justify-between mb-2">
+                          <span className="text-[9px] font-black text-emerald-600 dark:text-emerald-400 uppercase tracking-widest">VALOR INVENTARIO</span>
+                          <div className="w-7 h-7 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 flex items-center justify-center text-emerald-600">
+                            <TrendingUp className="w-3.5 h-3.5" />
+                          </div>
+                        </div>
+                        <p className="text-2xl font-black text-emerald-600 dark:text-emerald-400 leading-tight">
+                          {previewData.totales?.valorInventarioFormatted || '$ 0,00'}
+                        </p>
+                        <p className="text-[10px] font-medium text-slate-500 mt-1.5">
+                          Costo estimado stock
+                        </p>
+                      </div>
+
+                      {/* Card 3: ITEMS STOCK BAJO */}
+                      <div className="bg-slate-50 dark:bg-slate-800/50 p-4 rounded-[1.8rem] border border-rose-200 dark:border-rose-950/50 transition-colors">
+                        <div className="flex items-center justify-between mb-2">
+                          <span className="text-[9px] font-black text-rose-500 uppercase tracking-widest">STOCK CRÍTICO</span>
+                          <div className="w-7 h-7 rounded-xl bg-rose-50 dark:bg-rose-950/40 flex items-center justify-center text-rose-600 animate-pulse">
+                            <AlertTriangle className="w-3.5 h-3.5" />
+                          </div>
+                        </div>
+                        <p className="text-2xl font-black text-rose-600 dark:text-rose-400 leading-tight">
+                          {previewData.totales?.itemsStockBajo ?? 0}
+                        </p>
+                        <p className="text-[10px] font-bold text-rose-500/90 mt-1.5">
+                          Bajo nivel mínimo
+                        </p>
+                      </div>
+
+                      {/* Card 4: ITEMS STOCK ÓPTIMO */}
+                      <div className="bg-slate-50 dark:bg-slate-800/50 p-4 rounded-[1.8rem] border border-slate-100 dark:border-slate-800 transition-colors">
+                        <div className="flex items-center justify-between mb-2">
+                          <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">STOCK ÓPTIMO</span>
+                          <div className="w-7 h-7 rounded-xl bg-teal-50 dark:bg-teal-950/40 flex items-center justify-center text-teal-600">
+                            <CheckCircle2 className="w-3.5 h-3.5" />
+                          </div>
+                        </div>
+                        <p className="text-2xl font-black text-slate-900 dark:text-white leading-tight">
+                          {previewData.totales?.itemsStockOptimo ?? 0}
+                        </p>
+                        <p className="text-[10px] font-medium text-slate-500 mt-1.5">
+                          Niveles saludables
+                        </p>
+                      </div>
+
+                      {/* Card 5: TOTAL MOVIMIENTOS */}
+                      <div className="bg-slate-50 dark:bg-slate-800/50 p-4 rounded-[1.8rem] border border-slate-100 dark:border-slate-800 transition-colors">
+                        <div className="flex items-center justify-between mb-2">
+                          <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">TOTAL MOVIMIENTOS</span>
+                          <div className="w-7 h-7 rounded-xl bg-purple-50 dark:bg-purple-950/40 flex items-center justify-center text-purple-600">
+                            <ArrowLeftRight className="w-3.5 h-3.5" />
+                          </div>
+                        </div>
+                        <p className="text-2xl font-black text-purple-600 dark:text-purple-400 leading-tight">
+                          {previewData.totales?.totalMovimientos ?? 0}
+                        </p>
+                        <p className="text-[10px] font-medium text-slate-500 mt-1.5 truncate">
+                          +{previewData.totales?.countEntradas || 0} ent | -{previewData.totales?.countSalidas || 0} sal
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* B.1 Consolidado por Categoría (Grid de 4 bloques) */}
+                    <div>
+                      <div className="flex items-center justify-between mb-3 ml-1">
+                        <h3 className="text-xs font-black text-slate-800 dark:text-slate-200 uppercase tracking-widest">
+                          Consolidado de Existencias por Categoría
+                        </h3>
+                        <span className="text-[10px] font-bold text-slate-400 uppercase">
+                          Almacén Central de Materias y Terminados
+                        </span>
+                      </div>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                        {/* Bloque 1: Materia Prima Virgen */}
+                        <div className="bg-slate-50 dark:bg-slate-800/40 p-4 rounded-2xl border border-slate-100 dark:border-slate-800 flex flex-col justify-between">
+                          <div>
+                            <div className="flex items-center justify-between mb-2">
+                              <div className="flex items-center gap-2">
+                                <div className="p-1.5 rounded-lg bg-blue-50 dark:bg-blue-950/40 text-blue-600">
+                                  <Boxes className="w-4 h-4" />
+                                </div>
+                                <span className="text-xs font-black text-slate-900 dark:text-white uppercase">Materia Prima Virgen</span>
+                              </div>
+                              <span className="text-[10px] font-black px-2 py-0.5 rounded-full bg-blue-100 text-blue-800 dark:bg-blue-950 dark:text-blue-300">
+                                {previewData.consolidadoCategorias?.materiaPrima?.itemsCount || 0} Items
+                              </span>
+                            </div>
+                            <div className="mt-2">
+                              <span className="text-2xl font-black text-slate-900 dark:text-white">
+                                {(previewData.consolidadoCategorias?.materiaPrima?.totalKg || 0).toLocaleString()}
+                              </span>
+                              <span className="text-xs font-bold text-slate-400 ml-1">KG</span>
+                            </div>
+                            <p className="text-[10px] text-slate-500 mt-1">Resinas vírgenes en silos y sacos</p>
+                          </div>
+                          
+                          <div className="mt-3 pt-2.5 border-t border-slate-200/60 dark:border-slate-700/60 space-y-1">
+                            {previewData.consolidadoCategorias?.materiaPrima?.desglose?.slice(0, 5).map((mp: any) => (
+                              <div key={mp.id} className="flex justify-between items-center text-[10px]">
+                                <span className="text-slate-600 dark:text-slate-300 font-bold truncate max-w-[120px]">{mp.codigo}</span>
+                                <div className="flex items-center gap-1.5">
+                                  <span className="font-black text-slate-900 dark:text-white">{mp.cantidad.toLocaleString()} kg</span>
+                                  {mp.alerta && <span className="w-1.5 h-1.5 rounded-full bg-rose-500" title="Stock bajo" />}
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+
+                        {/* Bloque 2: Peletizado / Recuperado */}
+                        <div className="bg-slate-50 dark:bg-slate-800/40 p-4 rounded-2xl border border-slate-100 dark:border-slate-800 flex flex-col justify-between">
+                          <div>
+                            <div className="flex items-center justify-between mb-2">
+                              <div className="flex items-center gap-2">
+                                <div className="p-1.5 rounded-lg bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600">
+                                  <Cpu className="w-4 h-4" />
+                                </div>
+                                <span className="text-xs font-black text-slate-900 dark:text-white uppercase">Peletizado / Recuperado</span>
+                              </div>
+                              <span className="text-[10px] font-black px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300">
+                                Molido 1 al 5
+                              </span>
+                            </div>
+                            <div className="mt-2">
+                              <span className="text-2xl font-black text-slate-900 dark:text-white">
+                                {(previewData.consolidadoCategorias?.peletizado?.totalKg || 0).toLocaleString()}
+                              </span>
+                              <span className="text-xs font-bold text-slate-400 ml-1">KG</span>
+                            </div>
+                            <p className="text-[10px] text-slate-500 mt-1">Material molido retornado al proceso</p>
+                          </div>
+
+                          <div className="mt-3 pt-2.5 border-t border-slate-200/60 dark:border-slate-700/60 space-y-1">
+                            {previewData.consolidadoCategorias?.peletizado?.desgloseMolidos?.map((m: any) => (
+                              <div key={m.molido} className="flex justify-between items-center text-[10px]">
+                                <span className="text-slate-600 dark:text-slate-300 font-bold truncate max-w-[120px]">{m.molido}: {m.tipo}</span>
+                                <span className="font-black text-slate-900 dark:text-white">{m.cantidad.toLocaleString()} kg</span>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+
+                        {/* Bloque 3: Aditivos & Masterbatch */}
+                        <div className="bg-slate-50 dark:bg-slate-800/40 p-4 rounded-2xl border border-slate-100 dark:border-slate-800 flex flex-col justify-between">
+                          <div>
+                            <div className="flex items-center justify-between mb-2">
+                              <div className="flex items-center gap-2">
+                                <div className="p-1.5 rounded-lg bg-purple-50 dark:bg-purple-950/40 text-purple-600">
+                                  <FlaskConical className="w-4 h-4" />
+                                </div>
+                                <span className="text-xs font-black text-slate-900 dark:text-white uppercase">Aditivos & Masterbatch</span>
+                              </div>
+                              <span className="text-[10px] font-black px-2 py-0.5 rounded-full bg-purple-100 text-purple-800 dark:bg-purple-950 dark:text-purple-300">
+                                {previewData.consolidadoCategorias?.aditivos?.itemsCount || 0} Items
+                              </span>
+                            </div>
+                            <div className="mt-2">
+                              <span className="text-2xl font-black text-slate-900 dark:text-white">
+                                {(previewData.consolidadoCategorias?.aditivos?.totalKg || 0).toLocaleString()}
+                              </span>
+                              <span className="text-xs font-bold text-slate-400 ml-1">KG</span>
+                            </div>
+                            <p className="text-[10px] text-slate-500 mt-1">Deslizante y pigmentos colorantes</p>
+                          </div>
+
+                          <div className="mt-3 pt-2.5 border-t border-slate-200/60 dark:border-slate-700/60 space-y-1">
+                            {previewData.consolidadoCategorias?.aditivos?.desglose?.slice(0, 5).map((ad: any) => (
+                              <div key={ad.id} className="flex justify-between items-center text-[10px]">
+                                <span className="text-slate-600 dark:text-slate-300 font-bold truncate max-w-[120px] capitalize">{ad.nombre}</span>
+                                <span className="font-black text-slate-900 dark:text-white">{ad.cantidad.toLocaleString()} kg</span>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+
+                        {/* Bloque 4: Producto Terminado */}
+                        <div className="bg-slate-50 dark:bg-slate-800/40 p-4 rounded-2xl border border-slate-100 dark:border-slate-800 flex flex-col justify-between">
+                          <div>
+                            <div className="flex items-center justify-between mb-2">
+                              <div className="flex items-center gap-2">
+                                <div className="p-1.5 rounded-lg bg-amber-50 dark:bg-amber-950/40 text-amber-600">
+                                  <Archive className="w-4 h-4" />
+                                </div>
+                                <span className="text-xs font-black text-slate-900 dark:text-white uppercase">Producto Terminado</span>
+                              </div>
+                              <span className="text-[10px] font-black px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300">
+                                Despacho
+                              </span>
+                            </div>
+                            <div className="mt-2">
+                              <span className="text-2xl font-black text-slate-900 dark:text-white">
+                                {previewData.consolidadoCategorias?.productoTerminado?.totalKg > 0 
+                                  ? `${previewData.consolidadoCategorias.productoTerminado.totalKg.toLocaleString()} KG` 
+                                  : `${(previewData.consolidadoCategorias?.productoTerminado?.totalUnidades || 0).toLocaleString()} UND`}
+                              </span>
+                            </div>
+                            <p className="text-[10px] text-slate-500 mt-1">Bolsas y bobinas listas para cliente</p>
+                          </div>
+
+                          <div className="mt-3 pt-2.5 border-t border-slate-200/60 dark:border-slate-700/60 space-y-1">
+                            <div className="flex justify-between items-center text-[10px]">
+                              <span className="text-slate-600 dark:text-slate-300 font-bold">Total Artículos PT:</span>
+                              <span className="font-black text-slate-900 dark:text-white">{previewData.consolidadoCategorias?.productoTerminado?.itemsCount || 0}</span>
+                            </div>
+                            <div className="flex justify-between items-center text-[10px]">
+                              <span className="text-slate-600 dark:text-slate-300 font-bold">Estado Despacho:</span>
+                              <span className="text-emerald-600 font-bold">Disponible</span>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* B.2 Tabla de Alertas de Stock Crítico */}
+                    <div className="bg-slate-50 dark:bg-slate-800/40 p-5 rounded-2xl border border-slate-100 dark:border-slate-800">
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-4">
+                        <div className="flex items-center gap-2.5">
+                          <div className="p-2 rounded-xl bg-rose-50 dark:bg-rose-950/40 text-rose-600">
+                            <AlertTriangle className="w-4 h-4" />
+                          </div>
+                          <div>
+                            <h3 className="text-xs font-black text-slate-800 dark:text-slate-200 uppercase tracking-widest">
+                              Alertas de Stock Crítico y Reposición
+                            </h3>
+                            <p className="text-[11px] text-slate-500">Artículos con existencia menor o igual al stock mínimo requerido</p>
+                          </div>
+                        </div>
+                        <span className="text-xs font-black text-rose-600 dark:text-rose-400 bg-rose-50 dark:bg-rose-950/40 px-3 py-1 rounded-full border border-rose-200 dark:border-rose-900/50">
+                          {previewData.alertasStockBajo?.length || 0} Artículos en Alerta
+                        </span>
+                      </div>
+
+                      {previewData.alertasStockBajo?.length > 0 ? (
+                        <div className="rounded-xl border border-rose-200 dark:border-rose-900/40 overflow-hidden bg-white dark:bg-slate-900">
+                          <table className="w-full text-left text-xs">
+                            <thead className="bg-rose-50/70 dark:bg-rose-950/20 text-[10px] font-black uppercase tracking-wider text-rose-800 dark:text-rose-300 border-b border-rose-100 dark:border-rose-900/40">
+                              <tr>
+                                <th className="px-4 py-3">Código</th>
+                                <th className="px-4 py-3">Artículo / Descripción</th>
+                                <th className="px-3 py-3">Categoría</th>
+                                <th className="px-4 py-3 text-right">Stock Actual</th>
+                                <th className="px-4 py-3 text-right">Stock Mínimo</th>
+                                <th className="px-4 py-3 text-right">Déficit</th>
+                                <th className="px-4 py-3 text-center">Estado</th>
+                              </tr>
+                            </thead>
+                            <tbody className="divide-y divide-rose-50 dark:divide-rose-950/30">
+                              {previewData.alertasStockBajo.map((item: any) => (
+                                <tr key={item.id} className="hover:bg-rose-50/30 dark:hover:bg-rose-950/20 transition-colors">
+                                  <td className="px-4 py-2.5 font-mono font-bold text-slate-700 dark:text-slate-300">{item.codigo}</td>
+                                  <td className="px-4 py-2.5 font-black text-slate-900 dark:text-white">{item.nombre}</td>
+                                  <td className="px-3 py-2.5">
+                                    <span className="px-2 py-0.5 rounded-full text-[9px] font-black bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300">
+                                      {item.categoriaLabel}
+                                    </span>
+                                  </td>
+                                  <td className="px-4 py-2.5 text-right font-black text-rose-600 dark:text-rose-400">
+                                    {item.stockActual.toLocaleString()} <span className="text-[10px] text-slate-400">{item.unidad}</span>
+                                  </td>
+                                  <td className="px-4 py-2.5 text-right font-bold text-slate-600 dark:text-slate-300">
+                                    {item.stockMinimo.toLocaleString()} {item.unidad}
+                                  </td>
+                                  <td className="px-4 py-2.5 text-right font-black text-rose-600 dark:text-rose-400">
+                                    -{item.diferencia.toLocaleString()} {item.unidad}
+                                  </td>
+                                  <td className="px-4 py-2.5 text-center">
+                                    <span className={`px-2.5 py-0.5 rounded-full text-[9px] font-black tracking-wider uppercase border ${
+                                      item.stockActual <= 0 
+                                        ? 'bg-rose-600 text-white border-rose-600' 
+                                        : 'bg-rose-100 text-rose-800 dark:bg-rose-950/80 dark:text-rose-300 border-rose-300 dark:border-rose-800'
+                                    }`}>
+                                      {item.estado}
+                                    </span>
+                                  </td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      ) : (
+                        <div className="flex items-center gap-3 p-4 rounded-xl bg-emerald-50/70 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-900/50 text-emerald-800 dark:text-emerald-300">
+                          <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0" />
+                          <p className="text-xs font-bold">Todos los artículos se encuentran con existencias por encima de sus límites mínimos de seguridad.</p>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* B.3 Kardex del Período (Entradas vs Salidas) */}
+                    <div className="bg-slate-50 dark:bg-slate-800/40 p-5 rounded-2xl border border-slate-100 dark:border-slate-800">
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
+                        <div>
+                          <h3 className="text-xs font-black text-slate-800 dark:text-slate-200 uppercase tracking-widest">
+                            Kardex del Período (Entradas vs Salidas)
+                          </h3>
+                          <p className="text-[11px] text-slate-500">Historial cronológico de transacciones registradas</p>
+                        </div>
+
+                        {/* Buscador y Filtro de Kardex */}
+                        <div className="flex items-center gap-2">
+                          <div className="flex items-center bg-white dark:bg-slate-900 p-0.5 rounded-xl border border-slate-200 dark:border-slate-700 text-[10px] font-bold">
+                            {(['TODOS', 'Entrada', 'Salida'] as const).map(tipo => (
+                              <button
+                                key={tipo}
+                                onClick={() => { setKardexTipo(tipo); setKardexPage(1); }}
+                                className={`px-2.5 py-1 rounded-lg transition-all ${
+                                  kardexTipo === tipo 
+                                    ? 'bg-indigo-600 text-white font-black' 
+                                    : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
+                                }`}
+                              >
+                                {tipo}
+                              </button>
+                            ))}
+                          </div>
+
+                          <div className="relative">
+                            <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                            <input
+                              type="text"
+                              placeholder="Buscar artículo, motivo..."
+                              value={kardexSearch}
+                              onChange={(e) => { setKardexSearch(e.target.value); setKardexPage(1); }}
+                              className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl pl-9 pr-3 py-1.5 text-xs text-slate-800 dark:text-slate-200 outline-none focus:ring-2 focus:ring-indigo-500 w-full sm:w-48"
+                            />
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Mini Balance Kardex */}
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-4">
+                        <div className="bg-white dark:bg-slate-900 p-3.5 rounded-xl border border-emerald-100 dark:border-emerald-950/40 flex items-center justify-between">
+                          <div>
+                            <span className="text-[9px] font-black text-emerald-600 uppercase tracking-widest block">Kilos Entrantes (+)</span>
+                            <div className="text-lg font-black text-emerald-600 dark:text-emerald-400 mt-0.5">
+                              +{(previewData.kardex?.kilosEntrantes || 0).toLocaleString()} <span className="text-xs font-bold text-slate-400">KG</span>
+                            </div>
+                          </div>
+                          <div className="p-2 rounded-lg bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600">
+                            <ArrowDownLeft className="w-5 h-5" />
+                          </div>
+                        </div>
+
+                        <div className="bg-white dark:bg-slate-900 p-3.5 rounded-xl border border-rose-100 dark:border-rose-950/40 flex items-center justify-between">
+                          <div>
+                            <span className="text-[9px] font-black text-rose-600 uppercase tracking-widest block">Kilos Salientes (-)</span>
+                            <div className="text-lg font-black text-rose-600 dark:text-rose-400 mt-0.5">
+                              -{(previewData.kardex?.kilosSalientes || 0).toLocaleString()} <span className="text-xs font-bold text-slate-400">KG</span>
+                            </div>
+                          </div>
+                          <div className="p-2 rounded-lg bg-rose-50 dark:bg-rose-950/40 text-rose-600">
+                            <ArrowUpRight className="w-5 h-5" />
+                          </div>
+                        </div>
+
+                        <div className="bg-white dark:bg-slate-900 p-3.5 rounded-xl border border-slate-200 dark:border-slate-800 flex items-center justify-between">
+                          <div>
+                            <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest block">Balance Neto</span>
+                            <div className="text-lg font-black text-slate-900 dark:text-white mt-0.5">
+                              {(previewData.kardex?.balanceNeto || 0).toLocaleString()} <span className="text-xs font-bold text-slate-400">KG</span>
+                            </div>
+                          </div>
+                          <div className="p-2 rounded-lg bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600">
+                            <TrendingUp className="w-5 h-5" />
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Tabla Paginada de Movimientos */}
+                      {(() => {
+                        const movList = previewData.kardex?.movimientos || [];
+                        const filtered = movList.filter((m: any) => {
+                          if (kardexTipo !== 'TODOS' && m.tipo !== kardexTipo) return false;
+                          if (!kardexSearch) return true;
+                          const q = kardexSearch.toLowerCase();
+                          return (
+                            m.articulo?.toLowerCase().includes(q) ||
+                            m.codigo?.toLowerCase().includes(q) ||
+                            m.concepto?.toLowerCase().includes(q) ||
+                            m.responsable?.toLowerCase().includes(q) ||
+                            m.categoriaLabel?.toLowerCase().includes(q)
+                          );
+                        });
+
+                        const totalPages = Math.ceil(filtered.length / kardexPorPagina) || 1;
+                        const currentPage = Math.min(kardexPage, totalPages);
+                        const paginated = filtered.slice((currentPage - 1) * kardexPorPagina, currentPage * kardexPorPagina);
+
+                        return (
+                          <div>
+                            <div className="rounded-xl border border-slate-200 dark:border-slate-700/60 overflow-hidden bg-white dark:bg-slate-900">
+                              <table className="w-full text-left text-xs">
+                                <thead className="bg-slate-100 dark:bg-slate-800 text-[10px] font-black uppercase tracking-wider text-slate-500 border-b border-slate-200 dark:border-slate-700/60">
+                                  <tr>
+                                    <th className="px-4 py-3">Fecha</th>
+                                    <th className="px-4 py-3">Artículo</th>
+                                    <th className="px-3 py-3">Código</th>
+                                    <th className="px-3 py-3 text-center">Tipo</th>
+                                    <th className="px-4 py-3 text-right">Cantidad</th>
+                                    <th className="px-4 py-3">Concepto / Referencia</th>
+                                    <th className="px-4 py-3">Responsable</th>
+                                  </tr>
+                                </thead>
+                                <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                                  {paginated.length > 0 ? (
+                                    paginated.map((m: any) => (
+                                      <tr key={m.id} className="hover:bg-slate-50/60 dark:hover:bg-slate-800/40 transition-colors">
+                                        <td className="px-4 py-2.5 font-bold text-slate-600 dark:text-slate-400 whitespace-nowrap">{m.fechaFormatted || m.fecha}</td>
+                                        <td className="px-4 py-2.5 font-black text-slate-900 dark:text-white">{m.articulo}</td>
+                                        <td className="px-3 py-2.5 font-mono text-[11px] text-slate-500">{m.codigo}</td>
+                                        <td className="px-3 py-2.5 text-center">
+                                          <span className={`px-2 py-0.5 rounded-full text-[9px] font-black tracking-wider uppercase ${
+                                            m.tipo === 'Entrada' 
+                                              ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300' 
+                                              : m.tipo === 'Salida'
+                                                ? 'bg-rose-100 text-rose-800 dark:bg-rose-950/60 dark:text-rose-300'
+                                                : 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300'
+                                          }`}>
+                                            {m.tipo}
+                                          </span>
+                                        </td>
+                                        <td className="px-4 py-2.5 text-right font-black text-slate-900 dark:text-white">
+                                          {m.tipo === 'Entrada' ? '+' : m.tipo === 'Salida' ? '-' : ''}{m.cantidad.toLocaleString()} <span className="text-[10px] text-slate-400">{m.unidad}</span>
+                                        </td>
+                                        <td className="px-4 py-2.5 text-slate-600 dark:text-slate-300">{m.concepto || '-'}</td>
+                                        <td className="px-4 py-2.5 text-slate-500 font-medium">{m.responsable}</td>
+                                      </tr>
+                                    ))
+                                  ) : (
+                                    <tr>
+                                      <td colSpan={7} className="px-4 py-8 text-center text-slate-400 text-xs">
+                                        No se encontraron movimientos registrados en este período.
+                                      </td>
+                                    </tr>
+                                  )}
+                                </tbody>
+                              </table>
+                            </div>
+
+                            {/* Paginador Kardex */}
+                            {totalPages > 1 && (
+                              <div className="flex items-center justify-between mt-3 px-1">
+                                <span className="text-[10px] font-bold text-slate-400">
+                                  Mostrando {(currentPage - 1) * kardexPorPagina + 1} - {Math.min(currentPage * kardexPorPagina, filtered.length)} de {filtered.length} movimientos
+                                </span>
+                                <div className="flex items-center gap-2">
+                                  <button
+                                    onClick={() => setKardexPage(p => Math.max(1, p - 1))}
+                                    disabled={currentPage <= 1}
+                                    className="p-1.5 rounded-lg border border-slate-200 dark:border-slate-700 disabled:opacity-30 hover:bg-white dark:hover:bg-slate-800 transition-colors"
+                                  >
+                                    <ChevronLeft className="w-4 h-4" />
+                                  </button>
+                                  <span className="font-bold text-slate-700 dark:text-slate-300 text-xs">
+                                    {currentPage} / {totalPages}
+                                  </span>
+                                  <button
+                                    onClick={() => setKardexPage(p => Math.min(totalPages, p + 1))}
+                                    disabled={currentPage >= totalPages}
+                                    className="p-1.5 rounded-lg border border-slate-200 dark:border-slate-700 disabled:opacity-30 hover:bg-white dark:hover:bg-slate-800 transition-colors"
+                                  >
+                                    <ChevronRight className="w-4 h-4" />
+                                  </button>
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })()}
+                    </div>
+
+                    {/* B.4 Catálogo Completo de Existencias */}
+                    <div className="bg-slate-50 dark:bg-slate-800/40 p-5 rounded-2xl border border-slate-100 dark:border-slate-800">
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
+                        <div>
+                          <h3 className="text-xs font-black text-slate-800 dark:text-slate-200 uppercase tracking-widest">
+                            Catálogo Completo de Existencias (Auditoría de Almacén)
+                          </h3>
+                          <p className="text-[11px] text-slate-500">Listado íntegro de artículos y stocks físicos registrados</p>
+                        </div>
+
+                        {/* Filtros de Categoría y Buscador */}
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <div className="flex items-center bg-white dark:bg-slate-900 p-0.5 rounded-xl border border-slate-200 dark:border-slate-700 text-[10px] font-bold overflow-x-auto">
+                            {[
+                              { id: 'TODAS', label: 'Todas' },
+                              { id: 'MateriaPrima', label: 'Materia Prima' },
+                              { id: 'Peletizado', label: 'Peletizado' },
+                              { id: 'Aditivo', label: 'Aditivos' },
+                              { id: 'ProductoTerminado', label: 'Terminados' },
+                            ].map(tab => (
+                              <button
+                                key={tab.id}
+                                onClick={() => { setInvTab(tab.id as any); setInvPage(1); }}
+                                className={`px-2.5 py-1 rounded-lg transition-all whitespace-nowrap ${
+                                  invTab === tab.id 
+                                    ? 'bg-indigo-600 text-white font-black' 
+                                    : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
+                                }`}
+                              >
+                                {tab.label}
+                              </button>
+                            ))}
+                          </div>
+
+                          <div className="relative">
+                            <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                            <input
+                              type="text"
+                              placeholder="Filtrar catálogo..."
+                              value={invSearch}
+                              onChange={(e) => { setInvSearch(e.target.value); setInvPage(1); }}
+                              className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl pl-9 pr-3 py-1.5 text-xs text-slate-800 dark:text-slate-200 outline-none focus:ring-2 focus:ring-indigo-500 w-full sm:w-40"
+                            />
+                          </div>
+                        </div>
+                      </div>
+
+                      {(() => {
+                        const items = previewData.inventarios || [];
+                        const filtered = items.filter((i: any) => {
+                          if (invTab !== 'TODAS' && i.categoria !== invTab) return false;
+                          if (!invSearch) return true;
+                          const q = invSearch.toLowerCase();
+                          return (
+                            i.nombre?.toLowerCase().includes(q) ||
+                            i.codigo?.toLowerCase().includes(q) ||
+                            i.categoriaLabel?.toLowerCase().includes(q)
+                          );
+                        });
+
+                        const totalPages = Math.ceil(filtered.length / invPorPagina) || 1;
+                        const currentPage = Math.min(invPage, totalPages);
+                        const paginated = filtered.slice((currentPage - 1) * invPorPagina, currentPage * invPorPagina);
+
+                        return (
+                          <div>
+                            <div className="rounded-xl border border-slate-200 dark:border-slate-700/60 overflow-hidden bg-white dark:bg-slate-900">
+                              <table className="w-full text-left text-xs">
+                                <thead className="bg-slate-100 dark:bg-slate-800 text-[10px] font-black uppercase tracking-wider text-slate-500 border-b border-slate-200 dark:border-slate-700/60">
+                                  <tr>
+                                    <th className="px-4 py-3">Código</th>
+                                    <th className="px-4 py-3">Artículo</th>
+                                    <th className="px-3 py-3">Categoría</th>
+                                    <th className="px-4 py-3 text-right">Stock Actual</th>
+                                    <th className="px-4 py-3 text-right">Stock Mínimo</th>
+                                    <th className="px-4 py-3 text-right">Costo Unitario</th>
+                                    <th className="px-4 py-3 text-center">Estado</th>
+                                  </tr>
+                                </thead>
+                                <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                                  {paginated.length > 0 ? (
+                                    paginated.map((i: any) => (
+                                      <tr key={i.id} className="hover:bg-slate-50/60 dark:hover:bg-slate-800/40 transition-colors">
+                                        <td className="px-4 py-2.5 font-mono font-bold text-slate-700 dark:text-slate-300">{i.codigo}</td>
+                                        <td className="px-4 py-2.5 font-black text-slate-900 dark:text-white">{i.nombre}</td>
+                                        <td className="px-3 py-2.5">
+                                          <span className="px-2 py-0.5 rounded-full text-[9px] font-black bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300">
+                                            {i.categoriaLabel}
+                                          </span>
+                                        </td>
+                                        <td className="px-4 py-2.5 text-right font-black text-slate-900 dark:text-white">
+                                          {i.cantidad.toLocaleString()} <span className="text-[10px] text-slate-400">{i.unidad}</span>
+                                        </td>
+                                        <td className="px-4 py-2.5 text-right font-bold text-slate-600 dark:text-slate-300">
+                                          {i.stockMinimo.toLocaleString()} {i.unidad}
+                                        </td>
+                                        <td className="px-4 py-2.5 text-right font-bold text-slate-500">
+                                          {i.costo ? `$ ${i.costo}` : '-'}
+                                        </td>
+                                        <td className="px-4 py-2.5 text-center">
+                                          <span className={`px-2 py-0.5 rounded-full text-[9px] font-black uppercase ${
+                                            i.estadoStock === 'Agotado'
+                                              ? 'bg-rose-600 text-white'
+                                              : i.estadoStock === 'Stock Bajo'
+                                                ? 'bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300'
+                                                : 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300'
+                                          }`}>
+                                            {i.estadoStock}
+                                          </span>
+                                        </td>
+                                      </tr>
+                                    ))
+                                  ) : (
+                                    <tr>
+                                      <td colSpan={7} className="px-4 py-8 text-center text-slate-400 text-xs">
+                                        No se encontraron artículos en este filtro.
+                                      </td>
+                                    </tr>
+                                  )}
+                                </tbody>
+                              </table>
+                            </div>
+
+                            {totalPages > 1 && (
+                              <div className="flex items-center justify-between mt-3 px-1">
+                                <span className="text-[10px] font-bold text-slate-400">
+                                  Mostrando {(currentPage - 1) * invPorPagina + 1} - {Math.min(currentPage * invPorPagina, filtered.length)} de {filtered.length} artículos
+                                </span>
+                                <div className="flex items-center gap-2">
+                                  <button
+                                    onClick={() => setInvPage(p => Math.max(1, p - 1))}
+                                    disabled={currentPage <= 1}
+                                    className="p-1.5 rounded-lg border border-slate-200 dark:border-slate-700 disabled:opacity-30 hover:bg-white dark:hover:bg-slate-800 transition-colors"
+                                  >
+                                    <ChevronLeft className="w-4 h-4" />
+                                  </button>
+                                  <span className="font-bold text-slate-700 dark:text-slate-300 text-xs">
+                                    {currentPage} / {totalPages}
+                                  </span>
+                                  <button
+                                    onClick={() => setInvPage(p => Math.min(totalPages, p + 1))}
+                                    disabled={currentPage >= totalPages}
+                                    className="p-1.5 rounded-lg border border-slate-200 dark:border-slate-700 disabled:opacity-30 hover:bg-white dark:hover:bg-slate-800 transition-colors"
+                                  >
+                                    <ChevronRight className="w-4 h-4" />
+                                  </button>
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })()}
+                    </div>
+                  </div>
+                )}
+
+                {/* Tabla de Resultados (Solo Ventas) */}
+                {tipoReporte === 'ventas' && previewData.porCliente && (
                   <div className="rounded-3xl border border-slate-100 dark:border-slate-800 overflow-hidden">
                     <table className="w-full text-left">
                       <thead className="bg-slate-50 dark:bg-slate-800/50">
                         <tr>
-                          {tipoReporte === 'produccion' && (
-                            <>
-                              <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-500">Área</th>
-                              <th className="px-6 py-4 text-right text-[10px] font-black uppercase tracking-widest text-slate-500">Cantidad</th>
-                              <th className="px-6 py-4 text-right text-[10px] font-black uppercase tracking-widest text-slate-500">Merma</th>
-                              <th className="px-6 py-4 text-right text-[10px] font-black uppercase tracking-widest text-slate-500">Órdenes</th>
-                            </>
-                          )}
-                          {tipoReporte === 'ventas' && (
-                            <>
-                              <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-500">Cliente</th>
-                              <th className="px-6 py-4 text-right text-[10px] font-black uppercase tracking-widest text-slate-500">Facturas</th>
-                              <th className="px-6 py-4 text-right text-[10px] font-black uppercase tracking-widest text-slate-500">Total</th>
-                            </>
-                          )}
-                          {tipoReporte === 'inventario' && (
-                            <>
-                              <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-500">Categoría</th>
-                              <th className="px-6 py-4 text-right text-[10px] font-black uppercase tracking-widest text-slate-500">Items</th>
-                              <th className="px-6 py-4 text-right text-[10px] font-black uppercase tracking-widest text-slate-500">Valor Estimado</th>
-                            </>
-                          )}
+                          <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-500">Cliente</th>
+                          <th className="px-6 py-4 text-right text-[10px] font-black uppercase tracking-widest text-slate-500">Facturas</th>
+                          <th className="px-6 py-4 text-right text-[10px] font-black uppercase tracking-widest text-slate-500">Total</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-                        {tipoReporte === 'produccion' && previewData.porArea?.map((item: any, i: number) => (
-                          <tr key={i} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/30 transition-colors">
-                            <td className="px-6 py-4 text-xs font-bold text-slate-900 dark:text-slate-200 uppercase tracking-tight">{item.area}</td>
-                            <td className="px-6 py-4 text-right text-sm font-black text-slate-900 dark:text-white">{item.cantidadProducida.toLocaleString()} <span className="text-[10px] text-slate-400">KG</span></td>
-                            <td className="px-6 py-4 text-right text-xs font-bold text-rose-600 dark:text-rose-400">{item.merma.toLocaleString()} <span className="text-[10px] opacity-60">KG</span></td>
-                            <td className="px-6 py-4 text-right text-xs font-bold text-slate-500">{item.registros}</td>
-                          </tr>
-                        ))}
-                        {tipoReporte === 'ventas' && previewData.porCliente?.slice(0, 10).map((item: any, i: number) => (
+                        {previewData.porCliente?.slice(0, 10).map((item: any, i: number) => (
                           <tr key={i} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/30 transition-colors">
                             <td className="px-6 py-4 text-xs font-bold text-slate-900 dark:text-slate-200 uppercase tracking-tight">{item.cliente}</td>
                             <td className="px-6 py-4 text-right text-xs font-bold text-slate-500">{item.facturas}</td>
                             <td className="px-6 py-4 text-right text-sm font-black text-emerald-600 dark:text-emerald-400">Bs. {item.total.toLocaleString()}</td>
-                          </tr>
-                        ))}
-                        {tipoReporte === 'inventario' && previewData.porCategoria?.map((item: any, i: number) => (
-                          <tr key={i} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/30 transition-colors">
-                            <td className="px-6 py-4 text-xs font-bold text-slate-900 dark:text-slate-200 uppercase tracking-tight">{item.categoria}</td>
-                            <td className="px-6 py-4 text-right text-xs font-bold text-slate-500">{item.items}</td>
-                            <td className="px-6 py-4 text-right text-sm font-black text-indigo-600 dark:text-indigo-400">Bs. {item.valorTotal.toLocaleString()}</td>
                           </tr>
                         ))}
                       </tbody>
