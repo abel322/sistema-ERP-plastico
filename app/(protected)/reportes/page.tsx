@@ -4,8 +4,8 @@ import { useState, useEffect } from 'react';
 import { FormSelect } from '@/components/forms/form-select';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import { 
-  FileText, Download, FileSpreadsheet, Calendar, Filter, BarChart3, PieChart, TrendingUp, ChevronRight,
-  Layers, Cpu, Flame, Settings, Sparkles, Sun, Moon, CheckCircle2, XCircle, FlaskConical, Wrench
+  FileText, Download, FileSpreadsheet, Calendar, Filter, BarChart3, PieChart, TrendingUp, ChevronRight, ChevronLeft,
+  Layers, Cpu, Flame, Settings, Sparkles, Sun, Moon, CheckCircle2, XCircle, FlaskConical, Wrench, Search
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { format, subDays, startOfMonth } from 'date-fns';
@@ -38,6 +38,11 @@ export default function ReportesPage() {
   const [clienteId, setClienteId] = useState('');
   const [productoId, setProductoId] = useState('');
   const [fichaTab, setFichaTab] = useState<'general' | 'formulacion' | 'extrusion' | 'sellado' | 'mecanica'>('general');
+
+  // Estados para Turnos en Reporte de Producción
+  const [turnosPage, setTurnosPage] = useState(1);
+  const [turnosSearch, setTurnosSearch] = useState('');
+  const turnosPorPagina = 8;
 
   // Cargar clientes al montar o al cambiar a ficha técnica
   useEffect(() => {
@@ -374,11 +379,21 @@ export default function ReportesPage() {
         {/* Panel Derecho: Vista Previa */}
         <div className="lg:col-span-8">
           <div className="bg-white dark:bg-slate-900 rounded-[2.5rem] shadow-sm border border-slate-200 dark:border-slate-800 p-8 min-h-[600px] transition-colors relative overflow-hidden">
-            <div className="flex items-center justify-between mb-8">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
               <h2 className="text-xs font-black text-slate-800 dark:text-slate-200 uppercase tracking-[0.2em]">Resumen de Datos</h2>
               {previewData && (
-                <div className="flex items-center gap-2 px-4 py-1.5 bg-indigo-50 dark:bg-indigo-950/30 text-indigo-600 dark:text-indigo-400 rounded-full text-[10px] font-black uppercase tracking-widest border border-indigo-100 dark:border-indigo-900/50">
-                  {fechaInicio} <ChevronRight className="h-3 w-3" /> {fechaFin}
+                <div className="flex items-center gap-3">
+                  <div className="flex items-center gap-2 px-4 py-1.5 bg-indigo-50 dark:bg-indigo-950/30 text-indigo-600 dark:text-indigo-400 rounded-full text-[10px] font-black uppercase tracking-widest border border-indigo-100 dark:border-indigo-900/50">
+                    {fechaInicio} <ChevronRight className="h-3 w-3" /> {fechaFin}
+                  </div>
+                  <button
+                    onClick={downloadPDF}
+                    disabled={loading || !previewData}
+                    className="flex items-center gap-2 px-3.5 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-[10px] font-black uppercase tracking-wider transition-all shadow-sm"
+                  >
+                    <Download className="w-3.5 h-3.5" />
+                    Descargar Reporte PDF
+                  </button>
                 </div>
               )}
             </div>
@@ -394,8 +409,8 @@ export default function ReportesPage() {
                 animate={{ opacity: 1 }}
                 className="space-y-8"
               >
-                {/* KPIs */}
-                {tipoReporte !== 'ficha-tecnica' && previewData.totales && (
+                {/* KPIs para Ventas e Inventario */}
+                {tipoReporte !== 'ficha-tecnica' && tipoReporte !== 'produccion' && previewData.totales && (
                   <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
                     {Object.entries(previewData.totales).map(([key, value]: [string, any]) => (
                       <div key={key} className="bg-slate-50 dark:bg-slate-800/50 p-5 rounded-[2rem] border border-slate-100 dark:border-slate-800 transition-colors">
@@ -405,6 +420,386 @@ export default function ReportesPage() {
                         </p>
                       </div>
                     ))}
+                  </div>
+                )}
+
+                {/* REPORTE DE PRODUCCIÓN INDUSTRIAL */}
+                {tipoReporte === 'produccion' && (
+                  <div className="space-y-6">
+                    {/* 1. 4 Tarjetas Superiores */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                      {/* Card 1: PRODUCCION */}
+                      <div className="bg-slate-50 dark:bg-slate-800/50 p-5 rounded-[2rem] border border-slate-100 dark:border-slate-800 transition-colors">
+                        <div className="flex items-center justify-between mb-2">
+                          <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">PRODUCCIÓN</span>
+                          <div className="w-8 h-8 rounded-xl bg-indigo-50 dark:bg-indigo-950/40 flex items-center justify-center text-indigo-600">
+                            <BarChart3 className="w-4 h-4" />
+                          </div>
+                        </div>
+                        <p className="text-2xl font-black text-slate-900 dark:text-white leading-tight">
+                          {(previewData.totales?.kilosTotales || previewData.totales?.produccion || 0).toLocaleString()} <span className="text-xs font-bold text-slate-400">KG</span>
+                        </p>
+                        <div className="mt-2 flex items-center gap-1.5 text-xs font-bold text-indigo-600 dark:text-indigo-400">
+                          <span className="px-2 py-0.5 bg-indigo-100/70 dark:bg-indigo-900/50 rounded-lg">
+                            {(previewData.totales?.bolsasSelladas || 0).toLocaleString()} UND
+                          </span>
+                          <span className="text-slate-500 font-medium text-[11px]">Bolsas</span>
+                        </div>
+                      </div>
+
+                      {/* Card 2: MERMA */}
+                      <div className="bg-slate-50 dark:bg-slate-800/50 p-5 rounded-[2rem] border border-rose-100 dark:border-rose-950/40 transition-colors">
+                        <div className="flex items-center justify-between mb-2">
+                          <span className="text-[10px] font-black text-rose-500 uppercase tracking-widest">MERMA TOTAL</span>
+                          <div className="w-8 h-8 rounded-xl bg-rose-50 dark:bg-rose-950/40 flex items-center justify-center text-rose-600">
+                            <Flame className="w-4 h-4" />
+                          </div>
+                        </div>
+                        <p className="text-2xl font-black text-rose-600 dark:text-rose-400 leading-tight">
+                          {(previewData.totales?.mermaTotal || previewData.totales?.merma || 0).toLocaleString()} <span className="text-xs font-bold text-rose-400">KG</span>
+                        </p>
+                        <p className="text-[11px] font-bold text-rose-500/90 mt-2">
+                          {previewData.totales?.mermaTotal && previewData.totales?.kilosTotales
+                            ? `${((previewData.totales.mermaTotal / (previewData.totales.kilosTotales + previewData.totales.mermaTotal)) * 100).toFixed(1)}% tasa de merma`
+                            : 'Scrap acumulado de proceso'}
+                        </p>
+                      </div>
+
+                      {/* Card 3: REGISTROS */}
+                      <div className="bg-slate-50 dark:bg-slate-800/50 p-5 rounded-[2rem] border border-slate-100 dark:border-slate-800 transition-colors">
+                        <div className="flex items-center justify-between mb-2">
+                          <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">REGISTROS / TURNOS</span>
+                          <div className="w-8 h-8 rounded-xl bg-purple-50 dark:bg-purple-950/40 flex items-center justify-center text-purple-600">
+                            <Calendar className="w-4 h-4" />
+                          </div>
+                        </div>
+                        <p className="text-2xl font-black text-slate-900 dark:text-white leading-tight">
+                          {previewData.totales?.registros || 0}
+                        </p>
+                        <p className="text-[11px] font-medium text-slate-500 mt-2">
+                          Turnos y lotes procesados
+                        </p>
+                      </div>
+
+                      {/* Card 4: EFICIENCIA */}
+                      <div className="bg-slate-50 dark:bg-slate-800/50 p-5 rounded-[2rem] border border-emerald-100 dark:border-emerald-950/40 transition-colors">
+                        <div className="flex items-center justify-between mb-2">
+                          <span className="text-[10px] font-black text-emerald-600 dark:text-emerald-400 uppercase tracking-widest">EFICIENCIA GLOBAL</span>
+                          <div className="w-8 h-8 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 flex items-center justify-center text-emerald-600">
+                            <TrendingUp className="w-4 h-4" />
+                          </div>
+                        </div>
+                        <p className="text-2xl font-black text-emerald-600 dark:text-emerald-400 leading-tight">
+                          {previewData.totales?.eficienciaGlobal || 100}%
+                        </p>
+                        <p className="text-[11px] font-medium text-slate-500 mt-2">
+                          (Producido / Entrada Total)
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* 2. Grid de 4 Áreas */}
+                    <div>
+                      <div className="flex items-center justify-between mb-3 ml-1">
+                        <h3 className="text-xs font-black text-slate-800 dark:text-slate-200 uppercase tracking-widest">
+                          Rendimiento por Área de Fabricación
+                        </h3>
+                        <span className="text-[10px] font-bold text-slate-400 uppercase">
+                          4 Áreas Industriales
+                        </span>
+                      </div>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                        {[
+                          { key: 'Extrusion', label: 'Extrusión', icon: Layers, color: 'text-blue-600 dark:text-blue-400', bg: 'bg-blue-50 dark:bg-blue-950/30' },
+                          { key: 'Serigrafia', label: 'Serigrafía', icon: Cpu, color: 'text-indigo-600 dark:text-indigo-400', bg: 'bg-indigo-50 dark:bg-indigo-950/30' },
+                          { key: 'Sellado', label: 'Sellado', icon: Flame, color: 'text-amber-600 dark:text-amber-400', bg: 'bg-amber-50 dark:bg-amber-950/30' },
+                          { key: 'Refilado', label: 'Refilado', icon: Settings, color: 'text-emerald-600 dark:text-emerald-400', bg: 'bg-emerald-50 dark:bg-emerald-950/30' },
+                        ].map(a => {
+                          const Icon = a.icon;
+                          const arData = previewData.resumenPorArea?.[a.key] || { producido: 0, unidad: 'KG', merma: 0, eficiencia: 100, registros: 0 };
+                          return (
+                            <div key={a.key} className="bg-slate-50 dark:bg-slate-800/40 p-4 rounded-2xl border border-slate-100 dark:border-slate-800">
+                              <div className="flex items-center justify-between mb-2">
+                                <div className="flex items-center gap-2">
+                                  <div className={`p-1.5 rounded-lg ${a.bg} ${a.color}`}>
+                                    <Icon className="w-4 h-4" />
+                                  </div>
+                                  <span className="text-xs font-black text-slate-900 dark:text-white uppercase">{a.label}</span>
+                                </div>
+                                <span className={`text-[10px] font-black px-2 py-0.5 rounded-full ${
+                                  arData.eficiencia >= 95 ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300' :
+                                  arData.eficiencia >= 90 ? 'bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300' :
+                                  'bg-rose-100 text-rose-800 dark:bg-rose-950 dark:text-rose-300'
+                                }`}>
+                                  {arData.eficiencia}%
+                                </span>
+                              </div>
+                              <div className="space-y-1 mt-3 text-xs">
+                                <div className="flex justify-between">
+                                  <span className="text-slate-400">Producido:</span>
+                                  <strong className="text-slate-900 dark:text-white">{arData.producido.toLocaleString()} {arData.unidad}</strong>
+                                </div>
+                                <div className="flex justify-between">
+                                  <span className="text-slate-400">Merma:</span>
+                                  <strong className="text-rose-500">{arData.merma.toLocaleString()} KG</strong>
+                                </div>
+                                <div className="flex justify-between pt-1 border-t border-slate-200/60 dark:border-slate-700/60 text-[10px]">
+                                  <span className="text-slate-400">Turnos procesados:</span>
+                                  <span className="font-bold text-slate-600 dark:text-slate-300">{arData.registros}</span>
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+
+                    {/* 3. Desglose de Recuperación de Scrap (MOLIDO 1 al 5) */}
+                    <div className="bg-slate-50 dark:bg-slate-800/40 p-5 rounded-2xl border border-slate-100 dark:border-slate-800">
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-4">
+                        <div>
+                          <h3 className="text-xs font-black text-slate-800 dark:text-slate-200 uppercase tracking-widest">
+                            Desglose de Recuperación de Scrap (MOLIDO 1 al 5)
+                          </h3>
+                          <p className="text-[11px] text-slate-500">Mermas clasificadas que retornan al ciclo de Peletizado</p>
+                        </div>
+                        <span className="text-xs font-black text-rose-600 dark:text-rose-400 bg-rose-50 dark:bg-rose-950/40 px-3 py-1 rounded-full border border-rose-200 dark:border-rose-900/50">
+                          Total Scrap: {(previewData.mermasPorTipo?.total || 0).toLocaleString()} KG
+                        </span>
+                      </div>
+
+                      {/* Barra de Proporción Visual */}
+                      {(() => {
+                        const mTot = previewData.mermasPorTipo?.total || 0;
+                        const pct = (val: number) => mTot > 0 ? (val / mTot) * 100 : 0;
+                        const m1 = previewData.mermasPorTipo?.mermaTransparenteAlta || 0;
+                        const m2 = previewData.mermasPorTipo?.mermaBlancoPollo || 0;
+                        const m3 = previewData.mermasPorTipo?.mermaColor || 0;
+                        const m4 = previewData.mermasPorTipo?.mermaTransparenteBaja || 0;
+                        const m5 = previewData.mermasPorTipo?.mermaBlancoPego || 0;
+
+                        return (
+                          <div>
+                            <div className="h-3 w-full bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden flex mb-4">
+                              {m1 > 0 && <div style={{ width: `${pct(m1)}%` }} className="bg-emerald-500 h-full transition-all" title={`Molido 1: ${m1} kg`} />}
+                              {m2 > 0 && <div style={{ width: `${pct(m2)}%` }} className="bg-sky-500 h-full transition-all" title={`Molido 2: ${m2} kg`} />}
+                              {m3 > 0 && <div style={{ width: `${pct(m3)}%` }} className="bg-purple-500 h-full transition-all" title={`Molido 3: ${m3} kg`} />}
+                              {m4 > 0 && <div style={{ width: `${pct(m4)}%` }} className="bg-amber-500 h-full transition-all" title={`Molido 4: ${m4} kg`} />}
+                              {m5 > 0 && <div style={{ width: `${pct(m5)}%` }} className="bg-rose-500 h-full transition-all" title={`Molido 5: ${m5} kg`} />}
+                            </div>
+
+                            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3">
+                              {[
+                                { mol: 'MOLIDO 1', name: 'Transparente Alta', val: m1, dot: 'bg-emerald-500', bg: 'bg-emerald-50 dark:bg-emerald-950/30 border-emerald-200 dark:border-emerald-900/40' },
+                                { mol: 'MOLIDO 2', name: 'Blanco Pollo', val: m2, dot: 'bg-sky-500', bg: 'bg-sky-500/10 border-sky-200 dark:border-sky-900/40' },
+                                { mol: 'MOLIDO 3', name: 'Color', val: m3, dot: 'bg-purple-500', bg: 'bg-purple-500/10 border-purple-200 dark:border-purple-900/40' },
+                                { mol: 'MOLIDO 4', name: 'Transparente Baja', val: m4, dot: 'bg-amber-500', bg: 'bg-amber-500/10 border-amber-200 dark:border-amber-900/40' },
+                                { mol: 'MOLIDO 5', name: 'Blanco Pego', val: m5, dot: 'bg-rose-500', bg: 'bg-rose-500/10 border-rose-200 dark:border-rose-900/40' },
+                              ].map(item => (
+                                <div key={item.mol} className={`p-3 rounded-xl border ${item.bg}`}>
+                                  <div className="flex items-center gap-1.5 mb-1">
+                                    <span className={`w-2 h-2 rounded-full ${item.dot}`} />
+                                    <span className="text-[10px] font-black uppercase text-slate-500">{item.mol}</span>
+                                  </div>
+                                  <div className="text-[11px] font-bold text-slate-700 dark:text-slate-300 truncate">{item.name}</div>
+                                  <div className="text-sm font-black text-slate-900 dark:text-white mt-1">
+                                    {item.val.toLocaleString()} <span className="text-[10px] text-slate-400">KG</span>
+                                  </div>
+                                  <div className="text-[10px] font-bold text-slate-400 mt-0.5">
+                                    {pct(item.val).toFixed(1)}% del scrap
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        );
+                      })()}
+                    </div>
+
+                    {/* 4. Balance de Materiales (Tolva vs Scrap) */}
+                    {previewData.balanceMateriales && (
+                      <div className="bg-slate-50 dark:bg-slate-800/40 p-5 rounded-2xl border border-slate-100 dark:border-slate-800">
+                        <div className="flex items-center justify-between mb-3">
+                          <h3 className="text-xs font-black text-slate-800 dark:text-slate-200 uppercase tracking-widest">
+                            Balance de Materiales (Consumo Estimado de Materia Prima en Extrusión)
+                          </h3>
+                          <span className="text-[10px] font-bold text-slate-400">
+                            Total Tolva: {(previewData.balanceMateriales.totalConsumo || 0).toLocaleString()} KG
+                          </span>
+                        </div>
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs">
+                          {/* Peletizado */}
+                          <div className="bg-white dark:bg-slate-900 p-3.5 rounded-xl border border-slate-100 dark:border-slate-800">
+                            <span className="text-[10px] font-black text-emerald-600 uppercase block mb-1">Peletizado Recuperado</span>
+                            <div className="text-lg font-black text-slate-900 dark:text-white">
+                              {(previewData.balanceMateriales.peletizado?.total || 0).toLocaleString()} <span className="text-xs font-bold text-slate-400">KG</span>
+                            </div>
+                            <p className="text-[10px] text-slate-400 mt-1">Reutilización en circuito cerrado</p>
+                          </div>
+                          {/* Resinas Vírgenes */}
+                          <div className="bg-white dark:bg-slate-900 p-3.5 rounded-xl border border-slate-100 dark:border-slate-800">
+                            <span className="text-[10px] font-black text-blue-600 uppercase block mb-1">Resinas Vírgenes</span>
+                            <div className="text-lg font-black text-slate-900 dark:text-white">
+                              {(previewData.balanceMateriales.virgenes?.total || 0).toLocaleString()} <span className="text-xs font-bold text-slate-400">KG</span>
+                            </div>
+                            <div className="flex flex-wrap gap-1 mt-1.5">
+                              {previewData.balanceMateriales.virgenes?.desglose?.map((r: any) => (
+                                <span key={r.resina} className="text-[9px] font-bold bg-slate-100 dark:bg-slate-800 px-1.5 py-0.5 rounded text-slate-600 dark:text-slate-300">
+                                  {r.resina}: {r.kg} kg
+                                </span>
+                              ))}
+                            </div>
+                          </div>
+                          {/* Aditivos */}
+                          <div className="bg-white dark:bg-slate-900 p-3.5 rounded-xl border border-slate-100 dark:border-slate-800">
+                            <span className="text-[10px] font-black text-purple-600 uppercase block mb-1">Aditivos & Masterbatch</span>
+                            <div className="text-lg font-black text-slate-900 dark:text-white">
+                              {(previewData.balanceMateriales.aditivos?.total || 0).toLocaleString()} <span className="text-xs font-bold text-slate-400">KG</span>
+                            </div>
+                            <div className="flex flex-wrap gap-1 mt-1.5">
+                              {previewData.balanceMateriales.aditivos?.desglose?.map((a: any) => (
+                                <span key={a.aditivo} className="text-[9px] font-bold bg-slate-100 dark:bg-slate-800 px-1.5 py-0.5 rounded text-slate-600 dark:text-slate-300">
+                                  {a.aditivo}: {a.kg} kg
+                                </span>
+                              ))}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* 5. Tabla Detallada de Turnos y Órdenes */}
+                    <div className="bg-slate-50 dark:bg-slate-800/40 p-5 rounded-2xl border border-slate-100 dark:border-slate-800">
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
+                        <div>
+                          <h3 className="text-xs font-black text-slate-800 dark:text-slate-200 uppercase tracking-widest">
+                            Detalle de Turnos y Órdenes Procesadas
+                          </h3>
+                          <p className="text-[11px] text-slate-500">Historial operativo del período seleccionado</p>
+                        </div>
+                        {/* Buscador Rápido */}
+                        <div className="relative">
+                          <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                          <input
+                            type="text"
+                            placeholder="Buscar operario, orden, producto..."
+                            value={turnosSearch}
+                            onChange={(e) => { setTurnosSearch(e.target.value); setTurnosPage(1); }}
+                            className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl pl-9 pr-3 py-1.5 text-xs text-slate-800 dark:text-slate-200 outline-none focus:ring-2 focus:ring-indigo-500 w-full sm:w-64"
+                          />
+                        </div>
+                      </div>
+
+                      {/* Tabla */}
+                      {(() => {
+                        const filtered = (previewData.producciones || []).filter((p: any) => {
+                          if (!turnosSearch) return true;
+                          const q = turnosSearch.toLowerCase();
+                          return (
+                            p.orden?.toLowerCase().includes(q) ||
+                            p.producto?.toLowerCase().includes(q) ||
+                            p.cliente?.toLowerCase().includes(q) ||
+                            p.operario?.toLowerCase().includes(q) ||
+                            p.area?.toLowerCase().includes(q) ||
+                            p.turno?.toLowerCase().includes(q)
+                          );
+                        });
+
+                        const totalPages = Math.ceil(filtered.length / turnosPorPagina) || 1;
+                        const currentPage = Math.min(turnosPage, totalPages);
+                        const paginated = filtered.slice((currentPage - 1) * turnosPorPagina, currentPage * turnosPorPagina);
+
+                        return (
+                          <div>
+                            <div className="rounded-xl border border-slate-200 dark:border-slate-700/60 overflow-hidden bg-white dark:bg-slate-900">
+                              <table className="w-full text-left text-xs">
+                                <thead className="bg-slate-100 dark:bg-slate-800 text-[10px] font-black uppercase tracking-wider text-slate-500 border-b border-slate-200 dark:border-slate-700/60">
+                                  <tr>
+                                    <th className="px-4 py-3">Fecha</th>
+                                    <th className="px-3 py-3">Turno</th>
+                                    <th className="px-3 py-3">Área</th>
+                                    <th className="px-3 py-3">Orden / Lote</th>
+                                    <th className="px-4 py-3">Producto / Cliente</th>
+                                    <th className="px-4 py-3 text-right">Cantidad</th>
+                                    <th className="px-4 py-3 text-right">Merma</th>
+                                    <th className="px-4 py-3">Operario</th>
+                                  </tr>
+                                </thead>
+                                <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                                  {paginated.length > 0 ? (
+                                    paginated.map((p: any) => (
+                                      <tr key={p.id} className="hover:bg-slate-50/60 dark:hover:bg-slate-800/40 transition-colors">
+                                        <td className="px-4 py-2.5 font-bold text-slate-800 dark:text-slate-200 whitespace-nowrap">
+                                          {p.fechaFormatted || p.fecha}
+                                        </td>
+                                        <td className="px-3 py-2.5">
+                                          <span className="px-2 py-0.5 bg-slate-100 dark:bg-slate-800 rounded font-bold text-[10px] text-slate-600 dark:text-slate-300">
+                                            {p.turno}
+                                          </span>
+                                        </td>
+                                        <td className="px-3 py-2.5 font-bold text-slate-700 dark:text-slate-300">
+                                          {p.area}
+                                        </td>
+                                        <td className="px-3 py-2.5 font-mono font-bold text-indigo-600 dark:text-indigo-400">
+                                          {p.orden}
+                                        </td>
+                                        <td className="px-4 py-2.5 max-w-[180px]">
+                                          <div className="font-bold text-slate-900 dark:text-white truncate">{p.producto}</div>
+                                          <div className="text-[10px] text-slate-400 truncate">{p.cliente}</div>
+                                        </td>
+                                        <td className="px-4 py-2.5 text-right font-black text-slate-900 dark:text-white whitespace-nowrap">
+                                          {p.cantidadProducida.toLocaleString()} <span className="text-[10px] text-slate-400 font-bold">{p.unidad}</span>
+                                        </td>
+                                        <td className="px-4 py-2.5 text-right font-black text-rose-500 whitespace-nowrap">
+                                          {p.merma.toLocaleString()} <span className="text-[10px] opacity-70">KG</span>
+                                        </td>
+                                        <td className="px-4 py-2.5 text-slate-600 dark:text-slate-300 font-medium whitespace-nowrap">
+                                          {p.operario}
+                                        </td>
+                                      </tr>
+                                    ))
+                                  ) : (
+                                    <tr>
+                                      <td colSpan={8} className="text-center py-8 text-slate-400 text-xs">
+                                        No se encontraron registros de turnos en este período.
+                                      </td>
+                                    </tr>
+                                  )}
+                                </tbody>
+                              </table>
+                            </div>
+
+                            {/* Controles de Paginación */}
+                            {filtered.length > turnosPorPagina && (
+                              <div className="flex items-center justify-between mt-4 px-1 text-xs">
+                                <span className="text-slate-400 font-medium text-[11px]">
+                                  Mostrando {(currentPage - 1) * turnosPorPagina + 1} a {Math.min(currentPage * turnosPorPagina, filtered.length)} de {filtered.length} registros
+                                </span>
+                                <div className="flex items-center gap-2">
+                                  <button
+                                    onClick={() => setTurnosPage(p => Math.max(1, p - 1))}
+                                    disabled={currentPage <= 1}
+                                    className="p-1.5 rounded-lg border border-slate-200 dark:border-slate-700 disabled:opacity-30 hover:bg-white dark:hover:bg-slate-800 transition-colors"
+                                  >
+                                    <ChevronLeft className="w-4 h-4" />
+                                  </button>
+                                  <span className="font-bold text-slate-700 dark:text-slate-300 text-xs">
+                                    {currentPage} / {totalPages}
+                                  </span>
+                                  <button
+                                    onClick={() => setTurnosPage(p => Math.min(totalPages, p + 1))}
+                                    disabled={currentPage >= totalPages}
+                                    className="p-1.5 rounded-lg border border-slate-200 dark:border-slate-700 disabled:opacity-30 hover:bg-white dark:hover:bg-slate-800 transition-colors"
+                                  >
+                                    <ChevronRight className="w-4 h-4" />
+                                  </button>
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })()}
+                    </div>
                   </div>
                 )}
 
@@ -763,8 +1158,8 @@ export default function ReportesPage() {
                   </div>
                 )}
 
-                {/* Tabla de Resultados */}
-                {tipoReporte !== 'ficha-tecnica' && (previewData.porArea || previewData.porCliente || previewData.porCategoria) && (
+                {/* Tabla de Resultados (Ventas / Inventario) */}
+                {tipoReporte !== 'ficha-tecnica' && tipoReporte !== 'produccion' && (previewData.porCliente || previewData.porCategoria) && (
                   <div className="rounded-3xl border border-slate-100 dark:border-slate-800 overflow-hidden">
                     <table className="w-full text-left">
                       <thead className="bg-slate-50 dark:bg-slate-800/50">

@@ -45,30 +45,251 @@ const generateHTML = (tipo: string, data: any, periodo: { inicio: string; fin: s
   `;
 
   switch (tipo) {
-    case 'produccion':
+    case 'produccion': {
+      const tot = data.totales || {};
+      const mermas = data.mermasPorTipo || {};
+      const balance = data.balanceMateriales || {};
+      const virgenes = balance.virgenes?.desglose || [];
+      const aditivos = balance.aditivos?.desglose || [];
+
       return `
-        <!DOCTYPE html><html><head>${headerStyle}</head><body>
-        ${header}
-        <h1 class="title">Reporte de Producción</h1>
-        <div class="stats">
-          <div class="stat-card"><div class="stat-value">${data.totales?.cantidadProducida?.toLocaleString() || 0}</div><div class="stat-label">Total Producido</div></div>
-          <div class="stat-card"><div class="stat-value">${data.totales?.merma?.toLocaleString() || 0}</div><div class="stat-label">Total Merma</div></div>
-          <div class="stat-card"><div class="stat-value">${data.totales?.registros || 0}</div><div class="stat-label">Registros</div></div>
-          <div class="stat-card"><div class="stat-value">${data.totales?.cantidadProducida > 0 ? ((data.totales.merma / data.totales.cantidadProducida) * 100).toFixed(1) : 0}%</div><div class="stat-label">% Merma</div></div>
+        <!DOCTYPE html><html><head>
+        <meta charset="utf-8">
+        <title>Reporte de Producción - ERP Plásticos</title>
+        <style>
+          * { margin: 0; padding: 0; box-sizing: border-box; }
+          body { 
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; 
+            padding: 24px; 
+            color: #0f172a; 
+            background: #fff; 
+            font-size: 10px; 
+            line-height: 1.35; 
+          }
+          @media print {
+            @page {
+              size: A4 portrait;
+              margin: 8mm 10mm 8mm 10mm;
+            }
+            body { padding: 0 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+            .no-break { page-break-inside: avoid; break-inside: avoid; }
+            .page-break { page-break-before: always; break-before: always; }
+          }
+
+          /* Header institucional */
+          .header-table { width: 100%; border-collapse: collapse; margin-bottom: 14px; border-bottom: 2px solid #0f172a; padding-bottom: 8px; }
+          .header-table td { vertical-align: middle; border: none; padding: 4px; }
+          .logo-cell { width: 35%; }
+          .title-cell { width: 40%; text-align: center; }
+          .info-cell { width: 25%; text-align: right; font-size: 8.5px; color: #475569; }
+
+          /* KPIs ejecutivos */
+          .kpi-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-bottom: 14px; }
+          .kpi-card { background: #f8fafc; border: 1px solid #cbd5e1; border-radius: 6px; padding: 8px 10px; }
+          .kpi-title { font-size: 8px; font-weight: 800; color: #64748b; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 2px; }
+          .kpi-val { font-size: 14px; font-weight: 900; color: #0f172a; }
+          .kpi-sub { font-size: 8.5px; font-weight: 700; color: #64748b; margin-top: 2px; }
+
+          /* Secciones */
+          .section { margin-bottom: 14px; border: 1px solid #cbd5e1; border-radius: 6px; overflow: hidden; }
+          .section-header { background: #0f172a; color: #fff; padding: 5px 10px; font-weight: 800; font-size: 9px; text-transform: uppercase; letter-spacing: 0.6px; display: flex; justify-content: space-between; align-items: center; }
+          .section-content { padding: 8px 10px; }
+
+          /* Tablas */
+          table.report-table { width: 100%; border-collapse: collapse; font-size: 8.5px; }
+          table.report-table th { background: #f1f5f9; color: #334155; font-weight: 800; text-transform: uppercase; font-size: 8px; padding: 5px 6px; border: 1px solid #cbd5e1; text-align: left; }
+          table.report-table td { padding: 4.5px 6px; border: 1px solid #cbd5e1; color: #0f172a; }
+          table.report-table tr:nth-child(even) { background: #f8fafc; }
+          .text-right { text-align: right; }
+          .text-center { text-align: center; }
+
+          /* Tarjetas y barras */
+          .molido-badge { display: inline-block; padding: 2px 6px; border-radius: 4px; font-size: 8px; font-weight: 800; }
+          .footer-info { margin-top: 14px; border-top: 1px solid #cbd5e1; padding-top: 6px; text-align: center; font-size: 8px; color: #64748b; }
+        </style>
+        </head><body>
+
+        <!-- ENCABEZADO INSTITUCIONAL -->
+        <table class="header-table">
+          <tr>
+            <td class="logo-cell">
+              <div style="font-size: 16px; font-weight: 900; color: #0f172a; line-height: 1;">PLÁSTICOS ERP</div>
+              <div style="font-size: 7.5px; font-weight: 800; color: #64748b; letter-spacing: 0.8px; margin-top: 2px;">GESTIÓN INDUSTRIAL Y MANUFACTURA</div>
+            </td>
+            <td class="title-cell">
+              <div style="font-size: 13px; font-weight: 900; color: #1e3a8a; text-transform: uppercase; letter-spacing: 0.5px;">REPORTE EJECUTIVO DE PRODUCCIÓN</div>
+              <div style="font-size: 8px; font-weight: 700; color: #475569; margin-top: 2px;">PERÍODO: ${periodo.inicio || 'Inicio'} &bull; ${periodo.fin || 'Fin'}</div>
+            </td>
+            <td class="info-cell">
+              <div><strong>EMISIÓN:</strong> ${format(new Date(), 'dd/MM/yyyy HH:mm')}</div>
+              <div><strong>ESTADO:</strong> CONSOLIDADO</div>
+            </td>
+          </tr>
+        </table>
+
+        <!-- 1. KPIS GENERALES -->
+        <div class="kpi-grid">
+          <div class="kpi-card" style="border-left: 4px solid #2563eb;">
+            <div class="kpi-title">Producción Total</div>
+            <div class="kpi-val" style="color: #1d4ed8;">${(tot.kilosTotales || tot.produccion || 0).toLocaleString()} <span style="font-size: 9px;">KG</span></div>
+            <div class="kpi-sub">Bobinas: ${(tot.kilosExtruidos || 0).toLocaleString()} KG | Bolsas: ${(tot.bolsasSelladas || 0).toLocaleString()} UND</div>
+          </div>
+          <div class="kpi-card" style="border-left: 4px solid #e11d48;">
+            <div class="kpi-title">Merma Total Generada</div>
+            <div class="kpi-val" style="color: #e11d48;">${(tot.mermaTotal || tot.merma || 0).toLocaleString()} <span style="font-size: 9px;">KG</span></div>
+            <div class="kpi-sub">Retorno Scrap al Circuito</div>
+          </div>
+          <div class="kpi-card" style="border-left: 4px solid #059669;">
+            <div class="kpi-title">Eficiencia Global</div>
+            <div class="kpi-val" style="color: #059669;">${tot.eficienciaGlobal || 100}%</div>
+            <div class="kpi-sub">(Producido / Entrada Total)</div>
+          </div>
+          <div class="kpi-card" style="border-left: 4px solid #7c3aed;">
+            <div class="kpi-title">Turnos / Registros</div>
+            <div class="kpi-val" style="color: #7c3aed;">${tot.registros || 0}</div>
+            <div class="kpi-sub">Órdenes Procesadas</div>
+          </div>
         </div>
-        <h2 class="section-title">Resumen por Área</h2>
-        <table>
-          <thead><tr><th>Área</th><th>Cantidad</th><th>Merma</th><th>Registros</th></tr></thead>
-          <tbody>${data.porArea?.map((a: any) => `<tr><td>${a.area}</td><td>${a.cantidadProducida.toLocaleString()}</td><td>${a.merma.toLocaleString()}</td><td>${a.registros}</td></tr>`).join('') || ''}</tbody>
-        </table>
-        <h2 class="section-title">Detalle de Producción</h2>
-        <table>
-          <thead><tr><th>Fecha</th><th>Turno</th><th>Área</th><th>Máquina</th><th>Operario</th><th>Cantidad</th><th>Merma</th></tr></thead>
-          <tbody>${data.producciones?.slice(0, 50).map((p: any) => `<tr><td>${format(new Date(p.fecha), 'dd/MM/yyyy')}</td><td>${p.turno}</td><td>${p.area}</td><td>${p.maquina?.nombre || '-'}</td><td>${p.operario}</td><td>${p.cantidadProducida.toLocaleString()}</td><td>${p.merma}</td></tr>`).join('') || ''}</tbody>
-        </table>
-        ${footer}
+
+        <!-- 2. RESUMEN POR ÁREA DE PRODUCCIÓN -->
+        <div class="section no-break">
+          <div class="section-header">
+            <span>1. Rendimiento por Área de Fabricación</span>
+            <span style="font-size: 8px; opacity: 0.85;">EXTRUSIÓN &bull; SERIGRAFÍA &bull; SELLADO &bull; REFILADO</span>
+          </div>
+          <div class="section-content" style="padding: 0;">
+            <table class="report-table">
+              <thead>
+                <tr>
+                  <th style="width: 22%;">Área</th>
+                  <th class="text-right" style="width: 22%;">Cantidad Producida</th>
+                  <th class="text-right" style="width: 18%;">Merma (KG)</th>
+                  <th class="text-center" style="width: 18%;">Eficiencia (%)</th>
+                  <th class="text-center" style="width: 20%;">Turnos / Lotes</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${(data.porArea || []).map((a: any) => `
+                  <tr>
+                    <td><strong>${a.area}</strong></td>
+                    <td class="text-right"><strong>${a.cantidadProducida.toLocaleString()}</strong> <span style="color:#64748b; font-size:7.5px;">${a.unidad}</span></td>
+                    <td class="text-right" style="color: #e11d48; font-weight: 700;">${a.merma.toLocaleString()} KG</td>
+                    <td class="text-center"><strong style="color: ${a.eficiencia >= 95 ? '#059669' : a.eficiencia >= 90 ? '#d97706' : '#e11d48'};">${a.eficiencia}%</strong></td>
+                    <td class="text-center">${a.registros}</td>
+                  </tr>
+                `).join('')}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- 3. BALANCE DE MATERIALES Y RECUPERACIÓN DE SCRAP -->
+        <div class="section no-break">
+          <div class="section-header">
+            <span>2. Balance de Materiales y Recuperación de Scrap (MOLIDO 1 al 5)</span>
+            <span style="font-size: 8px; opacity: 0.85;">TOLVA vs MERMA RECUPERADA</span>
+          </div>
+          <div class="section-content">
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+              <!-- Materia Prima Consumida en Extrusión -->
+              <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 4px; padding: 8px;">
+                <div style="font-size: 8.5px; font-weight: 800; color: #1e3a8a; text-transform: uppercase; margin-bottom: 6px; border-bottom: 1px solid #cbd5e1; padding-bottom: 3px;">
+                  Consumo Estimado de Tolva (${(balance.totalConsumo || 0).toLocaleString()} KG)
+                </div>
+                <div style="font-size: 8px; line-height: 1.5;">
+                  <div><strong>Peletizado Recuperado:</strong> ${(balance.peletizado?.total || 0).toLocaleString()} KG</div>
+                  <div style="margin-top: 2px;"><strong>Resinas Vírgenes (${(balance.virgenes?.total || 0).toLocaleString()} KG):</strong></div>
+                  <div style="color: #475569; padding-left: 6px;">
+                    ${virgenes.length > 0 ? virgenes.map((v: any) => `${v.resina}: ${v.kg} kg`).join(' &bull; ') : 'Base 3003/Lineal estándar'}
+                  </div>
+                  <div style="margin-top: 2px;"><strong>Aditivos (${(balance.aditivos?.total || 0).toLocaleString()} KG):</strong></div>
+                  <div style="color: #475569; padding-left: 6px;">
+                    ${aditivos.length > 0 ? aditivos.map((a: any) => `${a.aditivo}: ${a.kg} kg`).join(' &bull; ') : 'Dosificación según Ficha Técnica'}
+                  </div>
+                </div>
+              </div>
+
+              <!-- Desglose de Scrap hacia Peletizado -->
+              <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 4px; padding: 8px;">
+                <div style="font-size: 8.5px; font-weight: 800; color: #9f1239; text-transform: uppercase; margin-bottom: 6px; border-bottom: 1px solid #cbd5e1; padding-bottom: 3px;">
+                  Mermas Recuperadas por Tipo (${(mermas.total || 0).toLocaleString()} KG)
+                </div>
+                <table style="width: 100%; font-size: 8px; border-collapse: collapse;">
+                  <tr><td style="padding: 2px 0;"><strong>MOLIDO 1:</strong> Transparente Alta</td><td class="text-right"><strong>${(mermas.mermaTransparenteAlta || 0).toLocaleString()} KG</strong></td></tr>
+                  <tr><td style="padding: 2px 0;"><strong>MOLIDO 2:</strong> Blanco Pollo</td><td class="text-right"><strong>${(mermas.mermaBlancoPollo || 0).toLocaleString()} KG</strong></td></tr>
+                  <tr><td style="padding: 2px 0;"><strong>MOLIDO 3:</strong> Color</td><td class="text-right"><strong>${(mermas.mermaColor || 0).toLocaleString()} KG</strong></td></tr>
+                  <tr><td style="padding: 2px 0;"><strong>MOLIDO 4:</strong> Transparente Baja</td><td class="text-right"><strong>${(mermas.mermaTransparenteBaja || 0).toLocaleString()} KG</strong></td></tr>
+                  <tr><td style="padding: 2px 0;"><strong>MOLIDO 5:</strong> Blanco Pego</td><td class="text-right"><strong>${(mermas.mermaBlancoPego || 0).toLocaleString()} KG</strong></td></tr>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 4. DETALLE DE TURNOS Y ÓRDENES -->
+        <div class="section no-break">
+          <div class="section-header">
+            <span>3. Detalle Consolidado de Turnos y Órdenes</span>
+            <span style="font-size: 8px; opacity: 0.85;">REGISTRO OPERATIVO</span>
+          </div>
+          <div class="section-content" style="padding: 0;">
+            <table class="report-table">
+              <thead>
+                <tr>
+                  <th style="width: 10%;">Fecha</th>
+                  <th style="width: 8%;">Turno</th>
+                  <th style="width: 11%;">Área</th>
+                  <th style="width: 12%;">Máquina</th>
+                  <th style="width: 12%;">Lote / Orden</th>
+                  <th style="width: 21%;">Producto</th>
+                  <th class="text-right" style="width: 13%;">Producido</th>
+                  <th class="text-right" style="width: 13%;">Merma (KG)</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${(data.producciones || []).slice(0, 45).map((p: any) => `
+                  <tr>
+                    <td>${p.fechaFormatted || p.fecha}</td>
+                    <td><span style="font-weight:700;">${p.turno}</span></td>
+                    <td>${p.area}</td>
+                    <td>${p.maquina}</td>
+                    <td><strong style="color: #1e40af;">${p.orden}</strong></td>
+                    <td style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 140px;">${p.producto}</td>
+                    <td class="text-right"><strong>${p.cantidadProducida.toLocaleString()}</strong> ${p.unidad}</td>
+                    <td class="text-right" style="color: #e11d48; font-weight: 700;">${p.merma.toLocaleString()}</td>
+                  </tr>
+                `).join('') || '<tr><td colspan="8" class="text-center" style="padding: 12px; color: #94a3b8;">No se registraron turnos en este período.</td></tr>'}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- FIRMAS Y PIE DE PÁGINA -->
+        <div style="margin-top: 16px; page-break-inside: avoid; break-inside: avoid;">
+          <table style="width: 100%; border-collapse: collapse; text-align: center; margin-bottom: 8px;">
+            <tr>
+              <td style="width: 33%; padding: 10px; border: 1px solid #cbd5e1; background: #fafafa;">
+                <div style="height: 25px;"></div>
+                <div style="border-top: 1px solid #0f172a; padding-top: 3px; font-weight: 800; font-size: 8px;">GERENCIA DE PLANTA</div>
+              </td>
+              <td style="width: 33%; padding: 10px; border: 1px solid #cbd5e1; background: #fafafa;">
+                <div style="height: 25px;"></div>
+                <div style="border-top: 1px solid #0f172a; padding-top: 3px; font-weight: 800; font-size: 8px;">SUPERVISIÓN DE PRODUCCIÓN</div>
+              </td>
+              <td style="width: 33%; padding: 10px; border: 1px solid #cbd5e1; background: #fafafa;">
+                <div style="height: 25px;"></div>
+                <div style="border-top: 1px solid #0f172a; padding-top: 3px; font-weight: 800; font-size: 8px;">CONTROL DE CALIDAD</div>
+              </td>
+            </tr>
+          </table>
+          <div class="footer-info">
+            Este reporte ejecutivo es generado por el Sistema ERP Industrial para control de operaciones de planta el ${format(new Date(), 'dd/MM/yyyy HH:mm')}
+          </div>
+        </div>
+
         </body></html>
       `;
+    }
 
     case 'ventas':
       return `
