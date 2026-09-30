@@ -150,13 +150,28 @@ export default function EditarCompletoPage() {
         const data = await response.json();
         setProducto(data);
         
-        let inferredTipoBolsa: TipoBolsa = 'sencilla';
-        if (data.esBolsaASA || data.anchoTroquelASA || data.fuelleASA) {
-          inferredTipoBolsa = 'asa';
-        } else if (data.anchoValvula || data.anchoSolapa) {
-          inferredTipoBolsa = 'valvula';
-        } else if (data.anchoFuelle) {
-          inferredTipoBolsa = 'fuelle';
+        // Determinar tipoBolsa asegurando correspondencia con TipoBolsa ('valvula' | 'asa' | 'fuelle' | 'sencilla')
+        let finalTipoBolsa: TipoBolsa = 'sencilla';
+        if (data.tipoBolsa) {
+          const raw = String(data.tipoBolsa).toLowerCase();
+          if (raw === 'valvula' || raw.includes('válvula') || raw.includes('valvula') || raw.includes('pego')) {
+            finalTipoBolsa = 'valvula';
+          } else if (raw === 'asa' || raw.includes('asa')) {
+            finalTipoBolsa = 'asa';
+          } else if (raw === 'fuelle' || raw.includes('fuelle')) {
+            finalTipoBolsa = 'fuelle';
+          } else {
+            finalTipoBolsa = 'sencilla';
+          }
+        } else {
+          // Inferir como fallback si no está explícito en la base de datos
+          if (data.anchoValvula || data.anchoSolapa || data.sldTipoSelladora === 'valvula' || data.nombreProducto?.toLowerCase().includes('pego')) {
+            finalTipoBolsa = 'valvula';
+          } else if (data.esBolsaASA || data.anchoTroquelASA || data.largoTroquelASA || data.nombreProducto?.toLowerCase().includes('asa')) {
+            finalTipoBolsa = 'asa';
+          } else if (data.anchoFuelle) {
+            finalTipoBolsa = 'fuelle';
+          }
         }
 
         // Calcular campos virtuales a partir de los datos guardados
@@ -167,15 +182,15 @@ export default function EditarCompletoPage() {
           peletizadoPorcentaje: data.peletizadoPorcentaje !== null && data.peletizadoPorcentaje !== undefined 
             ? data.peletizadoPorcentaje 
             : (data.molido || 0),
-          tipoBolsa: data.tipoBolsa || inferredTipoBolsa,
-          // Calcular esBolsaPego si tiene anchoValvula
-          esBolsaPego: !!(data.anchoValvula),
-          // Calcular esBolsaFuelle si tiene anchoFuelle pero no anchoValvula
-          esBolsaFuelle: !!(data.anchoFuelle && !data.anchoValvula),
+          tipoBolsa: finalTipoBolsa,
+          // Calcular esBolsaPego si tiene anchoValvula o es tipo valvula
+          esBolsaPego: finalTipoBolsa === 'valvula' || !!data.anchoValvula,
+          // Calcular esBolsaFuelle si es de fuelle o valvula o asa
+          esBolsaFuelle: finalTipoBolsa === 'fuelle' || finalTipoBolsa === 'valvula' || finalTipoBolsa === 'asa',
           // Calcular esTermoencogible si tiene pesoMaximoBobina
           esTermoencogible: !!(data.pesoMaximoBobina),
-          // Calcular esBolsaASA
-          esBolsaASA: data.esBolsaASA || !!(data.anchoTroquelASA || data.fuelleASA),
+          // Calcular esBolsaASA estrictamente
+          esBolsaASA: finalTipoBolsa === 'asa',
           llevaPostizo: data.llevaPostizo ?? false,
         };
         
@@ -299,7 +314,7 @@ export default function EditarCompletoPage() {
     if (formData.tipoProducto === 'Bolsa') {
       const ancho = parseFloat(formData.ancho) || 0;
       const largo = parseFloat(formData.largo) || 0;
-      const fuelle = parseFloat(formData.anchoFuelle || formData.fuelleASA) || 0;
+      const fuelle = parseFloat(formData.tipoBolsa === 'asa' ? (formData.fuelleASA || formData.anchoFuelle) : formData.anchoFuelle) || 0;
       const solapa = parseFloat(formData.anchoSolapa) || 0;
       const anchoTroquel = parseFloat(formData.anchoTroquelASA) || 0;
       const largoTroquel = parseFloat(formData.largoTroquelASA) || 0;
@@ -593,6 +608,8 @@ export default function EditarCompletoPage() {
                         Tipo de Bolsa
                       </label>
                       <select
+                        name="tipoBolsa"
+                        id="tipoBolsa"
                         value={formData.tipoBolsa || 'sencilla'}
                         onChange={(e) => {
                           const val = e.target.value as TipoBolsa;
@@ -600,6 +617,15 @@ export default function EditarCompletoPage() {
                           handleChange('esBolsaFuelle', val === 'fuelle' || val === 'valvula' || val === 'asa');
                           handleChange('esBolsaPego', val === 'valvula');
                           handleChange('esBolsaASA', val === 'asa');
+                          if (val !== 'asa') {
+                            handleChange('fuelleASA', null);
+                            handleChange('anchoTroquelASA', null);
+                            handleChange('largoTroquelASA', null);
+                          }
+                          if (val !== 'valvula') {
+                            handleChange('anchoValvula', null);
+                            handleChange('anchoSolapa', null);
+                          }
                         }}
                         className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent font-medium"
                       >
@@ -698,11 +724,13 @@ export default function EditarCompletoPage() {
                           <input
                             type="number"
                             step="0.01"
-                            value={formData.anchoFuelle || formData.fuelleASA || ''}
+                            value={formData.anchoFuelle || (formData.tipoBolsa === 'asa' ? formData.fuelleASA : '') || ''}
                             onChange={(e) => {
                               const val = e.target.value ? parseFloat(e.target.value) : null;
                               handleChange('anchoFuelle', val);
-                              handleChange('fuelleASA', val);
+                              if (formData.tipoBolsa === 'asa') {
+                                handleChange('fuelleASA', val);
+                              }
                             }}
                             className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
                           />

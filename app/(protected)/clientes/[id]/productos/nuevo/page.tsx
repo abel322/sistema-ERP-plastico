@@ -374,6 +374,8 @@ export default function NuevoProductoPage() {
                         Tipo de Bolsa
                       </label>
                       <select
+                        name="tipoBolsa"
+                        id="tipoBolsa"
                         value={formData.tipoBolsa || 'sencilla'}
                         onChange={(e) => {
                           const val = e.target.value as TipoBolsa;
@@ -381,6 +383,15 @@ export default function NuevoProductoPage() {
                           handleChange('esBolsaFuelle', val === 'fuelle' || val === 'valvula' || val === 'asa');
                           handleChange('esBolsaPego', val === 'valvula');
                           handleChange('esBolsaASA', val === 'asa');
+                          if (val !== 'asa') {
+                            handleChange('fuelleASA', null);
+                            handleChange('anchoTroquelASA', null);
+                            handleChange('largoTroquelASA', null);
+                          }
+                          if (val !== 'valvula') {
+                            handleChange('anchoValvula', null);
+                            handleChange('anchoSolapa', null);
+                          }
                         }}
                         className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent font-medium"
                       >
@@ -480,11 +491,13 @@ export default function NuevoProductoPage() {
                           <input
                             type="number"
                             step="0.01"
-                            value={formData.anchoFuelle || formData.fuelleASA || ''}
+                            value={formData.anchoFuelle || (formData.tipoBolsa === 'asa' ? formData.fuelleASA : '') || ''}
                             onChange={(e) => {
                               const val = e.target.value ? parseFloat(e.target.value) : null;
                               handleChange('anchoFuelle', val);
-                              handleChange('fuelleASA', val);
+                              if (formData.tipoBolsa === 'asa') {
+                                handleChange('fuelleASA', val);
+                              }
                             }}
                             className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                           />

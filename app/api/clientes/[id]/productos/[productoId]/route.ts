@@ -89,6 +89,7 @@ export async function PUT(
         codigoProducto: body.codigoProducto || null,
         activo: body.activo !== undefined ? body.activo : true,
         tipoProducto: body.tipoProducto,
+        tipoBolsa: body.tipoBolsa || null,
         conImpresion: body.conImpresion || false,
         conPigmento: body.conPigmento || false,
         material: body.material || null,
@@ -103,15 +104,15 @@ export async function PUT(
         pesoPorUnidad: body.pesoPorUnidad || null,
         
         // Campos de bolsa de pego/válvula
-        anchoValvula: body.anchoValvula || null,
-        anchoSolapa: body.anchoSolapa || null,
+        anchoValvula: (body.tipoBolsa === 'valvula' || body.esBolsaPego) ? (body.anchoValvula || null) : null,
+        anchoSolapa: (body.tipoBolsa === 'valvula' || body.esBolsaPego) ? (body.anchoSolapa || null) : null,
         anchoFuelle: body.anchoFuelle || null,
         
         // Campos de bolsa ASA
-        esBolsaASA: body.esBolsaASA || false,
-        fuelleASA: body.fuelleASA || null,
-        anchoTroquelASA: body.anchoTroquelASA || null,
-        largoTroquelASA: body.largoTroquelASA || null,
+        esBolsaASA: body.tipoBolsa ? (body.tipoBolsa === 'asa' || body.tipoBolsa === 'Bolsa ASA') : Boolean(body.esBolsaASA),
+        fuelleASA: (body.tipoBolsa === 'asa' || body.tipoBolsa === 'Bolsa ASA') ? (body.fuelleASA || body.anchoFuelle || null) : null,
+        anchoTroquelASA: (body.tipoBolsa === 'asa' || body.tipoBolsa === 'Bolsa ASA') ? (body.anchoTroquelASA || null) : null,
+        largoTroquelASA: (body.tipoBolsa === 'asa' || body.tipoBolsa === 'Bolsa ASA') ? (body.largoTroquelASA || null) : null,
         
         // Atributos de sellado
         tipoSellado: body.tipoSellado || null,

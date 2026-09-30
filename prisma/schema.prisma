@@ -294,6 +294,7 @@ model ProductoCliente {
   
   // Especificaciones básicas del producto
   tipoProducto    TipoProducto
+  tipoBolsa       String?
   conImpresion    Boolean       @default(false)
   conPigmento     Boolean       @default(false)
   ancho           Float?
