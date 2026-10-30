@@ -31,6 +31,7 @@ import { ActionPasswordModal } from '@/components/modals/ActionPasswordModal';
 import { EditarProduccionModal } from '@/components/modals/EditarProduccionModal';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import { formatNumber } from '@/lib/utils';
+import { formatUTCtoDisplayDate } from '@/lib/utils/dates';
 import { calcularDesperdicioInfo } from '@/lib/utils/merma';
 import { agruparProduccionesPorLote } from '@/lib/utils/agrupar-producciones';
 import { CLASIFICACIONES_MERMA, calcularDesgloseMerma } from '@/lib/merma-logic';
@@ -490,27 +491,19 @@ export function HistorialProduccionContent() {
     TURNOS.find((t) => t.value === turno)?.label || turno;
 
   const formatDate = (dateStr: string) => {
-    const date = new Date(dateStr);
-    return date.toLocaleDateString('es-VE', {
-      day: '2-digit',
-      month: '2-digit',
-      year: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-    });
+    if (!dateStr) return '-';
+    return formatUTCtoDisplayDate(dateStr);
   };
 
   const formatDateShort = (dateStr: string) => {
-    const date = new Date(dateStr);
-    return date.toLocaleDateString('es-VE', {
-      day: '2-digit',
-      month: '2-digit',
-    });
+    if (!dateStr) return '-';
+    return formatUTCtoDisplayDate(dateStr);
   };
 
   const formatDayOfWeek = (dateStr: string) => {
-    const date = new Date(dateStr);
-    const day = date.toLocaleDateString('es-ES', { weekday: 'long' });
+    if (!dateStr) return '-';
+    const date = typeof dateStr === 'string' ? new Date(dateStr) : dateStr;
+    const day = date.toLocaleDateString('es-ES', { weekday: 'long', timeZone: 'UTC' });
     return day.charAt(0).toUpperCase() + day.slice(1);
   };
 
@@ -1422,14 +1415,14 @@ export function HistorialProduccionContent() {
               <p className="text-xs text-gray-500 mt-0.5">
                 Período consultado:{' '}
                 <strong className="text-emerald-700 font-semibold">
-                  {periodoLabel || (fechaInicio ? new Date(fechaInicio).toLocaleDateString('es-VE') : 'Actual')}
+                  {periodoLabel || (fechaInicio ? formatUTCtoDisplayDate(fechaInicio) : 'Actual')}
                 </strong>
               </p>
             </div>
             {fechaInicio && fechaFin && (
               <span className="inline-flex items-center gap-1.5 rounded-lg bg-gray-100 px-3 py-1 text-xs font-medium text-gray-600 border border-gray-200">
                 <Calendar className="h-3.5 w-3.5 text-gray-500" />
-                {new Date(fechaInicio).toLocaleDateString('es-VE')} al {new Date(fechaFin).toLocaleDateString('es-VE')}
+                {formatUTCtoDisplayDate(fechaInicio)} al {formatUTCtoDisplayDate(fechaFin)}
               </span>
             )}
           </div>
@@ -1662,7 +1655,10 @@ export function HistorialProduccionContent() {
                                                 return (
                                                   <tr key={reg.id} className="hover:bg-emerald-50/50">
                                                     <td className="px-3 py-2 text-gray-600">{getTurnoLabel(reg.turno)}</td>
-                                                    <td className="px-3 py-2 text-gray-600">{formatDayOfWeek(reg.fecha)}</td>
+                                                    <td className="px-3 py-2 text-gray-600">
+                                                      <span className="font-medium text-gray-800">{formatDayOfWeek(reg.fecha)}</span>{' '}
+                                                      <span className="text-xs text-gray-400">({formatUTCtoDisplayDate(reg.fecha)})</span>
+                                                    </td>
                                                     <td className="px-3 py-2 text-gray-900">{reg.operario}</td>
                                                     <td className="px-3 py-2 text-right font-medium text-gray-900">
                                                       {formatNumber(reg.cantidad, { minDecimals: isUnidades ? 0 : 2, maxDecimals: 2 })}

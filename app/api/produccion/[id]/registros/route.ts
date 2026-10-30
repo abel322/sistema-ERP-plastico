@@ -6,6 +6,7 @@ import { authOptions } from '@/lib/auth-options';
 import { determinarDestinoProducto } from '@/lib/producto-terminado-logic';
 import { calcularDesgloseMerma, aplicarMermaAInventario } from '@/lib/merma-logic';
 import { resolverConsumoExtrusion, aplicarConsumoExtrusion } from '@/lib/consumo-extrusion-logic';
+import { parseLocalDateToMiddayUTC } from '@/lib/utils/dates';
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
@@ -197,7 +198,7 @@ export async function POST(
         data: {
           produccionId: id,
           turno,
-          fecha: fecha ? new Date(fecha) : new Date(),
+          fecha: parseLocalDateToMiddayUTC(fecha),
           operario,
           cantidad: cantidadTurno,
           reporte: reporteConConsumo || null,

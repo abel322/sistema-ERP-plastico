@@ -16,14 +16,16 @@ export function getAreaPrefix(area: AreaName): string {
   return AREA_PREFIXES[area] || 'PRD';
 }
 
+import { parseLocalDateToMiddayUTC } from './dates';
+
 /**
- * Formatea una fecha a YYYYMMDD.
+ * Formatea una fecha a YYYYMMDD de forma segura usando UTC.
  */
 export function formatFechaLote(dateInput?: Date | string): string {
-  const d = dateInput ? new Date(dateInput) : new Date();
-  const year = d.getFullYear();
-  const month = String(d.getMonth() + 1).padStart(2, '0');
-  const day = String(d.getDate()).padStart(2, '0');
+  const d = dateInput ? parseLocalDateToMiddayUTC(dateInput) : new Date();
+  const year = d.getUTCFullYear();
+  const month = String(d.getUTCMonth() + 1).padStart(2, '0');
+  const day = String(d.getUTCDate()).padStart(2, '0');
   return `${year}${month}${day}`;
 }
 

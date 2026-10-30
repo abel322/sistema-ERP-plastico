@@ -27,6 +27,7 @@ import {
   RefreshCw,
 } from 'lucide-react';
 import { TipoMaquina, EstadoMaquina, AreaProduccion } from '@prisma/client';
+import { formatUTCtoDisplayDate } from '@/lib/utils/dates';
 import {
   getMaquinas,
   createMaquina,
@@ -910,7 +911,7 @@ export default function MaquinasPage() {
                               <tr key={r.id} className="hover:bg-slate-50/30 dark:hover:bg-slate-800/10">
                                 <td className="px-6 py-4">
                                   <p className="text-xs font-bold text-slate-850 dark:text-slate-300">
-                                    {new Date(r.fecha).toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric' })}
+                                    {formatUTCtoDisplayDate(r.fecha)}
                                   </p>
                                   <span className="px-2 py-0.5 bg-slate-100 dark:bg-slate-800 text-slate-500 rounded text-[9px] font-bold uppercase mt-1 inline-block">
                                     Turno: {r.turno}

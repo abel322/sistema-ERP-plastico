@@ -6,6 +6,7 @@ import { Loader2, Save, X, Factory } from 'lucide-react';
 import { FormInput } from '@/components/forms/form-input';
 import { FormSelect } from '@/components/forms/form-select';
 import { FormTextarea } from '@/components/forms/form-textarea';
+import { formatUTCtoDisplayDate } from '@/lib/utils/dates';
 
 const TURNOS = [
     { value: 'Manana', label: 'Mañana' },
@@ -127,7 +128,7 @@ export function EditarProduccionModal({ isOpen, onClose, onSuccess, produccionId
                             <div>
                                 <h2 className="text-xl font-bold text-white">Editar Producción</h2>
                                 <p className="text-emerald-100 text-sm">
-                                    {produccion?.maquina?.nombre} - {produccion?.fecha && new Date(produccion.fecha).toLocaleDateString('es-VE')}
+                                    {produccion?.maquina?.nombre} - {produccion?.fecha && formatUTCtoDisplayDate(produccion.fecha)}
                                 </p>
                             </div>
                         </div>

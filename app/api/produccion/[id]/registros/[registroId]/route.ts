@@ -6,6 +6,7 @@ import { authOptions } from '@/lib/auth-options';
 import { calcularDesgloseMerma, aplicarMermaAInventario, revertirMermaDeInventario } from '@/lib/merma-logic';
 import { resolverConsumoExtrusion, aplicarConsumoExtrusion, revertirConsumoExtrusion } from '@/lib/consumo-extrusion-logic';
 import { calcularConsumoBobinaSellado } from '@/lib/consumo-sellado-logic';
+import { parseLocalDateToMiddayUTC } from '@/lib/utils/dates';
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
@@ -115,7 +116,7 @@ export async function PUT(
                 where: { id: registroId },
                 data: {
                     turno,
-                    fecha: fecha ? new Date(fecha) : new Date(),
+                    fecha: parseLocalDateToMiddayUTC(fecha),
                     operario,
                     cantidad: cantidad ? parseFloat(cantidad.toString()) : 0,
                     reporte,

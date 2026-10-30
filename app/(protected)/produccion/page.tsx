@@ -35,6 +35,7 @@ import {
   MermaFieldConfig,
   ProductoMermaInfo,
 } from '@/lib/merma-logic';
+import { getTodayInputDate, formatUTCtoDisplayDate, formatUTCtoInputDate } from '@/lib/utils/dates';
 
 const AREAS = [
   { value: 'Extrusion', label: 'Extrusión' },
@@ -195,7 +196,7 @@ export function ProduccionContent() {
   const [isAvanzandoId, setIsAvanzandoId] = useState<string | null>(null);
   const [editProduccionId, setEditProduccionId] = useState<string | null>(null);
 
-  const today = new Date().toISOString().split('T')[0];
+  const today = getTodayInputDate();
   const [formData, setFormData] = useState({
     fecha: today,
     turno: 'Manana',
@@ -703,7 +704,7 @@ export function ProduccionContent() {
 
   const getAreaLabel = (area: string) => AREAS.find((a) => a.value === area)?.label || area;
   const getTurnoLabel = (turno: string) => TURNOS.find((t) => t.value === turno)?.label || turno;
-  const formatDateShort = (dateStr: string) => new Date(dateStr).toLocaleDateString('es-VE', { day: '2-digit', month: '2-digit' });
+  const formatDateShort = (dateStr: string) => formatUTCtoDisplayDate(dateStr);
   const calcularTotalCantidad = (registros: RegistroProduccion[]) => registros.reduce((sum, r) => sum + r.cantidad, 0);
   const calcularTotalMerma = (registros: RegistroProduccion[]) => registros.reduce((sum, r) => sum + r.merma + (r.mermaSinImpresion || 0) + (r.mermaImpreso || 0), 0);
 
@@ -2051,7 +2052,7 @@ export function ProduccionContent() {
                                 const desglose = calcularDesgloseMerma(reg);
                                 setRegistroForm({
                                   turno: reg.turno,
-                                  fecha: reg.fecha ? reg.fecha.split('T')[0] : today,
+                                  fecha: reg.fecha ? formatUTCtoInputDate(reg.fecha) : today,
                                   operario: reg.operario,
                                   cantidad: reg.cantidad.toString(),
                                   reporte: reg.reporte || '',

@@ -6,6 +6,7 @@ import { authOptions } from '@/lib/auth-options';
 import { determinarDestinoProducto, DestinoProducto, getNombreArea } from '@/lib/producto-terminado-logic';
 import { generarCodigoLoteUnico } from '@/lib/utils/lote';
 import { calcularDesgloseMerma, aplicarMermaAInventario, revertirMermaDeInventario } from '@/lib/merma-logic';
+import { parseLocalDateToMiddayUTC } from '@/lib/utils/dates';
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
@@ -148,6 +149,10 @@ export async function PUT(
       mermaBlancoPego: isNaN(mPego) ? 0 : mPego,
       mermaCristal: isNaN(mAlta) ? 0 : mAlta,
     };
+
+    if (updateData.fecha) {
+      produccionUpdatePayload.fecha = parseLocalDateToMiddayUTC(updateData.fecha);
+    }
 
     // Asegurar que la producción cuente con un código de lote único
     if (!produccionActual.codigoLote && !produccionUpdatePayload.codigoLote) {

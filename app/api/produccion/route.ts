@@ -4,6 +4,7 @@ import { prisma } from '@/lib/db';
 import { AreaProduccion, EstadoPedido } from '@prisma/client';
 import { authOptions } from '@/lib/auth-options';
 import { generarCodigoLoteUnico } from '@/lib/utils/lote';
+import { parseLocalDateToMiddayUTC } from '@/lib/utils/dates';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
@@ -305,7 +306,7 @@ export async function POST(request: Request) {
         userId,
         codigoLote: finalCodigoLote,
         loteOrigen: (loteOrigen && typeof loteOrigen === 'string' && loteOrigen.trim() !== '') ? loteOrigen.trim() : null,
-        fecha: fecha ? new Date(fecha) : new Date(),
+        fecha: parseLocalDateToMiddayUTC(fecha),
         turno,
         area,
         maquinaId,

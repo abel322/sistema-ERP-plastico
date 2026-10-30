@@ -9,6 +9,7 @@ import { FormInput } from '@/components/forms/form-input';
 import { FormSelect } from '@/components/forms/form-select';
 import { FormTextarea } from '@/components/forms/form-textarea';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
+import { formatUTCtoDisplayDate } from '@/lib/utils/dates';
 
 const TURNOS = [
   { value: 'Manana', label: 'Mañana' },
@@ -103,7 +104,7 @@ export default function EditarProduccionPage() {
           <div>
             <h1 className="text-2xl font-bold text-gray-900">Editar Producción</h1>
             <p className="text-gray-600">
-              {produccion?.maquina?.nombre} - {new Date(produccion?.fecha).toLocaleDateString('es-VE')}
+              {produccion?.maquina?.nombre} - {produccion?.fecha && formatUTCtoDisplayDate(produccion.fecha)}
             </p>
           </div>
         </div>
