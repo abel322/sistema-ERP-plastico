@@ -129,6 +129,7 @@ interface Produccion {
     codigoLote?: string;
     lote?: string;
     cantidad: number;
+    cantidadTotal?: number;
     unidad: string;
     area: string;
     tipoProducto: string;
@@ -174,6 +175,13 @@ export function ProduccionContent() {
   const [isEditRegistro, setIsEditRegistro] = useState(false);
   const [editRegistroId, setEditRegistroId] = useState<string | null>(null);
   const [showRegistrosListModal, setShowRegistrosListModal] = useState(false);
+
+  const [showAvanzarModal, setShowAvanzarModal] = useState(false);
+  const [avanzarProd, setAvanzarProd] = useState<Produccion | null>(null);
+  const [modoAvance, setModoAvance] = useState<'paralelo' | 'finalizar'>('paralelo');
+  const [avanzarMaquinaId, setAvanzarMaquinaId] = useState('');
+  const [avanzarOperario, setAvanzarOperario] = useState('');
+  const [avanzarTurno, setAvanzarTurno] = useState('Manana');
 
   const [maquinas, setMaquinas] = useState<Maquina[]>([]);
   const [pedidosFiltrados, setPedidosFiltrados] = useState<Pedido[]>([]);
@@ -427,27 +435,50 @@ export function ProduccionContent() {
     }
   };
 
-  const handleFinalizar = async (id: string) => {
-    if (!confirm('¿Finalizar el pedido completamente?')) return;
+  const handleFinalizar = async (prod: Produccion) => {
+    let sobranteBobinaKg = 0;
+    if (prod.area === 'Sellado' && prod.stockPrevio?.cantidad && prod.stockPrevio.cantidad > 0) {
+      const resp = confirm(
+        `Quedan ${prod.stockPrevio.cantidad.toFixed(2)} KG de bobina en piso.\n\n¿Deseas finalizar la fase y registrar este remanente como sobrante de bobina?`
+      );
+      if (!resp) return;
+      sobranteBobinaKg = prod.stockPrevio.cantidad;
+    } else {
+      if (!confirm(`¿Finalizar la fase de ${getAreaLabel(prod.area)}?`)) return;
+    }
+
     try {
-      await fetch(`/api/produccion/${id}`, {
+      setIsAvanzandoId(prod.id);
+      const res = await fetch(`/api/produccion/${prod.id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ estado: 'Finalizado', completarPedido: true }),
+        body: JSON.stringify({
+          estado: 'Finalizado',
+          completarPedido: true,
+          sobranteBobinaKg,
+        }),
       });
-      fetchProducciones();
+
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}));
+        throw new Error(errData.error || "Error al finalizar");
+      }
+
+      await fetchProducciones();
       router.refresh();
       toast({
         title: "Éxito",
-        description: "Pedido finalizado correctamente",
+        description: "Fase finalizada correctamente",
       });
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error:', error);
       toast({
         title: "Error",
-        description: "Error al finalizar el pedido",
+        description: error?.message || "Error al finalizar el pedido",
         variant: "destructive",
       });
+    } finally {
+      setIsAvanzandoId(null);
     }
   };
 
@@ -525,64 +556,140 @@ export function ProduccionContent() {
     });
   };
 
-  const handleAvanzarFase = async (prod: Produccion) => {
+  const handleOpenAvanzarModal = (prod: Produccion) => {
     const nextArea = getNextArea(prod);
     if (!nextArea) return;
-    if (!confirm(`¿Avanzar a ${getAreaLabel(nextArea)}?`)) return;
+    setAvanzarProd(prod);
+    setModoAvance('paralelo');
+    const maquinasNext = maquinas.filter((m) => m.area === nextArea);
+    setAvanzarMaquinaId(maquinasNext[0]?.id || '');
+    setAvanzarOperario('');
+    setAvanzarTurno('Manana');
+    setShowAvanzarModal(true);
+  };
 
-    setIsAvanzandoId(prod.id);
+  const handleConfirmAvanzarFase = async (e: FormEvent) => {
+    e.preventDefault();
+    if (!avanzarProd) return;
+    const nextArea = getNextArea(avanzarProd);
+    if (!nextArea) return;
+    if (!avanzarMaquinaId) {
+      toast({
+        title: "Atención",
+        description: "Debe seleccionar una máquina para la nueva fase",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsAvanzandoId(avanzarProd.id);
+    setSaving(true);
     try {
+      let lotePadre = avanzarProd.codigoLote || '';
+
+      if (modoAvance === 'finalizar') {
+        // Opción B: Finalizar la fase actual y transferir
+        const resFinalizar = await fetch(`/api/produccion/${avanzarProd.id}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            estado: 'Finalizado',
+            completarPedido: false,
+            siguienteArea: nextArea,
+          }),
+        });
+
+        if (!resFinalizar.ok) {
+          const errData = await resFinalizar.json().catch(() => ({}));
+          throw new Error(errData.error || "Error al finalizar la fase actual");
+        }
+        const dataFinalizada = await resFinalizar.json();
+        lotePadre = dataFinalizada?.codigoLote || lotePadre;
+      }
+
+      // Crear la nueva producción en la fase siguiente (Sellado / Serigrafía)
+      const unidadDestino = nextArea === 'Sellado' ? (avanzarProd.pedido?.unidad || 'Unidades') : 'Kilogramos';
+      const payloadNuevaFase = {
+        fecha: today,
+        turno: avanzarTurno,
+        area: nextArea,
+        maquinaId: avanzarMaquinaId,
+        operario: avanzarOperario || (session?.user as any)?.name || 'Operario',
+        pedidoId: avanzarProd.pedidoId || avanzarProd.pedido?.id,
+        cantidadProducida: '0',
+        unidad: unidadDestino,
+        merma: '0',
+        loteOrigen: lotePadre,
+      };
+
+      const resCrear = await fetch('/api/produccion', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payloadNuevaFase),
+      });
+
+      if (!resCrear.ok) {
+        const errCrear = await resCrear.json().catch(() => ({}));
+        throw new Error(errCrear.error || "Error al iniciar la nueva fase");
+      }
+
+      setShowAvanzarModal(false);
+      setAvanzarProd(null);
+      await fetchProducciones();
+      router.refresh();
+
+      toast({
+        title: "Fase Iniciada con Éxito",
+        description: modoAvance === 'paralelo'
+          ? `${getAreaLabel(nextArea)} iniciada en paralelo con ${getAreaLabel(avanzarProd.area)} activa.`
+          : `${getAreaLabel(avanzarProd.area)} finalizada y transferida a ${getAreaLabel(nextArea)}.`,
+      });
+    } catch (err: any) {
+      console.error(err);
+      toast({
+        title: "Error",
+        description: err.message || "Error al avanzar fase",
+        variant: "destructive",
+      });
+    } finally {
+      setIsAvanzandoId(null);
+      setSaving(false);
+    }
+  };
+
+  const handleFinalizarExtrusion = async (prod: Produccion) => {
+    if (!confirm(`¿Confirmar finalización de la fase de ${getAreaLabel(prod.area)}? La producción física se dará por concluida y las siguientes fases continuarán con las bobinas disponibles.`)) {
+      return;
+    }
+
+    try {
+      setIsAvanzandoId(prod.id);
       const res = await fetch(`/api/produccion/${prod.id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           estado: 'Finalizado',
           completarPedido: false,
-          siguienteArea: nextArea,
         }),
       });
 
       if (!res.ok) {
-        const errorData = await res.json().catch(() => ({}));
-        throw new Error(errorData.error || "Error en la respuesta del servidor al intentar avanzar");
+        const errData = await res.json().catch(() => ({}));
+        throw new Error(errData.error || "Error al finalizar la fase");
       }
-
-      const finalizadaData = await res.json();
-
-      setIsAvance(true);
-      const unidadDestino = nextArea === 'Sellado' ? (prod.pedido?.unidad || 'Unidades') : 'Kilogramos';
-      const lotePadre = finalizadaData?.codigoLote || prod.codigoLote || '';
-
-      setFormData({
-        ...formData,
-        fecha: today,
-        turno: 'Manana',
-        area: nextArea,
-        maquinaId: '',
-        operario: '',
-        pedidoId: prod.pedidoId || prod.pedido?.id || '',
-        unidad: unidadDestino,
-        cantidadProducida: '0',
-        merma: '0',
-        horaInicio: '',
-        horaFin: '',
-        observaciones: '',
-        loteOrigen: lotePadre,
-      });
-      setShowCrearModal(true);
 
       await fetchProducciones();
       router.refresh();
 
       toast({
-        title: "Éxito",
-        description: `Fase finalizada y avanzada a ${getAreaLabel(nextArea)} con Lote Origen: ${lotePadre}`,
+        title: "Fase Finalizada",
+        description: `La fase de ${getAreaLabel(prod.area)} ha sido finalizada correctamente.`,
       });
     } catch (err: any) {
       console.error(err);
       toast({
         title: "Error",
-        description: err?.message || "Error al avanzar fase. Por favor, intente de nuevo.",
+        description: err.message || "Error al finalizar fase",
         variant: "destructive",
       });
     } finally {
@@ -999,7 +1106,64 @@ export function ProduccionContent() {
                                 </div>
                               </div>
 
-                              {prod.area !== 'Extrusion' && (
+                               {/* Indicador de Bobina en Piso (WIP) para Sellado */}
+                              {isSellado ? (
+                                (() => {
+                                  const disponibleKg = prod.stockPrevio?.cantidad ?? 0;
+                                  const entregadoKg = prod.stockPrevio?.cantidadTotal ?? (disponibleKg + (dv.displayTotal * (pesoBolsaKg || 0.026)));
+                                  const consumidoKg = Math.max(0, entregadoKg - disponibleKg);
+                                  const porcentaje = entregadoKg > 0 ? (disponibleKg / entregadoKg) * 100 : (disponibleKg > 0 ? 100 : 0);
+                                  const esAlertaCero = disponibleKg <= 0;
+                                  const esAlertaBaja = !esAlertaCero && porcentaje <= 20;
+
+                                  return (
+                                    <div className={`rounded-2xl p-3.5 border transition-all ${
+                                      esAlertaCero
+                                        ? 'bg-rose-50 dark:bg-rose-950/30 border-rose-200 dark:border-rose-900/60'
+                                        : esAlertaBaja
+                                        ? 'bg-amber-50 dark:bg-amber-950/30 border-amber-200 dark:border-amber-900/60'
+                                        : 'bg-emerald-50 dark:bg-emerald-950/30 border-emerald-200 dark:border-emerald-900/60'
+                                    }`}>
+                                      <div className="flex items-center justify-between mb-1.5">
+                                        <span className="text-[10px] font-black uppercase tracking-wider flex items-center gap-1.5">
+                                          <span className={`w-2 h-2 rounded-full ${
+                                            esAlertaCero ? 'bg-rose-500 animate-ping' : esAlertaBaja ? 'bg-amber-500' : 'bg-emerald-500'
+                                          }`} />
+                                          <span className={esAlertaCero ? 'text-rose-800 dark:text-rose-200' : esAlertaBaja ? 'text-amber-800 dark:text-amber-200' : 'text-emerald-800 dark:text-emerald-200'}>
+                                            Bobina en piso (WIP)
+                                          </span>
+                                        </span>
+                                        <span className={`text-xs font-black ${
+                                          esAlertaCero ? 'text-rose-700 dark:text-rose-300' : esAlertaBaja ? 'text-amber-700 dark:text-amber-300' : 'text-emerald-700 dark:text-emerald-300'
+                                        }`}>
+                                          {formatNumber(disponibleKg, { minDecimals: 2, maxDecimals: 2 })} KG disponibles
+                                        </span>
+                                      </div>
+
+                                      <div className="flex items-center justify-between text-[9px] font-bold text-slate-500 dark:text-slate-400 pt-1.5 border-t border-slate-200/60 dark:border-slate-800">
+                                        <span>Entregado: <strong className="text-slate-800 dark:text-slate-200">{formatNumber(entregadoKg, { minDecimals: 2, maxDecimals: 2 })} KG</strong></span>
+                                        <span>Consumido: <strong className="text-slate-800 dark:text-slate-200">{formatNumber(consumidoKg, { minDecimals: 2, maxDecimals: 2 })} KG</strong></span>
+                                      </div>
+
+                                      {mostrarBolsasEstimadas && disponibleKg > 0 && (
+                                        <div className="mt-1.5 text-[9px] font-semibold text-slate-500 dark:text-slate-400">
+                                          Capacidad restante estimada: <strong className="text-slate-700 dark:text-slate-300">≈ {bolsasEstimadas.toLocaleString('es-ES')} bolsas</strong>
+                                        </div>
+                                      )}
+
+                                      {esAlertaCero ? (
+                                        <p className="text-[9px] font-extrabold text-rose-600 dark:text-rose-400 mt-2 uppercase tracking-tight flex items-center gap-1">
+                                          <AlertTriangle className="h-3 w-3 shrink-0" /> Selladora en espera de bobinas de extrusión
+                                        </p>
+                                      ) : esAlertaBaja ? (
+                                        <p className="text-[9px] font-bold text-amber-700 dark:text-amber-300 mt-1.5 tracking-tight flex items-center gap-1">
+                                          <AlertTriangle className="h-3 w-3 shrink-0" /> Saldo bajo: queda menos del 20% de la bobina inicial
+                                        </p>
+                                      ) : null}
+                                    </div>
+                                  );
+                                })()
+                              ) : prod.area !== 'Extrusion' ? (
                                 <div className={`rounded-xl p-3 border transition-all ${
                                   sinStock 
                                     ? 'bg-red-50 dark:bg-red-950/20 border-red-100 dark:border-red-900/50' 
@@ -1011,17 +1175,27 @@ export function ProduccionContent() {
                                     </span>
                                     <div className="flex items-center gap-1.5 text-right">
                                       <span className={`text-[10px] font-black uppercase tracking-widest ${sinStock ? 'text-red-600 animate-pulse' : 'text-emerald-600'}`}>
-                                        {sinStock ? '! SIN STOCK' : `${formatNumber(prod.stockPrevio?.cantidad, { minDecimals: prod.stockPrevio?.unidad === 'Kilogramos' ? 2 : 0, maxDecimals: 2 })} ${prod.stockPrevio?.unidad === 'Kilogramos' ? 'kg' : 'und'}`}
+                                        {sinStock ? '! SIN STOCK' : `${formatNumber(prod.stockPrevio?.cantidad, { minDecimals: 2, maxDecimals: 2 })} kg`}
                                       </span>
-                                      {mostrarBolsasEstimadas && (
-                                        <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400 tracking-wider">
-                                          (≈ {bolsasEstimadas.toLocaleString('es-ES')} und)
-                                        </span>
-                                      )}
                                     </div>
                                   </div>
                                 </div>
-                              )}
+                              ) : null}
+
+                              {/* Alerta de fase paralela activa para Extrusión */}
+                              {(() => {
+                                if (prod.area !== 'Extrusion') return null;
+                                const faseParalela = producciones.find(
+                                  (p) => p.id !== prod.id && p.pedidoId === prod.pedidoId && p.estado === 'EnProceso'
+                                );
+                                if (!faseParalela) return null;
+                                return (
+                                  <div className="flex items-center gap-2 px-3 py-2 bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300 rounded-xl border border-blue-200 dark:border-blue-900/60 text-[10px] font-bold">
+                                    <span className="w-2 h-2 rounded-full bg-blue-500 animate-ping shrink-0" />
+                                    <span>Trabajando en paralelo con {getAreaLabel(faseParalela.area)}</span>
+                                  </div>
+                                );
+                              })()}
 
                               <div className="grid grid-cols-2 gap-2 mt-2">
                                 <button
@@ -1043,23 +1217,67 @@ export function ProduccionContent() {
                                 </button>
                               </div>
 
-                              <div className="mt-1">
-                                {nextArea ? (
-                                  <button
-                                    onClick={() => handleAvanzarFase(prod)}
-                      disabled={isAvanzandoId === prod.id}
-                                    className="w-full flex items-center justify-center gap-2 rounded-xl bg-slate-900 dark:bg-white text-white dark:text-slate-900 py-2.5 text-[10px] font-black uppercase tracking-widest hover:opacity-90 transition-all shadow-xl"
-                                  >
-                                    {isAvanzandoId === prod.id ? "AVANZANDO..." : `AVANZAR A ${getAreaLabel(nextArea).toUpperCase()}`} {isAvanzandoId !== prod.id && <ChevronRight className="h-3 w-3" />}
-                                  </button>
-                                ) : (
-                                  <button
-                                    onClick={() => handleFinalizar(prod.id)}
-                                    className="w-full flex items-center justify-center gap-2 rounded-xl bg-emerald-600 text-white py-2.5 text-[10px] font-black uppercase tracking-widest hover:bg-emerald-700 transition-all shadow-xl shadow-emerald-100 dark:shadow-none"
-                                  >
-                                    <CheckCircle className="h-3.5 w-3.5" /> FINALIZAR PEDIDO
-                                  </button>
-                                )}
+                              <div className="mt-1 space-y-1.5">
+                                {(() => {
+                                  const faseParalela = producciones.find(
+                                    (p) => p.id !== prod.id && p.pedidoId === prod.pedidoId && p.estado === 'EnProceso'
+                                  );
+
+                                  if (prod.area === 'Extrusion') {
+                                    if (faseParalela) {
+                                      return (
+                                        <button
+                                          onClick={() => handleFinalizarExtrusion(prod)}
+                                          disabled={isAvanzandoId === prod.id}
+                                          className="w-full flex items-center justify-center gap-2 rounded-xl bg-slate-800 hover:bg-slate-900 text-white dark:bg-slate-800 dark:hover:bg-slate-700 py-2.5 text-[10px] font-black uppercase tracking-widest transition-all shadow-md"
+                                        >
+                                          <CheckCircle className="h-3.5 w-3.5 text-emerald-400" /> FINALIZAR EXTRUSIÓN
+                                        </button>
+                                      );
+                                    }
+
+                                    return (
+                                      <>
+                                        <button
+                                          onClick={() => handleOpenAvanzarModal(prod)}
+                                          disabled={isAvanzandoId === prod.id}
+                                          className="w-full flex items-center justify-center gap-2 rounded-xl bg-slate-900 dark:bg-white text-white dark:text-slate-900 py-2.5 text-[10px] font-black uppercase tracking-widest hover:opacity-90 transition-all shadow-xl"
+                                        >
+                                          {isAvanzandoId === prod.id ? "PROCESANDO..." : `AVANZAR A ${getAreaLabel(nextArea || 'Sellado').toUpperCase()}`} {isAvanzandoId !== prod.id && <ChevronRight className="h-3 w-3" />}
+                                        </button>
+                                        <button
+                                          onClick={() => handleFinalizarExtrusion(prod)}
+                                          disabled={isAvanzandoId === prod.id}
+                                          className="w-full text-center text-[9px] font-bold text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 uppercase tracking-wider py-1 transition-colors"
+                                        >
+                                          Finalizar Extrusión (Sin pasar a Sellado)
+                                        </button>
+                                      </>
+                                    );
+                                  }
+
+                                  if (nextArea) {
+                                    return (
+                                      <button
+                                        onClick={() => handleOpenAvanzarModal(prod)}
+                                        disabled={isAvanzandoId === prod.id}
+                                        className="w-full flex items-center justify-center gap-2 rounded-xl bg-slate-900 dark:bg-white text-white dark:text-slate-900 py-2.5 text-[10px] font-black uppercase tracking-widest hover:opacity-90 transition-all shadow-xl"
+                                      >
+                                        {isAvanzandoId === prod.id ? "PROCESANDO..." : `AVANZAR A ${getAreaLabel(nextArea).toUpperCase()}`} {isAvanzandoId !== prod.id && <ChevronRight className="h-3 w-3" />}
+                                      </button>
+                                    );
+                                  }
+
+                                  return (
+                                    <button
+                                      onClick={() => handleFinalizar(prod)}
+                                      disabled={isAvanzandoId === prod.id}
+                                      className="w-full flex items-center justify-center gap-2 rounded-xl bg-emerald-600 text-white py-2.5 text-[10px] font-black uppercase tracking-widest hover:bg-emerald-700 transition-all shadow-xl shadow-emerald-100 dark:shadow-none"
+                                    >
+                                      <CheckCircle className="h-3.5 w-3.5" /> FINALIZAR {getAreaLabel(prod.area).toUpperCase()}
+                                    </button>
+                                  );
+                                })()}
                               </div>
                             </>
                           );
@@ -1266,6 +1484,194 @@ export function ProduccionContent() {
         )}
       </AnimatePresence>
 
+      {/* Modal Avanzar Fase (Trabajo en Paralelo o Finalizar) */}
+      <AnimatePresence>
+        {showAvanzarModal && avanzarProd && (() => {
+          const nextArea = getNextArea(avanzarProd);
+          if (!nextArea) return null;
+          const maquinasNext = maquinas.filter((m) => m.area === nextArea);
+          const nombreAreaOrigen = getAreaLabel(avanzarProd.area);
+          const nombreAreaDestino = getAreaLabel(nextArea);
+
+          return (
+            <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-sm" onClick={() => setShowAvanzarModal(false)}>
+              <motion.div
+                initial={{ opacity: 0, scale: 0.95, y: 20 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.95, y: 20 }}
+                onClick={(e) => e.stopPropagation()}
+                className="w-full max-w-xl max-h-[90vh] overflow-y-auto rounded-[2.5rem] bg-white dark:bg-slate-900 p-8 shadow-2xl border border-slate-200 dark:border-slate-800 transition-colors"
+              >
+                <div className="flex items-center gap-4 mb-6">
+                  <div className="w-12 h-12 bg-indigo-600 rounded-2xl flex items-center justify-center text-white shadow-lg">
+                    <Factory className="w-6 h-6" />
+                  </div>
+                  <div>
+                    <h2 className="text-xl font-black text-slate-900 dark:text-white leading-tight">
+                      Avanzar a {nombreAreaDestino}
+                    </h2>
+                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">
+                      Transición de Fase Operativa
+                    </p>
+                  </div>
+                </div>
+
+                <div className="p-4 bg-slate-50 dark:bg-slate-800/40 rounded-2xl border border-slate-200/60 dark:border-slate-800 mb-6">
+                  <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
+                    <span className="px-2.5 py-1 bg-indigo-50 dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-300 rounded-lg text-[10px] font-black uppercase tracking-wider">
+                      Pedido #{avanzarProd.pedido?.id?.slice(-5).toUpperCase() || 'N/A'}
+                    </span>
+                    {avanzarProd.codigoLote && (
+                      <span className="px-2.5 py-1 bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900 text-[10px] font-mono font-bold rounded-lg">
+                        Lote: {avanzarProd.codigoLote}
+                      </span>
+                    )}
+                  </div>
+                  <h3 className="font-black text-sm text-slate-800 dark:text-slate-200">
+                    {avanzarProd.pedido?.cliente?.nombre || 'Producción Interna'}
+                  </h3>
+                  <p className="text-xs text-slate-500 dark:text-slate-400">
+                    {avanzarProd.pedido?.productoCliente?.nombreProducto || avanzarProd.productoCliente?.nombreProducto || 'Material Extruido'}
+                  </p>
+                </div>
+
+                <form onSubmit={handleConfirmAvanzarFase} className="space-y-6">
+                  {/* Selector de Modo */}
+                  <div>
+                    <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3 ml-1">
+                      Modalidad de Avance
+                    </label>
+                    <div className="grid grid-cols-1 gap-3">
+                      <div
+                        onClick={() => setModoAvance('paralelo')}
+                        className={`p-4 rounded-2xl border-2 cursor-pointer transition-all ${
+                          modoAvance === 'paralelo'
+                            ? 'border-indigo-600 bg-indigo-50/50 dark:bg-indigo-950/30'
+                            : 'border-slate-200 dark:border-slate-700 hover:border-slate-300'
+                        }`}
+                      >
+                        <div className="flex items-center justify-between mb-1.5">
+                          <div className="flex items-center gap-2">
+                            <input
+                              type="radio"
+                              name="modoAvance"
+                              checked={modoAvance === 'paralelo'}
+                              onChange={() => setModoAvance('paralelo')}
+                              className="accent-indigo-600 h-4 w-4"
+                            />
+                            <span className="text-sm font-black text-slate-900 dark:text-white">
+                              Iniciar {nombreAreaDestino} en Paralelo
+                            </span>
+                          </div>
+                          <span className="px-2 py-0.5 rounded-full text-[9px] font-extrabold uppercase bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300">
+                            Recomendado
+                          </span>
+                        </div>
+                        <p className="text-xs text-slate-500 dark:text-slate-400 ml-6 leading-relaxed">
+                          Mantiene la máquina de <strong>{nombreAreaOrigen}</strong> activa en proceso para continuar produciendo kilos mientras la máquina de <strong>{nombreAreaDestino}</strong> comienza a trabajar con las bobinas ya disponibles.
+                        </p>
+                      </div>
+
+                      <div
+                        onClick={() => setModoAvance('finalizar')}
+                        className={`p-4 rounded-2xl border-2 cursor-pointer transition-all ${
+                          modoAvance === 'finalizar'
+                            ? 'border-indigo-600 bg-indigo-50/50 dark:bg-indigo-950/30'
+                            : 'border-slate-200 dark:border-slate-700 hover:border-slate-300'
+                        }`}
+                      >
+                        <div className="flex items-center gap-2 mb-1.5">
+                          <input
+                            type="radio"
+                            name="modoAvance"
+                            checked={modoAvance === 'finalizar'}
+                            onChange={() => setModoAvance('finalizar')}
+                            className="accent-indigo-600 h-4 w-4"
+                          />
+                          <span className="text-sm font-black text-slate-900 dark:text-white">
+                            Finalizar {nombreAreaOrigen} y Transferir
+                          </span>
+                        </div>
+                        <p className="text-xs text-slate-500 dark:text-slate-400 ml-6 leading-relaxed">
+                          Concluye definitivamente la fase de {nombreAreaOrigen} (se retira de la columna de {nombreAreaOrigen}) y activa {nombreAreaDestino} con todo el material producido.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Configuración de la Nueva Máquina */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">
+                        Máquina de {nombreAreaDestino}
+                      </label>
+                      <select
+                        required
+                        value={avanzarMaquinaId}
+                        onChange={(e) => setAvanzarMaquinaId(e.target.value)}
+                        className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl px-4 py-3 text-sm font-bold text-slate-700 dark:text-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none cursor-pointer"
+                      >
+                        <option value="">Seleccionar máquina</option>
+                        {maquinasNext.map((m) => (
+                          <option key={m.id} value={m.id}>{m.nombre}</option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">
+                        Turno Inicial
+                      </label>
+                      <select
+                        required
+                        value={avanzarTurno}
+                        onChange={(e) => setAvanzarTurno(e.target.value)}
+                        className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl px-4 py-3 text-sm font-bold text-slate-700 dark:text-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none cursor-pointer"
+                      >
+                        {TURNOS.map((t) => (
+                          <option key={t.value} value={t.value}>{t.label}</option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">
+                      Operario Responsable de {nombreAreaDestino} (Opcional)
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="Nombre del operario"
+                      value={avanzarOperario}
+                      onChange={(e) => setAvanzarOperario(e.target.value)}
+                      className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl px-4 py-3 text-sm font-bold text-slate-700 dark:text-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none transition-all"
+                    />
+                  </div>
+
+                  <div className="flex gap-4 pt-2">
+                    <button
+                      type="button"
+                      onClick={() => setShowAvanzarModal(false)}
+                      className="flex-1 px-6 py-4 rounded-2xl border border-slate-200 dark:border-slate-700 text-xs font-black uppercase tracking-widest text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 transition-all"
+                    >
+                      Cancelar
+                    </button>
+                    <button
+                      type="submit"
+                      disabled={saving || isAvanzandoId === avanzarProd.id}
+                      className="flex-[2] flex items-center justify-center gap-2 px-6 py-4 rounded-2xl bg-indigo-600 text-xs font-black uppercase tracking-widest text-white hover:bg-indigo-700 disabled:opacity-50 transition-all shadow-xl shadow-indigo-100 dark:shadow-none"
+                    >
+                      {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <ChevronRight className="h-4 w-4" />}
+                      {saving ? 'INICIANDO FASE...' : `INICIAR ${nombreAreaDestino.toUpperCase()}`}
+                    </button>
+                  </div>
+                </form>
+              </motion.div>
+            </div>
+          );
+        })()}
+      </AnimatePresence>
+
       {/* Modal Agregar Registro */}
       <AnimatePresence>
         {showRegistroModal && selectedProduccion && (
@@ -1389,7 +1795,7 @@ export function ProduccionContent() {
                     })}
                   </div>
 
-                  {/* Totalizador en Vivo */}
+                  {/* Totalizador en Vivo de Merma */}
                   {(() => {
                     const mTotalLive = camposMermaVisibles.reduce(
                       (sum, c) => sum + (parseFloat((registroForm as any)[c.key] || '0') || 0),
@@ -1408,23 +1814,145 @@ export function ProduccionContent() {
                   })()}
                 </div>
 
-                <div className="flex gap-4 pt-4">
-                  <button
-                    type="button"
-                    onClick={() => { setShowRegistroModal(false); resetRegistroForm(); }}
-                    className="flex-1 px-6 py-4 rounded-2xl border border-slate-200 dark:border-slate-700 text-xs font-black uppercase tracking-widest text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 transition-all"
-                  >
-                    Cancelar
-                  </button>
-                  <button
-                    type="submit"
-                    disabled={saving}
-                    className="flex-[2] flex items-center justify-center gap-3 px-6 py-4 rounded-2xl bg-indigo-600 text-xs font-black uppercase tracking-widest text-white hover:bg-indigo-700 disabled:opacity-50 transition-all shadow-xl shadow-indigo-100 dark:shadow-none cursor-pointer disabled:cursor-not-allowed"
-                  >
-                    {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
-                    {saving ? 'GUARDANDO...' : (isEditRegistro ? 'ACTUALIZAR' : 'GUARDAR')}
-                  </button>
-                </div>
+                {/* Cálculo Dinámico de Bobina en Proceso (WIP) para Sellado */}
+                {(() => {
+                  if (selectedProduccion.area !== 'Sellado') return null;
+
+                  const prodCliente = selectedProduccion.pedido?.productoCliente || selectedProduccion.productoCliente;
+                  let pesoGramos = prodCliente?.pesoPorUnidad || 0;
+                  if (!pesoGramos && prodCliente?.ancho && prodCliente?.largo && prodCliente?.calibre) {
+                    const densidad = getPlasticDensity(prodCliente.material);
+                    pesoGramos = calculateBagWeight({
+                      tipoBolsa:
+                        prodCliente.anchoValvula && prodCliente.anchoValvula > 0
+                          ? 'valvula'
+                          : prodCliente.anchoFuelle && prodCliente.anchoFuelle > 0
+                          ? 'fuelle'
+                          : 'sencilla',
+                      ancho: prodCliente.ancho,
+                      largo: prodCliente.largo,
+                      calibre: prodCliente.calibre,
+                      fuelle: prodCliente.anchoFuelle,
+                      solapa: prodCliente.anchoSolapa,
+                      densidad,
+                    });
+                  }
+
+                  const bolsas = parseFloat(registroForm.cantidad || '0') || 0;
+                  const kgBolsas = pesoGramos > 0 ? (bolsas * pesoGramos) / 1000 : 0;
+                  const mTotalLive = camposMermaVisibles.reduce(
+                    (sum, c) => sum + (parseFloat((registroForm as any)[c.key] || '0') || 0),
+                    0
+                  );
+                  const kgConsumoTotal = kgBolsas + mTotalLive;
+                  const bobinaDisponible = selectedProduccion.stockPrevio?.cantidad ?? 0;
+                  const maxPermitido = bobinaDisponible * 1.05; // 5% de margen de tolerancia
+                  const saldoInsuficiente = kgConsumoTotal > maxPermitido;
+                  const saldoRestanteEstimado = Math.max(0, bobinaDisponible - kgConsumoTotal);
+
+                  return (
+                    <div className={`p-4 rounded-2xl border transition-all ${
+                      saldoInsuficiente
+                        ? 'bg-rose-50 dark:bg-rose-950/30 border-rose-300 dark:border-rose-900/60'
+                        : 'bg-indigo-50/60 dark:bg-indigo-950/20 border-indigo-100 dark:border-indigo-900/40'
+                    }`}>
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="text-[10px] font-black uppercase tracking-wider text-slate-700 dark:text-slate-300">
+                          Equivalente Consumido de Bobina (WIP)
+                        </span>
+                        <span className={`text-xs font-black ${saldoInsuficiente ? 'text-rose-600 dark:text-rose-400' : 'text-indigo-600 dark:text-indigo-400'}`}>
+                          {formatNumber(kgConsumoTotal, { minDecimals: 2, maxDecimals: 2 })} KG
+                        </span>
+                      </div>
+
+                      <div className="text-[10px] font-medium text-slate-600 dark:text-slate-400 space-y-1">
+                        <div className="flex justify-between">
+                          <span>Bolsas producidas ({bolsas.toLocaleString('es-ES')} unds × {pesoGramos.toFixed(2)} g):</span>
+                          <span className="font-bold">{formatNumber(kgBolsas, { minDecimals: 2, maxDecimals: 2 })} kg</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span>Merma / Scrap de sellado:</span>
+                          <span className="font-bold">{formatNumber(mTotalLive, { minDecimals: 2, maxDecimals: 2 })} kg</span>
+                        </div>
+                        <div className="flex justify-between pt-1 border-t border-slate-200/60 dark:border-slate-800">
+                          <span>Bobina disponible en piso:</span>
+                          <span className="font-bold text-slate-800 dark:text-slate-200">{formatNumber(bobinaDisponible, { minDecimals: 2, maxDecimals: 2 })} kg</span>
+                        </div>
+                        {!saldoInsuficiente && (
+                          <div className="flex justify-between">
+                            <span>Saldo restante proyectado:</span>
+                            <span className="font-bold text-emerald-600 dark:text-emerald-400">{formatNumber(saldoRestanteEstimado, { minDecimals: 2, maxDecimals: 2 })} kg</span>
+                          </div>
+                        )}
+                      </div>
+
+                      {saldoInsuficiente && (
+                        <div className="mt-3 p-2.5 rounded-xl bg-rose-100 dark:bg-rose-900/40 text-rose-800 dark:text-rose-200 text-xs font-bold flex items-start gap-2">
+                          <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5 text-rose-600 dark:text-rose-400" />
+                          <span>
+                            No hay suficiente bobina en piso. Requerido: {kgConsumoTotal.toFixed(2)} kg. Disponible de Extrusión: {bobinaDisponible.toFixed(2)} kg. Extrusión debe registrar más bobinas antes de continuar.
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })()}
+
+                {(() => {
+                  let isBloqueado = false;
+                  if (selectedProduccion.area === 'Sellado') {
+                    const prodCliente = selectedProduccion.pedido?.productoCliente || selectedProduccion.productoCliente;
+                    let pesoGramos = prodCliente?.pesoPorUnidad || 0;
+                    if (!pesoGramos && prodCliente?.ancho && prodCliente?.largo && prodCliente?.calibre) {
+                      const densidad = getPlasticDensity(prodCliente.material);
+                      pesoGramos = calculateBagWeight({
+                        tipoBolsa:
+                          prodCliente.anchoValvula && prodCliente.anchoValvula > 0
+                            ? 'valvula'
+                            : prodCliente.anchoFuelle && prodCliente.anchoFuelle > 0
+                            ? 'fuelle'
+                            : 'sencilla',
+                        ancho: prodCliente.ancho,
+                        largo: prodCliente.largo,
+                        calibre: prodCliente.calibre,
+                        fuelle: prodCliente.anchoFuelle,
+                        solapa: prodCliente.anchoSolapa,
+                        densidad,
+                      });
+                    }
+                    const bolsas = parseFloat(registroForm.cantidad || '0') || 0;
+                    const kgBolsas = pesoGramos > 0 ? (bolsas * pesoGramos) / 1000 : 0;
+                    const mTotalLive = camposMermaVisibles.reduce(
+                      (sum, c) => sum + (parseFloat((registroForm as any)[c.key] || '0') || 0),
+                      0
+                    );
+                    const kgConsumoTotal = kgBolsas + mTotalLive;
+                    const bobinaDisponible = selectedProduccion.stockPrevio?.cantidad ?? 0;
+                    if (kgConsumoTotal > bobinaDisponible * 1.05) {
+                      isBloqueado = true;
+                    }
+                  }
+
+                  return (
+                    <div className="flex gap-4 pt-4">
+                      <button
+                        type="button"
+                        onClick={() => { setShowRegistroModal(false); resetRegistroForm(); }}
+                        className="flex-1 px-6 py-4 rounded-2xl border border-slate-200 dark:border-slate-700 text-xs font-black uppercase tracking-widest text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 transition-all"
+                      >
+                        Cancelar
+                      </button>
+                      <button
+                        type="submit"
+                        disabled={saving || isBloqueado}
+                        className="flex-[2] flex items-center justify-center gap-3 px-6 py-4 rounded-2xl bg-indigo-600 text-xs font-black uppercase tracking-widest text-white hover:bg-indigo-700 disabled:opacity-50 transition-all shadow-xl shadow-indigo-100 dark:shadow-none cursor-pointer disabled:cursor-not-allowed"
+                      >
+                        {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+                        {saving ? 'GUARDANDO...' : (isEditRegistro ? 'ACTUALIZAR' : 'GUARDAR')}
+                      </button>
+                    </div>
+                  );
+                })()}
               </form>
             </motion.div>
           </div>

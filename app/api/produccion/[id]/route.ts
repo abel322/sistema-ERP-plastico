@@ -275,7 +275,9 @@ export async function PUT(
           areaOrigen: produccionActual.area,
           descripcion: destino.descripcionDestino,
           cantidadTotal: cantidadFinal,
-          cantidadDisponible: cantidadFinal,
+          cantidadDisponible: (produccionActual.area === 'Extrusion' && produccionActual.productoTerminado)
+            ? produccionActual.productoTerminado.cantidadDisponible
+            : cantidadFinal,
           unidad: produccionActual.unidad,
           tipoProducto: tipoProducto,
           conImpresion: conImpresion,
@@ -293,15 +295,25 @@ export async function PUT(
           },
         });
 
-        // Actualizar el Pedido a 'Completado' automáticamente si viene completarPedido en true
+        // Actualizar el Pedido a 'Completado' únicamente si no existen otras fases activas en paralelo
         if (prodActualizada.pedidoId && completarPedido) {
-          await tx.pedido.update({
-            where: { id: prodActualizada.pedidoId },
-            data: {
-              estado: 'Completado',
-              cantidadProducida: cantidadFinal,
+          const otrasFasesActivas = await tx.produccion.count({
+            where: {
+              pedidoId: prodActualizada.pedidoId,
+              id: { not: prodActualizada.id },
+              estado: EstadoProduccion.EnProceso,
             },
           });
+
+          if (otrasFasesActivas === 0) {
+            await tx.pedido.update({
+              where: { id: prodActualizada.pedidoId },
+              data: {
+                estado: 'Completado',
+                cantidadProducida: cantidadFinal,
+              },
+            });
+          }
         }
 
         // 5. Descuento en Extrusión: Se ejecuta en tiempo real en cada registro de turno (+ REGISTRO).

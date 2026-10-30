@@ -5,6 +5,7 @@ import { prisma } from '@/lib/db';
 import { authOptions } from '@/lib/auth-options';
 import { calcularDesgloseMerma, aplicarMermaAInventario, revertirMermaDeInventario } from '@/lib/merma-logic';
 import { resolverConsumoExtrusion, aplicarConsumoExtrusion, revertirConsumoExtrusion } from '@/lib/consumo-extrusion-logic';
+import { calcularConsumoBobinaSellado } from '@/lib/consumo-sellado-logic';
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
@@ -64,6 +65,38 @@ export async function PUT(
                         responsable: operario || registroExistente.operario,
                         accion: 'Edición',
                     });
+                }
+            }
+
+            // Revertir consumo de bobina WIP en Sellado si es Sellado
+            if (produccionExistente.area === 'Sellado' && registroExistente.cantidad > 0) {
+                let previo = null;
+                if (produccionExistente.loteOrigen) {
+                    previo = await tx.productoTerminado.findFirst({
+                        where: { lote: produccionExistente.loteOrigen },
+                    });
+                }
+                if (!previo && produccionExistente.pedidoId) {
+                    previo = await tx.productoTerminado.findFirst({
+                        where: {
+                            pedidoId: produccionExistente.pedidoId,
+                            area: 'Extrusion',
+                        },
+                        orderBy: { createdAt: 'desc' },
+                    });
+                }
+
+                if (previo) {
+                    const prodSpec = produccionExistente.pedido?.productoCliente || produccionExistente.productoCliente;
+                    const prevConsumo = calcularConsumoBobinaSellado(prodSpec, registroExistente.cantidad, registroExistente.merma || 0);
+                    if (prevConsumo.kgTotalConsumido > 0) {
+                        await tx.productoTerminado.update({
+                            where: { id: previo.id },
+                            data: {
+                                cantidadDisponible: { increment: prevConsumo.kgTotalConsumido },
+                            },
+                        });
+                    }
                 }
             }
 
@@ -154,14 +187,64 @@ export async function PUT(
                 }
             }
 
+            // Aplicar nuevo consumo de bobina WIP en Sellado
+            if (produccionExistente.area === 'Sellado') {
+                const nuevaCantidad = cantidad ? parseFloat(cantidad.toString()) : 0;
+                if (nuevaCantidad > 0) {
+                    let previo = null;
+                    if (produccionExistente.loteOrigen) {
+                        previo = await tx.productoTerminado.findFirst({
+                            where: { lote: produccionExistente.loteOrigen },
+                        });
+                    }
+                    if (!previo && produccionExistente.pedidoId) {
+                        previo = await tx.productoTerminado.findFirst({
+                            where: {
+                                pedidoId: produccionExistente.pedidoId,
+                                area: 'Extrusion',
+                            },
+                            orderBy: { createdAt: 'desc' },
+                        });
+                    }
+
+                    if (previo) {
+                        const prodSpec = produccionExistente.pedido?.productoCliente || produccionExistente.productoCliente;
+                        const nuevoConsumo = calcularConsumoBobinaSellado(prodSpec, nuevaCantidad, desglose.mermaTotal);
+                        if (nuevoConsumo.kgTotalConsumido > 0) {
+                            const disponibleActual = previo.cantidadDisponible;
+                            if (nuevoConsumo.kgTotalConsumido > (disponibleActual * 1.05)) {
+                                throw new Error(`No hay suficiente bobina en piso. Requerido: ${nuevoConsumo.kgTotalConsumido.toFixed(2)} kg. Disponible de Extrusión: ${disponibleActual.toFixed(2)} kg.`);
+                            }
+                            await tx.productoTerminado.update({
+                                where: { id: previo.id },
+                                data: {
+                                    cantidadDisponible: { decrement: nuevoConsumo.kgTotalConsumido },
+                                },
+                            });
+                        }
+                    }
+                }
+            }
+
             if (produccion.productoTerminado) {
-                await tx.productoTerminado.update({
-                    where: { id: produccion.productoTerminado.id },
-                    data: {
-                        cantidadTotal: totalCantidad,
-                        cantidadDisponible: totalCantidad,
-                    },
-                });
+                if (produccionExistente.area === 'Extrusion') {
+                    const deltaCantidad = (cantidad ? parseFloat(cantidad.toString()) : 0) - (registroExistente.cantidad || 0);
+                    await tx.productoTerminado.update({
+                        where: { id: produccion.productoTerminado.id },
+                        data: {
+                            cantidadTotal: totalCantidad,
+                            cantidadDisponible: { increment: deltaCantidad },
+                        },
+                    });
+                } else {
+                    await tx.productoTerminado.update({
+                        where: { id: produccion.productoTerminado.id },
+                        data: {
+                            cantidadTotal: totalCantidad,
+                            cantidadDisponible: totalCantidad,
+                        },
+                    });
+                }
             }
 
             return reg;
@@ -177,9 +260,10 @@ export async function PUT(
             message: 'Registro actualizado correctamente',
             data: registroActualizado,
         });
-    } catch (error) {
+    } catch (error: any) {
         console.error('Error al actualizar registro de producción:', error);
-        return NextResponse.json({ error: 'Error al actualizar registro' }, { status: 500 });
+        const isWipError = error?.message?.includes('bobina en piso');
+        return NextResponse.json({ error: error?.message || 'Error al actualizar registro' }, { status: isWipError ? 400 : 500 });
     }
 }
 
@@ -204,6 +288,7 @@ export async function DELETE(
                     },
                 },
                 productoCliente: { include: { peletizado: true } },
+                productoTerminado: true,
             },
         });
 
@@ -228,6 +313,38 @@ export async function DELETE(
                         responsable: (session.user as any)?.name || registroExistente.operario || 'Sistema',
                         accion: 'Eliminación',
                     });
+                }
+            }
+
+            // Revertir consumo de bobina WIP en Sellado al eliminar
+            if (produccionExistente && produccionExistente.area === 'Sellado' && registroExistente.cantidad > 0) {
+                let previo = null;
+                if (produccionExistente.loteOrigen) {
+                    previo = await tx.productoTerminado.findFirst({
+                        where: { lote: produccionExistente.loteOrigen },
+                    });
+                }
+                if (!previo && produccionExistente.pedidoId) {
+                    previo = await tx.productoTerminado.findFirst({
+                        where: {
+                            pedidoId: produccionExistente.pedidoId,
+                            area: 'Extrusion',
+                        },
+                        orderBy: { createdAt: 'desc' },
+                    });
+                }
+
+                if (previo) {
+                    const prodSpec = produccionExistente.pedido?.productoCliente || produccionExistente.productoCliente;
+                    const consumoAEliminar = calcularConsumoBobinaSellado(prodSpec, registroExistente.cantidad, registroExistente.merma || 0);
+                    if (consumoAEliminar.kgTotalConsumido > 0) {
+                        await tx.productoTerminado.update({
+                            where: { id: previo.id },
+                            data: {
+                                cantidadDisponible: { increment: consumoAEliminar.kgTotalConsumido },
+                            },
+                        });
+                    }
                 }
             }
 
@@ -276,13 +393,23 @@ export async function DELETE(
             });
 
             if (produccion.productoTerminado) {
-                await tx.productoTerminado.update({
-                    where: { id: produccion.productoTerminado.id },
-                    data: {
-                        cantidadTotal: totalCantidad,
-                        cantidadDisponible: totalCantidad,
-                    },
-                });
+                if (produccionExistente.area === 'Extrusion') {
+                    await tx.productoTerminado.update({
+                        where: { id: produccion.productoTerminado.id },
+                        data: {
+                            cantidadTotal: totalCantidad,
+                            cantidadDisponible: { increment: -registroExistente.cantidad },
+                        },
+                    });
+                } else {
+                    await tx.productoTerminado.update({
+                        where: { id: produccion.productoTerminado.id },
+                        data: {
+                            cantidadTotal: totalCantidad,
+                            cantidadDisponible: totalCantidad,
+                        },
+                    });
+                }
             }
         });
 

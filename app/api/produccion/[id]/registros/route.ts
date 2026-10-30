@@ -97,12 +97,101 @@ export async function POST(
       return NextResponse.json({ error: 'Producción no encontrada' }, { status: 404 });
     }
 
+    // 1. Obtener formulación / productoCliente
+    const prodCli = produccion.pedido?.productoCliente || produccion.productoCliente;
+    const clienteId =
+      produccion.pedido?.clienteId ||
+      produccion.pedido?.cliente?.id ||
+      produccion.productoCliente?.clienteId;
+
     // Desglose de merma tipificado en 5 variantes (MOLIDO 1 a MOLIDO 5)
     const desglose = calcularDesgloseMerma(body);
     const finalMerma = desglose.mermaTotal || 0;
+    const cantidadTurno = parseFloat(cantidad.toString()) || 0;
+
+    // 2. Si es Sellado (o área subsiguiente), buscar stock previo de bobina y validar disponibilidad
+    let previo: any = null;
+    let consumoBobinaSellado: any = null;
+
+    if (produccion.area === 'Sellado') {
+      consumoBobinaSellado = calcularConsumoBobinaSellado({
+        cantidadBolsas: cantidadTurno,
+        mermaTotal: finalMerma,
+        productoCliente: prodCli,
+      });
+
+      if (produccion.loteOrigen) {
+        previo = await prisma.productoTerminado.findFirst({
+          where: { codigoLote: produccion.loteOrigen },
+        });
+      }
+
+      if (!previo && produccion.pedidoId) {
+        previo = await prisma.productoTerminado.findFirst({
+          where: {
+            pedidoId: produccion.pedidoId,
+            areaOrigen: { in: ['Extrusion', 'Serigrafia', 'Refilado'] as any },
+            cantidadDisponible: { gt: 0 },
+            produccionId: { not: produccion.id },
+          },
+          orderBy: { fechaFinalizacion: 'asc' },
+        });
+      }
+
+      // Validación con margen de tolerancia del 5%
+      if (previo && consumoBobinaSellado.kgTotalConsumido > 0) {
+        const validacion = validarDisponibilidadBobina({
+          kgRequerido: consumoBobinaSellado.kgTotalConsumido,
+          kgDisponible: previo.cantidadDisponible || 0,
+          margenTolerancia: 0.05,
+        });
+
+        if (!validacion.valido) {
+          return NextResponse.json({ error: validacion.error }, { status: 400 });
+        }
+      }
+    } else if (produccion.area !== 'Extrusion') {
+      // Para Serigrafía o Refilado (consumo directo en Kg)
+      if (produccion.loteOrigen) {
+        previo = await prisma.productoTerminado.findFirst({
+          where: { codigoLote: produccion.loteOrigen },
+        });
+      }
+      if (!previo && produccion.pedidoId) {
+        previo = await prisma.productoTerminado.findFirst({
+          where: {
+            pedidoId: produccion.pedidoId,
+            areaOrigen: { not: produccion.area },
+            cantidadDisponible: { gt: 0 },
+            produccionId: { not: produccion.id },
+          },
+          orderBy: { fechaFinalizacion: 'asc' },
+        });
+      }
+
+      const kgRequerido = cantidadTurno + finalMerma;
+      if (previo && kgRequerido > 0) {
+        const validacion = validarDisponibilidadBobina({
+          kgRequerido,
+          kgDisponible: previo.cantidadDisponible || 0,
+          margenTolerancia: 0.05,
+        });
+        if (!validacion.valido) {
+          return NextResponse.json({ error: validacion.error }, { status: 400 });
+        }
+      }
+    }
+
     let totalCantidad = 0;
 
     const registro = await prisma.$transaction(async (tx) => {
+      // Construir nota de reporte con detalle de consumo para trazabilidad
+      let reporteConConsumo = reporte || '';
+      if (produccion.area === 'Sellado' && consumoBobinaSellado && consumoBobinaSellado.kgTotalConsumido > 0) {
+        const detalleConsumo = `[Consumo Bobina: ${consumoBobinaSellado.kgTotalConsumido.toFixed(2)} kg (${consumoBobinaSellado.kgBolsas.toFixed(2)} kg bolsas + ${consumoBobinaSellado.kgMerma.toFixed(2)} kg merma)]`;
+        reporteConConsumo = reporteConConsumo ? `${reporteConConsumo} | ${detalleConsumo}` : detalleConsumo;
+      }
+
       // 1. Crear registro de turno
       const reg = await tx.registroProduccion.create({
         data: {
@@ -110,8 +199,8 @@ export async function POST(
           turno,
           fecha: fecha ? new Date(fecha) : new Date(),
           operario,
-          cantidad: parseFloat(cantidad.toString()),
-          reporte: reporte || null,
+          cantidad: cantidadTurno,
+          reporte: reporteConConsumo || null,
           merma: desglose.mermaTotal,
           mermaTransparenteAlta: desglose.mermaTransparenteAlta,
           mermaBlancoPollo: desglose.mermaBlancoPollo,
@@ -161,10 +250,9 @@ export async function POST(
 
       // 4. Descuento Automático en Inventario para Extrusión por Turno
       if (produccion.area === 'Extrusion') {
-        const kgTurno = parseFloat(cantidad.toString()) || 0;
-        if (kgTurno > 0) {
-          const formulacionProd = produccion.pedido?.productoCliente || produccion.productoCliente;
-          const consumoCalculado = await resolverConsumoExtrusion(tx, formulacionProd, kgTurno);
+        if (cantidadTurno > 0) {
+          const formulacionProd = prodCli;
+          const consumoCalculado = await resolverConsumoExtrusion(tx, formulacionProd, cantidadTurno);
           if (consumoCalculado) {
             await aplicarConsumoExtrusion(tx, {
               consumo: consumoCalculado,
@@ -176,36 +264,57 @@ export async function POST(
         }
       }
 
+      // 5. Descuento Dinámico de Bobina en Piso (WIP) para Sellado u otras fases subsiguientes
+      if (previo) {
+        let kgADescontar = 0;
+        if (produccion.area === 'Sellado' && consumoBobinaSellado) {
+          kgADescontar = consumoBobinaSellado.kgTotalConsumido;
+        } else {
+          kgADescontar = cantidadTurno + finalMerma;
+        }
+
+        if (kgADescontar > 0) {
+          await tx.productoTerminado.update({
+            where: { id: previo.id },
+            data: {
+              cantidadDisponible: Math.max(0, (previo.cantidadDisponible || 0) - kgADescontar),
+            },
+          });
+        }
+      }
+
       return reg;
     });
 
-    // Actualizar o crear ProductoTerminado dinámicamente ("En proceso")
-    const prodCli = produccion.pedido?.productoCliente || produccion.productoCliente;
-    const clienteId =
-      produccion.pedido?.clienteId ||
-      produccion.pedido?.cliente?.id ||
-      produccion.productoCliente?.clienteId;
-
+    // Actualizar o crear ProductoTerminado de esta orden dinámicamente ("En proceso")
     if (clienteId) {
       const tipoProducto = (prodCli?.tipoProducto || (produccion.unidad === 'Kilogramos' ? 'Bobina' : 'Bolsa')) as 'Bolsa' | 'Bobina';
       const conImpresion = prodCli?.conImpresion || false;
-
       const destinoTemp = determinarDestinoProducto(produccion.area, tipoProducto, conImpresion);
 
       if (produccion.productoTerminado) {
-        // Actualizar la cantidad en la tarjeta existente
+        // En Extrusión, incrementamos cantidadDisponible con los nuevos kilos producidos en el turno
+        const dataUpdate: any = {
+          userId: (session.user as any)?.id || produccion.userId,
+          codigoLote: produccion.codigoLote,
+          loteOrigen: produccion.loteOrigen,
+          cantidadTotal: totalCantidad,
+        };
+
+        if (produccion.area === 'Extrusion') {
+          dataUpdate.cantidadDisponible = {
+            increment: cantidadTurno,
+          };
+        } else {
+          dataUpdate.cantidadDisponible = totalCantidad;
+        }
+
         await prisma.productoTerminado.update({
           where: { id: produccion.productoTerminado.id },
-          data: {
-            userId: (session.user as any)?.id || produccion.userId,
-            codigoLote: produccion.codigoLote,
-            loteOrigen: produccion.loteOrigen,
-            cantidadTotal: totalCantidad,
-            cantidadDisponible: totalCantidad,
-          },
+          data: dataUpdate,
         });
       } else {
-        // Crear la tarjeta temporal que indica que está en proceso
+        // Crear la tarjeta inicial en proceso
         await prisma.productoTerminado.create({
           data: {
             userId: (session.user as any)?.id || produccion.userId,
@@ -222,115 +331,11 @@ export async function POST(
             unidad: produccion.unidad,
             tipoProducto: tipoProducto,
             conImpresion: conImpresion,
-            estado: 'PendienteArea', // Forzado a estar pendiente mientras produce
-            siguienteArea: destinoTemp.siguienteArea, // Mostramos hacia donde iría teóricamente
+            estado: 'PendienteArea',
+            siguienteArea: destinoTemp.siguienteArea,
             fechaFinalizacion: new Date(),
           },
         });
-      }
-
-      // --- DINAMIC MATERIAL CONSUMPTION CON TRAZABILIDAD DE LOTE ---
-      // If we are producing in Sellado (or any subsequent area consuming Bobinas), deduct from the previous phase 
-      // dynamically per register linked to exact loteOrigen.
-      if (produccion.area !== 'Extrusion') {
-        let previo = null;
-
-        // 1. Trazabilidad punto a punto: Buscar exactamente por el loteOrigen de la bobina
-        if (produccion.loteOrigen) {
-          previo = await prisma.productoTerminado.findFirst({
-            where: {
-              codigoLote: produccion.loteOrigen,
-            },
-          });
-        }
-
-        // 2. Fallback heurístico para órdenes legacy sin loteOrigen
-        if (!previo && produccion.pedidoId) {
-          previo = await prisma.productoTerminado.findFirst({
-            where: {
-              pedidoId: produccion.pedidoId,
-              cantidadDisponible: { gt: 0 },
-              produccionId: { not: produccion.id }, // Exclude current production
-              areaOrigen: { not: produccion.area }, // Must be from a DIFFERENT area (e.g. Extrusion)
-            },
-            orderBy: { fechaFinalizacion: 'asc' }, // Consume the oldest stock first
-          });
-        }
-
-        console.log("Consumo Dinámico previo encontrado:", previo?.id, "Lote:", previo?.codigoLote, "Unidades:", previo?.unidad, "Actual:", produccion.unidad);
-
-        if (previo) {
-          let consumido = 0;
-          const cantidadAgregada = parseFloat(cantidad.toString());
-          const esBolsaSellado = tipoProducto === 'Bolsa' && produccion.area === 'Sellado';
-          const esProduccionDeKg = previo.areaOrigen === 'Extrusion' || previo.areaOrigen === 'Serigrafia' || previo.areaOrigen === 'Refilado';
-
-          if (esBolsaSellado && esProduccionDeKg) {
-            const cliente = produccion.pedido?.cliente;
-            const ancho = prodCli?.ancho ?? (cliente as any)?.ancho;
-            const largo = prodCli?.largo ?? (cliente as any)?.largo;
-            const calibre = prodCli?.calibre ?? (cliente as any)?.calibre;
-            const tipoBobina = prodCli?.tipoBobinaCliente ?? (cliente as any)?.tipoBobinaCliente;
-            const material = prodCli?.material ?? (cliente as any)?.material;
-            const anchoValvula = prodCli?.anchoValvula ?? (cliente as any)?.anchoValvula;
-            const anchoFuelle = prodCli?.anchoFuelle ?? (cliente as any)?.anchoFuelle;
-            const anchoSolapa = prodCli?.anchoSolapa ?? (cliente as any)?.anchoSolapa;
-            const pesoPorUnidad = prodCli?.pesoPorUnidad ?? (cliente as any)?.pesoPorUnidad ?? 0;
-
-            // Determinar densidad basada en el material
-            let densidad = 0.922; // Por defecto (baja densidad)
-            if (material) {
-              const materialStr = material.toLowerCase();
-              if (materialStr.includes('alta') || materialStr.includes('hdpe') || materialStr.includes('ad')) {
-                densidad = 0.96; // Alta densidad
-              }
-            }
-
-            // Verificar si tiene valvulada (pego) o con fuelle activo
-            const tieneValvulada = anchoValvula && anchoValvula > 0;
-            const tieneConFuelle = anchoFuelle && anchoFuelle > 0 && !tieneValvulada;
-
-            let pesoTotal = 0;
-
-            if (tieneValvulada && ancho && largo && calibre) {
-              // Fórmula para bolsas valvuladas (pego)
-              const fuelle = anchoFuelle || 0;
-              const solapa = anchoSolapa || 0;
-              
-              const pesoUnitario = (((ancho * 2) + (fuelle * 2) + solapa) * largo * densidad * calibre) / 1000000;
-              pesoTotal = pesoUnitario * cantidadAgregada;
-            } else if (tieneConFuelle && ancho && largo && calibre) {
-              // Fórmula para bolsas con fuelle
-              const fuelle = anchoFuelle || 0;
-              
-              const pesoUnitario = ((ancho + (fuelle * 2)) * largo * calibre * densidad) / 1000000;
-              pesoTotal = pesoUnitario * cantidadAgregada;
-            } else if (ancho && largo && calibre) {
-              // Fórmula para bolsas normales
-              pesoTotal = (ancho * largo * calibre * densidad * cantidadAgregada) / 1000000;
-            } else {
-              // Fallback a peso por unidad si faltan datos dimensionales
-              pesoTotal = (pesoPorUnidad * cantidadAgregada * densidad) / 1000;
-            }
-
-            consumido = pesoTotal + finalMerma;
-            console.log(`Total consumido: ${consumido.toFixed(3)}kg (Producción: ${pesoTotal.toFixed(3)}kg + Merma: ${finalMerma}kg)`);
-          } else {
-            consumido = cantidadAgregada + finalMerma;
-          }
-
-          console.log(`Deduciendo ${consumido} del producto previo ID: ${previo.id}`);
-
-          // Deduct this cycle's consumption from the previous area's available stock
-          await prisma.productoTerminado.update({
-            where: { id: previo.id },
-            data: {
-              cantidadDisponible: Math.max(0, previo.cantidadDisponible - consumido)
-            }
-          });
-        } else {
-          console.log("No previo stock found to deduct.");
-        }
       }
     }
 

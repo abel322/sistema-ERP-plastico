@@ -228,6 +228,7 @@ export async function GET(request: Request) {
               codigoLote: previo.codigoLote,
               lote: previo.codigoLote,
               cantidad: previo.cantidadDisponible,
+              cantidadTotal: previo.cantidadTotal,
               unidad: previo.unidad,
               area: previo.areaOrigen,
               tipoProducto: previo.tipoProducto,
