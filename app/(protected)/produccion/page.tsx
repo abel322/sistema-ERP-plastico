@@ -22,7 +22,9 @@ import {
   AlertTriangle,
   ClipboardList,
   ChevronRight,
+  Layers,
 } from 'lucide-react';
+import ModalDetalleConsumoMP from '@/components/produccion/ModalDetalleConsumoMP';
 import { formatNumber } from '@/lib/utils';
 import { calculateBagWeight, getPlasticDensity } from '@/lib/utils/bag-weight';
 import { calcularDesperdicioInfo } from '@/lib/utils/merma';
@@ -182,6 +184,8 @@ export function ProduccionContent() {
   const [avanzarMaquinaId, setAvanzarMaquinaId] = useState('');
   const [avanzarOperario, setAvanzarOperario] = useState('');
   const [avanzarTurno, setAvanzarTurno] = useState('Manana');
+
+  const [ordenDetalleMP, setOrdenDetalleMP] = useState<Produccion | null>(null);
 
   const [maquinas, setMaquinas] = useState<Maquina[]>([]);
   const [pedidosFiltrados, setPedidosFiltrados] = useState<Pedido[]>([]);
@@ -1217,6 +1221,17 @@ export function ProduccionContent() {
                                 </button>
                               </div>
 
+                              {prod.area === 'Extrusion' && (
+                                <button
+                                  type="button"
+                                  onClick={() => setOrdenDetalleMP(prod)}
+                                  className="w-full inline-flex items-center justify-center gap-1.5 px-3 py-2 text-xs font-semibold rounded-xl text-slate-700 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700 transition-colors shadow-sm mt-1"
+                                >
+                                  <Layers className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400" />
+                                  Consumo MP
+                                </button>
+                              )}
+
                               <div className="mt-1 space-y-1.5">
                                 {(() => {
                                   const faseParalela = producciones.find(
@@ -2104,6 +2119,14 @@ export function ProduccionContent() {
           </div>
         )}
       </AnimatePresence>
+
+      {/* Modal Detalle de Consumo de Materia Prima y Sacas */}
+      {ordenDetalleMP && (
+        <ModalDetalleConsumoMP
+          ordenId={ordenDetalleMP.id}
+          onClose={() => setOrdenDetalleMP(null)}
+        />
+      )}
     </div>
   );
 }
