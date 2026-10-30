@@ -5,6 +5,7 @@ import { prisma } from '@/lib/db';
 import { authOptions } from '@/lib/auth-options';
 import { determinarDestinoProducto } from '@/lib/producto-terminado-logic';
 import { calcularDesgloseMerma, aplicarMermaAInventario } from '@/lib/merma-logic';
+import { resolverConsumoExtrusion, aplicarConsumoExtrusion } from '@/lib/consumo-extrusion-logic';
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
@@ -157,6 +158,23 @@ export async function POST(
         codigoLote: produccion.codigoLote,
         responsable: operario,
       });
+
+      // 4. Descuento Automático en Inventario para Extrusión por Turno
+      if (produccion.area === 'Extrusion') {
+        const kgTurno = parseFloat(cantidad.toString()) || 0;
+        if (kgTurno > 0) {
+          const formulacionProd = produccion.pedido?.productoCliente || produccion.productoCliente;
+          const consumoCalculado = await resolverConsumoExtrusion(tx, formulacionProd, kgTurno);
+          if (consumoCalculado) {
+            await aplicarConsumoExtrusion(tx, {
+              consumo: consumoCalculado,
+              loteCodigo: produccion.codigoLote || produccion.id.slice(0, 8).toUpperCase(),
+              turno: turno,
+              responsable: operario,
+            });
+          }
+        }
+      }
 
       return reg;
     });
@@ -317,8 +335,9 @@ export async function POST(
     }
 
     revalidatePath('/produccion');
-    revalidatePath('/produccion/historial');
     revalidatePath('/inventario');
+    revalidatePath('/inventario/movimientos');
+    revalidatePath('/produccion/historial');
 
     return NextResponse.json(
       {

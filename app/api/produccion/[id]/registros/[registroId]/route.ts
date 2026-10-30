@@ -4,6 +4,7 @@ import { revalidatePath } from 'next/cache';
 import { prisma } from '@/lib/db';
 import { authOptions } from '@/lib/auth-options';
 import { calcularDesgloseMerma, aplicarMermaAInventario, revertirMermaDeInventario } from '@/lib/merma-logic';
+import { resolverConsumoExtrusion, aplicarConsumoExtrusion, revertirConsumoExtrusion } from '@/lib/consumo-extrusion-logic';
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
@@ -51,6 +52,21 @@ export async function PUT(
         const desglose = calcularDesgloseMerma(body);
 
         const registroActualizado = await prisma.$transaction(async (tx) => {
+            // Revertir consumo de Extrusión previo de este registro
+            if (produccionExistente.area === 'Extrusion' && registroExistente.cantidad > 0) {
+                const formulacionProd = produccionExistente.pedido?.productoCliente || produccionExistente.productoCliente;
+                const consumoPrevio = await resolverConsumoExtrusion(tx, formulacionProd, registroExistente.cantidad);
+                if (consumoPrevio) {
+                    await revertirConsumoExtrusion(tx, {
+                        consumo: consumoPrevio,
+                        loteCodigo: produccionExistente.codigoLote || produccionExistente.id.slice(0, 8).toUpperCase(),
+                        turno: registroExistente.turno,
+                        responsable: operario || registroExistente.operario,
+                        accion: 'Edición',
+                    });
+                }
+            }
+
             // Revertir merma previa si ya había sido sumada al inventario
             if (registroExistente.mermaInventarioSumada) {
                 await revertirMermaDeInventario(tx, registroExistente, {
@@ -121,6 +137,23 @@ export async function PUT(
                 responsable: operario,
             });
 
+            // Aplicar nuevo consumo de Extrusión por la cantidad actualizada
+            if (produccionExistente.area === 'Extrusion') {
+                const nuevaCantidadKg = cantidad ? parseFloat(cantidad.toString()) : 0;
+                if (nuevaCantidadKg > 0) {
+                    const formulacionProd = produccionExistente.pedido?.productoCliente || produccionExistente.productoCliente;
+                    const nuevoConsumo = await resolverConsumoExtrusion(tx, formulacionProd, nuevaCantidadKg);
+                    if (nuevoConsumo) {
+                        await aplicarConsumoExtrusion(tx, {
+                            consumo: nuevoConsumo,
+                            loteCodigo: produccionExistente.codigoLote || produccionExistente.id.slice(0, 8).toUpperCase(),
+                            turno: turno || registroExistente.turno,
+                            responsable: operario || registroExistente.operario,
+                        });
+                    }
+                }
+            }
+
             if (produccion.productoTerminado) {
                 await tx.productoTerminado.update({
                     where: { id: produccion.productoTerminado.id },
@@ -135,8 +168,9 @@ export async function PUT(
         });
 
         revalidatePath('/produccion');
-        revalidatePath('/produccion/historial');
         revalidatePath('/inventario');
+        revalidatePath('/inventario/movimientos');
+        revalidatePath('/produccion/historial');
 
         return NextResponse.json({
             success: true,
@@ -163,6 +197,14 @@ export async function DELETE(
 
         const produccionExistente = await prisma.produccion.findUnique({
             where: { id },
+            include: {
+                pedido: {
+                    include: {
+                        productoCliente: { include: { peletizado: true } },
+                    },
+                },
+                productoCliente: { include: { peletizado: true } },
+            },
         });
 
         const registroExistente = await prisma.registroProduccion.findUnique({
@@ -174,6 +216,21 @@ export async function DELETE(
         }
 
         await prisma.$transaction(async (tx) => {
+            // Revertir consumo de Extrusión de este registro al eliminar
+            if (produccionExistente && produccionExistente.area === 'Extrusion' && registroExistente.cantidad > 0) {
+                const formulacionProd = produccionExistente.pedido?.productoCliente || produccionExistente.productoCliente;
+                const consumoAEliminar = await resolverConsumoExtrusion(tx, formulacionProd, registroExistente.cantidad);
+                if (consumoAEliminar) {
+                    await revertirConsumoExtrusion(tx, {
+                        consumo: consumoAEliminar,
+                        loteCodigo: produccionExistente.codigoLote || produccionExistente.id.slice(0, 8).toUpperCase(),
+                        turno: registroExistente.turno,
+                        responsable: (session.user as any)?.name || registroExistente.operario || 'Sistema',
+                        accion: 'Eliminación',
+                    });
+                }
+            }
+
             // Revertir merma del inventario si había sido sumada
             if (registroExistente.mermaInventarioSumada && produccionExistente) {
                 await revertirMermaDeInventario(tx, registroExistente, {
@@ -230,8 +287,9 @@ export async function DELETE(
         });
 
         revalidatePath('/produccion');
-        revalidatePath('/produccion/historial');
         revalidatePath('/inventario');
+        revalidatePath('/inventario/movimientos');
+        revalidatePath('/produccion/historial');
 
         return NextResponse.json({
             success: true,
