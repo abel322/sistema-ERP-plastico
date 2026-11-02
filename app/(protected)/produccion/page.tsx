@@ -25,6 +25,7 @@ import {
   Layers,
   Search,
   ChevronDown,
+  ChevronUp,
   Edit3,
   Inbox,
 } from 'lucide-react';
@@ -54,6 +55,47 @@ const COLUMNAS = [
   { id: 'Serigrafia', titulo: 'Serigrafía' },
   { id: 'Refilado', titulo: 'Refilado' },
   { id: 'Sellado', titulo: 'Sellado' },
+];
+
+const LOCAL_STORAGE_KEY_AREAS = 'produccion_areas_abiertas_v1';
+
+// Estado inicial por defecto (Extrusión y Sellado abiertas por defecto)
+const ESTADO_DEFAULT_AREAS: Record<string, boolean> = {
+  EXTRUSION: true,
+  SERIGRAFIA: false,
+  REFILADO: false,
+  SELLADO: true,
+};
+
+const AREAS_CONFIG = [
+  {
+    id: 'EXTRUSION',
+    areaDb: 'Extrusion',
+    titulo: 'Extrusión',
+    dotColor: 'bg-blue-600',
+    desc: 'Fabricación y bobinado de película tubular',
+  },
+  {
+    id: 'SERIGRAFIA',
+    areaDb: 'Serigrafia',
+    titulo: 'Serigrafía / Impresión',
+    dotColor: 'bg-indigo-600',
+    desc: 'Impresión continua de bobinas',
+  },
+  {
+    id: 'REFILADO',
+    areaDb: 'Refilado',
+    titulo: 'Refilado',
+    dotColor: 'bg-amber-600',
+    desc: 'Corte lateral y acondicionamiento de bobina',
+  },
+  {
+    id: 'SELLADO',
+    areaDb: 'Sellado',
+    titulo: 'Sellado y Confección',
+    dotColor: 'bg-emerald-600',
+    desc: 'Corte, sellado térmico y empaque final',
+  },
 ];
 
 const TURNOS = [
@@ -166,9 +208,9 @@ interface Pedido {
   cliente: { nombre: string; tipoProducto: string; conImpresion?: boolean; pesoPorUnidad?: number };
 }
 
-interface TarjetaProduccionCompactaProps {
+interface FilaProduccionHorizontalProps {
   orden: Produccion;
-  area: string;
+  areaId: string;
   isAvanzandoId: string | null;
   handleAbrirModalRegistro: (orden: Produccion) => void;
   handleEditar: (orden: Produccion) => void;
@@ -183,9 +225,9 @@ interface TarjetaProduccionCompactaProps {
   calcularTotalCantidad: (registros: RegistroProduccion[]) => number;
 }
 
-export function TarjetaProduccionCompacta({
+export function FilaProduccionHorizontal({
   orden,
-  area,
+  areaId,
   isAvanzandoId,
   handleAbrirModalRegistro,
   handleEditar,
@@ -198,7 +240,7 @@ export function TarjetaProduccionCompacta({
   faseParalela,
   getDisplayValues,
   calcularTotalCantidad,
-}: TarjetaProduccionCompactaProps) {
+}: FilaProduccionHorizontalProps) {
   const totalProducido = calcularTotalCantidad(orden.registros || []);
   const dv = getDisplayValues(orden, totalProducido);
   const isUnidades = dv.displayUnit?.toLowerCase().startsWith('un') || dv.displayUnit?.toLowerCase().startsWith('ud') || orden.area === 'Sellado';
@@ -207,120 +249,87 @@ export function TarjetaProduccionCompacta({
   const porcentaje = metaKg > 0 ? Math.min(100, Math.round((producidoKg / metaKg) * 100)) : (producidoKg > 0 ? 100 : 0);
   const esCompletado = dv.isCompleted || orden.estado === 'Finalizado' || orden.estado === 'COMPLETADO' || porcentaje >= 100;
 
-  // Lógica de bifurcación técnica según Ficha Técnica
+  // Secuencia de avance según ficha técnica del producto
   const pc = orden.pedido?.productoCliente || orden.productoCliente;
   const llevaImpresion = Boolean(pc?.conImpresion ?? (orden.pedido?.cliente as any)?.conImpresion);
   const destinoSiguiente = llevaImpresion ? 'SERIGRAFÍA' : 'SELLADO';
 
-  const isSellado = orden.area === 'Sellado';
+  const isSellado = orden.area?.toUpperCase() === 'SELLADO' || areaId === 'SELLADO';
   const disponibleKg = orden.stockPrevio?.cantidad ?? 0;
-  const sinStock = orden.area !== 'Extrusion' && (!orden.stockPrevio || orden.stockPrevio.cantidad <= 0);
+  const sinStock = (orden.area?.toUpperCase() !== 'EXTRUSION' && areaId !== 'EXTRUSION') && (!orden.stockPrevio || orden.stockPrevio.cantidad <= 0);
 
-  const codigoPedido = orden.pedido?.id?.slice(-5).toUpperCase() || orden.pedidoId?.slice(-5).toUpperCase() || 'N/A';
-  const codigoLote = orden.codigoLote || orden.id.slice(0, 8).toUpperCase();
-  const clienteNombre = orden.pedido?.cliente?.nombre || 'PRODUCCIÓN INTERNA';
-  const productoNombre = pc?.nombreProducto || (orden.pedido?.cliente as any)?.tipoProducto || 'Bolsa / Bobina';
+  const codigoPedido = orden.pedido?.id?.slice(-5).toUpperCase() || orden.pedidoId?.slice(-5).toUpperCase() || (orden as any).codigoPedido || 'OP';
+  const clienteNombre = orden.pedido?.cliente?.nombre || (orden as any).cliente?.nombre || 'PRODUCCIÓN INTERNA';
+  const productoNombre = pc?.nombreProducto || (orden as any).producto?.nombre || (orden.pedido?.cliente as any)?.tipoProducto || 'Bolsa / Bobina Sin Especificación';
+  const maquinaNombre = orden.maquina?.nombre || 'Máquina no asignada';
 
   return (
-    <div className="bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 rounded-xl p-2.5 shadow-xs hover:shadow-md transition-all flex flex-col justify-between gap-1.5 min-h-[165px]">
-      {/* FILA 1: Badges, Lote y Menú de Iconos Compactos */}
-      <div className="flex items-center justify-between gap-1">
-        <div className="flex items-center gap-1.5 flex-wrap min-w-0">
-          <span className="px-1.5 py-0.5 text-[9px] font-bold rounded-md bg-blue-50 text-blue-700 dark:bg-blue-950/60 dark:text-blue-300 border border-blue-200/60 dark:border-blue-800 shrink-0">
+    <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 px-5 py-4 hover:bg-slate-50/70 dark:hover:bg-slate-800/40 transition-colors">
+      {/* 1. PRODUCTO PROTAGONISTA (RESALTADO) + CLIENTE + MÁQUINA */}
+      <div className="lg:w-2/5 min-w-0">
+        <div className="flex items-center gap-2 mb-1 flex-wrap">
+          <span className="px-2 py-0.5 text-[10px] font-extrabold rounded-md bg-blue-100 text-blue-800 dark:bg-blue-950/70 dark:text-blue-300">
             P-{codigoPedido}
           </span>
-          <span className={`px-1.5 py-0.5 text-[9px] font-bold rounded-md uppercase tracking-tight shrink-0 ${
+          <span className={`px-2 py-0.5 text-[10px] font-black rounded-md uppercase tracking-tight ${
             esCompletado
-              ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300'
-              : 'bg-amber-50 text-amber-700 dark:bg-amber-950/60 dark:text-amber-300'
+              ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/70 dark:text-emerald-300'
+              : 'bg-amber-100 text-amber-800 dark:bg-amber-950/70 dark:text-amber-300'
           }`}>
-            {esCompletado ? 'Completado' : 'En proceso'}
+            {esCompletado ? 'COMPLETADO' : (orden.estado || 'EN PROCESO')}
           </span>
-          <span className="text-[11px] font-bold text-slate-800 dark:text-slate-100 tracking-tight font-mono truncate" title={codigoLote}>
-            {codigoLote}
-          </span>
-        </div>
-
-        {/* Acciones de Auditoría y Control en Iconos */}
-        <div className="flex items-center gap-0.5 shrink-0">
-          {orden.area === 'Extrusion' && (
-            <button
-              type="button"
-              title="Consumo MP en tiempo real (Sacas y Materia Prima)"
-              onClick={() => handleAbrirModalConsumoMP(orden)}
-              className="p-1 rounded-lg text-slate-500 hover:text-blue-600 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
-            >
-              <Layers className="w-3.5 h-3.5"/>
-            </button>
-          )}
-          <button
-            type="button"
-            title="Editar Orden / Turnos"
-            onClick={() => handleEditar(orden)}
-            className="p-1 rounded-lg text-slate-500 hover:text-slate-800 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
-          >
-            <Edit3 className="w-3.5 h-3.5"/>
-          </button>
-          {producidoKg === 0 && (
-            <button
-              type="button"
-              title={orden.area === 'Sellado' ? "Revertir y eliminar fase de sellado (0 KG)" : "Eliminar orden creada por error (0 KG)"}
-              onClick={() => orden.area === 'Sellado' ? handleConfirmarEliminacionFase(orden) : handleEliminarOrden(orden)}
-              disabled={isAvanzandoId === orden.id}
-              className="p-1 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition-colors disabled:opacity-50 cursor-pointer"
-            >
-              <Trash2 className="w-3.5 h-3.5 text-rose-500"/>
-            </button>
-          )}
-        </div>
-      </div>
-
-      {/* FILA 2: Cliente, Producto y Máquina Asignada */}
-      <div className="flex flex-col gap-0.5 min-w-0">
-        <h4 className="text-xs font-bold text-slate-900 dark:text-white truncate" title={clienteNombre}>
-          {clienteNombre}
-        </h4>
-        <p className="text-[11px] text-slate-500 dark:text-slate-400 truncate leading-tight" title={productoNombre}>
-          {productoNombre}
-        </p>
-        <div className="flex items-center justify-between text-[10px] text-blue-600 dark:text-blue-400 font-semibold mt-0.5">
-          <div className="flex items-center gap-1.5 truncate">
-            <span className="w-1.5 h-1.5 rounded-full bg-blue-600 animate-pulse shrink-0"/>
-            <span className="truncate">{orden.maquina?.nombre || 'Máquina no asignada'}</span>
-          </div>
           {orden.loteOrigen && (
-            <span className="text-[9px] font-mono text-amber-800 dark:text-amber-300 bg-amber-50 dark:bg-amber-950/40 px-1 py-0.2 rounded border border-amber-200 dark:border-amber-900/60 shrink-0" title={`Bobina de origen: ${orden.loteOrigen}`}>
-              {orden.loteOrigen}
+            <span className="text-[9px] font-mono text-amber-800 dark:text-amber-300 bg-amber-50 dark:bg-amber-950/40 px-1.5 py-0.5 rounded border border-amber-200 dark:border-amber-900/60 shrink-0" title={`Bobina de origen: ${orden.loteOrigen}`}>
+              Origen: {orden.loteOrigen}
             </span>
           )}
+          {faseParalela && (
+            <div className="flex items-center gap-1 px-1.5 py-0.5 bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300 rounded text-[9px] font-bold border border-blue-200 dark:border-blue-900/60 shrink-0">
+              <span className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-ping shrink-0" />
+              <span>Paralelo con {faseParalela.area}</span>
+            </div>
+          )}
         </div>
-        {faseParalela && (
-          <div className="flex items-center gap-1.5 px-2 py-0.5 mt-0.5 bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300 rounded text-[9px] font-bold border border-blue-200 dark:border-blue-900/60">
-            <span className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-ping shrink-0" />
-            <span className="truncate">Paralelo con {faseParalela.area}</span>
-          </div>
-        )}
+
+        {/* NOMBRE DEL PRODUCTO EN GRANDE Y NEGRITA (SIN LOTE VISIBLE) */}
+        <h4 className="text-base font-black text-slate-900 dark:text-white tracking-tight leading-snug truncate" title={productoNombre}>
+          {productoNombre}
+        </h4>
+
+        {/* Cliente y Máquina como subtexto ordenado */}
+        <div className="flex items-center gap-2.5 text-xs text-slate-500 dark:text-slate-400 mt-1">
+          <span className="font-bold text-slate-700 dark:text-slate-300 truncate" title={clienteNombre}>
+            {clienteNombre}
+          </span>
+          <span>•</span>
+          <span className="inline-flex items-center gap-1.5 font-semibold text-blue-600 dark:text-blue-400 truncate">
+            <span className="w-2 h-2 rounded-full bg-blue-600 animate-pulse shrink-0"/>
+            <span className="truncate">{maquinaNombre}</span>
+          </span>
+        </div>
       </div>
 
-      {/* FILA 3: Métricas de Producción y Barra Delgada */}
-      <div className="bg-slate-50 dark:bg-slate-800/60 rounded-lg p-2 border border-slate-100 dark:border-slate-800">
-        <div className="flex items-baseline justify-between text-xs mb-1">
-          <div>
-            <span className="font-extrabold text-slate-900 dark:text-white text-sm">
+      {/* 2. PROGRESO Y KILOS (BARRA HORIZONTAL PANORÁMICA) */}
+      <div className="lg:w-1/3 min-w-[240px]">
+        <div className="flex items-baseline justify-between text-xs mb-1.5">
+          <div className="flex items-baseline gap-1.5">
+            <span className="text-lg font-black text-slate-900 dark:text-white tracking-tight">
               {formatNumber(producidoKg, { minDecimals: isUnidades ? 0 : 1, maxDecimals: 2 })}
             </span>
-            <span className="text-[10px] font-semibold text-slate-400 ml-0.5 uppercase">{dv.displayUnit}</span>
+            <span className="text-xs font-bold text-slate-500 uppercase">{dv.displayUnit}</span>
+            <span className="text-xs font-extrabold text-blue-600 dark:text-blue-400 ml-1">
+              ({porcentaje}%)
+            </span>
           </div>
-          <div className="text-[10px] text-slate-500 font-medium">
-            Meta: <span className="font-bold text-slate-700 dark:text-slate-300">{formatNumber(metaKg, { minDecimals: isUnidades ? 0 : 0, maxDecimals: 2 })} {dv.displayUnit}</span>
+          <div className="text-xs text-slate-500 font-medium">
+            Meta: <strong className="text-slate-800 dark:text-slate-200">{formatNumber(metaKg, { minDecimals: isUnidades ? 0 : 0, maxDecimals: 2 })} {dv.displayUnit}</strong>
           </div>
         </div>
 
-        <div className="w-full h-1.5 bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden">
+        {/* Barra de progreso */}
+        <div className="w-full h-2 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden border border-slate-200/70 dark:border-slate-700">
           <div
-            className={`h-full transition-all duration-300 rounded-full ${
-              porcentaje >= 100 ? 'bg-emerald-500' : 'bg-blue-600'
-            }`}
+            className={`h-full transition-all duration-300 rounded-full ${porcentaje >= 100 ? 'bg-emerald-500' : 'bg-blue-600'}`}
             style={{ width: `${Math.min(100, porcentaje)}%` }}
           />
         </div>
@@ -328,91 +337,132 @@ export function TarjetaProduccionCompacta({
         {/* Sellado WIP o Merma */}
         {isSellado ? (
           disponibleKg <= 0 ? (
-            <div className="flex items-center gap-1 text-[9px] font-bold text-rose-600 dark:text-rose-400 mt-1.5">
+            <div className="flex items-center gap-1 text-[10px] font-bold text-rose-600 dark:text-rose-400 mt-1">
               <AlertTriangle className="w-3 h-3 shrink-0 animate-pulse"/>
               <span>En espera de bobina (0 KG disp.)</span>
             </div>
           ) : (
-            <div className="flex items-center justify-between text-[9px] text-slate-500 dark:text-slate-400 mt-1.5">
+            <div className="flex items-center justify-between text-[10px] text-slate-500 dark:text-slate-400 mt-1">
               <span>Bobina en piso:</span>
               <strong className="text-emerald-700 dark:text-emerald-400">{formatNumber(disponibleKg, { minDecimals: 1, maxDecimals: 2 })} KG</strong>
             </div>
           )
         ) : Number(orden.merma || 0) > 0 ? (
-          <div className="flex items-center justify-between text-[9px] text-slate-500 dark:text-slate-400 mt-1.5">
+          <div className="flex items-center justify-between text-[10px] text-slate-500 dark:text-slate-400 mt-1">
             <span>Merma:</span>
             <strong className="text-slate-700 dark:text-slate-300">{formatNumber(Number(orden.merma), { minDecimals: 1, maxDecimals: 2 })} KG</strong>
           </div>
         ) : null}
       </div>
 
-      {/* FILA 4: Botones Principales en una Sola Línea */}
-      <div className="flex items-center gap-1.5 mt-0.5">
+      {/* 3. BOTONES DE ACCIÓN HORIZONTALES */}
+      <div className="flex items-center justify-end gap-2 shrink-0 flex-wrap">
+        {/* Botón Principal para Registrar Turno */}
         <button
           type="button"
           onClick={() => handleAbrirModalRegistro(orden)}
           disabled={sinStock}
-          className={`flex-1 inline-flex items-center justify-center gap-1 py-1.5 px-2 text-xs font-semibold rounded-lg text-white shadow-xs transition-colors cursor-pointer ${
+          className={`inline-flex items-center justify-center gap-1.5 py-2 px-3.5 text-xs font-extrabold rounded-xl text-white shadow-xs transition-colors cursor-pointer ${
             sinStock
               ? 'bg-slate-300 dark:bg-slate-700 text-slate-400 cursor-not-allowed'
               : 'bg-blue-600 hover:bg-blue-700'
           }`}
         >
-          <Plus className="w-3.5 h-3.5"/>
-          <span>Registro</span>
+          <Plus className="w-4 h-4"/>
+          <span>+ Registro</span>
         </button>
 
-        {orden.area === 'Extrusion' && (
+        {/* Botón Dinámico de Secuencia Técnica */}
+        {areaId === 'EXTRUSION' && (
           faseParalela ? (
             <button
               type="button"
               onClick={() => handleFinalizarExtrusion(orden)}
               disabled={isAvanzandoId === orden.id}
-              className="flex-1 inline-flex items-center justify-center gap-1 py-1.5 px-2 text-xs font-semibold rounded-lg text-white bg-slate-800 hover:bg-slate-900 dark:bg-slate-700 dark:hover:bg-slate-600 transition-colors disabled:opacity-50 cursor-pointer"
+              className="inline-flex items-center justify-center gap-1.5 py-2 px-3 text-xs font-bold rounded-xl text-white bg-slate-800 hover:bg-slate-900 dark:bg-slate-700 dark:hover:bg-slate-600 transition-colors disabled:opacity-50 cursor-pointer"
             >
               <CheckCircle className="w-3.5 h-3.5 text-emerald-400"/>
-              <span className="truncate">Finalizar Extrusión</span>
+              <span>Finalizar Extrusión</span>
             </button>
           ) : (
             <button
               type="button"
               onClick={() => handleAvanzarFase(orden)}
               disabled={isAvanzandoId === orden.id}
-              className="flex-1 inline-flex items-center justify-center gap-1 py-1.5 px-2 text-xs font-semibold rounded-lg text-slate-800 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-100 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-700 transition-colors disabled:opacity-50 cursor-pointer"
+              className="inline-flex items-center justify-center gap-1.5 py-2 px-3 text-xs font-bold rounded-xl text-slate-800 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-100 border border-slate-200 dark:border-slate-700 transition-colors disabled:opacity-50 cursor-pointer"
             >
-              <span className="truncate">A {destinoSiguiente === 'SERIGRAFÍA' ? 'Serigrafía' : 'Sellado'}</span>
-              <ChevronRight className="w-3 h-3 text-slate-400 shrink-0"/>
+              <span>Avanzar a {destinoSiguiente === 'SERIGRAFÍA' ? 'Serigrafía' : 'Sellado'}</span>
+              <ChevronRight className="w-3.5 h-3.5 text-slate-400"/>
             </button>
           )
         )}
 
-        {(orden.area === 'Serigrafia' || orden.area === 'Refilado') && (
+        {(areaId === 'SERIGRAFIA' || areaId === 'REFILADO') && (
           <button
             type="button"
             onClick={() => handleAvanzarFase(orden)}
             disabled={isAvanzandoId === orden.id}
-            className="flex-1 inline-flex items-center justify-center gap-1 py-1.5 px-2 text-xs font-semibold rounded-lg text-slate-800 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-100 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-700 transition-colors disabled:opacity-50 cursor-pointer"
+            className="inline-flex items-center justify-center gap-1.5 py-2 px-3 text-xs font-bold rounded-xl text-slate-800 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-100 border border-slate-200 dark:border-slate-700 transition-colors disabled:opacity-50 cursor-pointer"
           >
-            <span className="truncate">A Sellado</span>
-            <ChevronRight className="w-3 h-3 text-slate-400 shrink-0"/>
+            <span>Avanzar a Sellado</span>
+            <ChevronRight className="w-3.5 h-3.5 text-slate-400"/>
           </button>
         )}
 
-        {orden.area === 'Sellado' && (
+        {areaId === 'SELLADO' && (
           <button
             type="button"
             onClick={() => handleFinalizarSellado(orden)}
             disabled={isAvanzandoId === orden.id}
-            className="flex-1 inline-flex items-center justify-center gap-1 py-1.5 px-2 text-xs font-semibold rounded-lg text-emerald-700 bg-emerald-50 hover:bg-emerald-100 dark:bg-emerald-950/60 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 transition-colors disabled:opacity-50 cursor-pointer"
+            className="inline-flex items-center justify-center gap-1.5 py-2 px-3.5 text-xs font-bold rounded-xl text-emerald-700 bg-emerald-50 hover:bg-emerald-100 dark:bg-emerald-950/60 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 transition-colors disabled:opacity-50 cursor-pointer"
           >
-            <CheckCircle className="w-3.5 h-3.5"/>
+            <CheckCircle className="w-4 h-4"/>
             <span>Finalizar</span>
           </button>
         )}
+
+        {/* Acciones Secundarias Agrupadas */}
+        <div className="flex items-center gap-1 pl-1 border-l border-slate-200 dark:border-slate-700">
+          {areaId === 'EXTRUSION' && (
+            <button
+              type="button"
+              title="Consumo de Materia Prima en Tiempo Real (Sacas y Tolva)"
+              onClick={() => handleAbrirModalConsumoMP(orden)}
+              className="p-2 rounded-xl text-slate-500 hover:text-blue-600 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
+            >
+              <Layers className="w-4 h-4"/>
+            </button>
+          )}
+
+          <button
+            type="button"
+            title="Editar Orden / Turnos"
+            onClick={() => handleEditar(orden)}
+            className="p-2 rounded-xl text-slate-500 hover:text-slate-800 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
+          >
+            <Edit3 className="w-4 h-4"/>
+          </button>
+
+          {/* Eliminación Condicional Segura (Solo si tiene 0 kg producidos) */}
+          {producidoKg === 0 && (
+            <button
+              type="button"
+              title={areaId === 'SELLADO' ? "Revertir y eliminar fase de sellado (0 KG)" : "Eliminar orden sin producción (0 KG)"}
+              onClick={() => areaId === 'SELLADO' ? handleConfirmarEliminacionFase(orden) : handleEliminarOrden(orden)}
+              disabled={isAvanzandoId === orden.id}
+              className="p-2 rounded-xl text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition-colors disabled:opacity-50 cursor-pointer"
+            >
+              <Trash2 className="w-4 h-4 text-rose-500"/>
+            </button>
+          )}
+        </div>
       </div>
     </div>
   );
 }
+
+// Mantener compatibilidad temporal si es necesario
+export const TarjetaProduccionCompacta = FilaProduccionHorizontal;
 
 export function ProduccionContent() {
   const { data: session } = useSession() || {};
@@ -433,6 +483,45 @@ export function ProduccionContent() {
   // Filtros rápidos en vivo
   const [busqueda, setBusqueda] = useState('');
   const [maquinaFiltro, setMaquinaFiltro] = useState('TODAS');
+
+  // Estado de acordeones con persistencia en localStorage
+  const [areasAbiertas, setAreasAbiertas] = useState<Record<string, boolean>>(ESTADO_DEFAULT_AREAS);
+  const [isMounted, setIsMounted] = useState(false);
+
+  // Cargar preferencia guardada al montar el cliente
+  useEffect(() => {
+    setIsMounted(true);
+    try {
+      const saved = localStorage.getItem(LOCAL_STORAGE_KEY_AREAS);
+      if (saved) {
+        setAreasAbiertas(JSON.parse(saved));
+      }
+    } catch (error) {
+      console.error('Error al leer preferencias de áreas:', error);
+    }
+  }, []);
+
+  // Función para alternar y guardar en localStorage
+  const toggleArea = (areaId: string) => {
+    setAreasAbiertas((prev) => {
+      const nuevoEstado = { ...prev, [areaId]: !prev[areaId] };
+      try {
+        localStorage.setItem(LOCAL_STORAGE_KEY_AREAS, JSON.stringify(nuevoEstado));
+      } catch (error) {
+        console.error('Error al guardar estado de áreas:', error);
+      }
+      return nuevoEstado;
+    });
+  };
+
+  const obtenerOrdenesPorArea = useCallback(
+    (areaId: string) => {
+      return producciones.filter(
+        (p) => p.area?.toUpperCase() === areaId.toUpperCase()
+      );
+    },
+    [producciones]
+  );
 
   const [maquinas, setMaquinas] = useState<Maquina[]>([]);
   // Listado dinámico de máquinas disponibles
@@ -1176,7 +1265,7 @@ export function ProduccionContent() {
   const maquinasFiltradas = maquinas.filter((m) => m.area === formData.area);
 
   return (
-    <div className="p-3 sm:p-4 lg:p-5 bg-slate-50 dark:bg-slate-950 min-h-screen lg:h-screen lg:overflow-hidden transition-colors duration-300 w-full max-w-full flex flex-col">
+    <div className="p-4 sm:p-6 lg:p-8 bg-slate-50 dark:bg-slate-950 min-h-screen transition-colors duration-300 w-full max-w-[1600px] mx-auto flex flex-col space-y-4 pb-16">
       {/* Header Compacto de Planta */}
       <div className="flex flex-wrap items-center justify-between gap-3 mb-2.5 shrink-0">
         <div className="flex items-center gap-3">
@@ -1300,63 +1389,86 @@ export function ProduccionContent() {
         </div>
       )}
 
-      {/* Tablero Kanban con Scroll Interno Independiente */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3.5 flex-1 h-[calc(100vh-195px)] min-h-[500px] overflow-hidden">
-        {COLUMNAS.map((columna) => {
-          const ordenesFiltradas = filtrarOrdenes(producciones.filter((p) => p.area === columna.id));
+      {/* Secciones Horizontales por Áreas con Acordeones Persistentes */}
+      <div className="space-y-4 flex-1">
+        {AREAS_CONFIG.map((area) => {
+          const ordenesArea = filtrarOrdenes(obtenerOrdenesPorArea(area.id));
+          const estaAbierto = isMounted ? Boolean(areasAbiertas[area.id]) : Boolean(ESTADO_DEFAULT_AREAS[area.id]);
 
           return (
             <div
-              key={columna.id}
-              className="flex flex-col bg-slate-50/75 dark:bg-slate-900/40 rounded-2xl border border-slate-200/80 dark:border-slate-800/80 h-full overflow-hidden"
+              key={area.id}
+              className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/90 dark:border-slate-800 shadow-xs overflow-hidden transition-all"
             >
-              {/* Cabecera Sticky Fija */}
-              <div className="flex items-center justify-between px-3.5 py-2.5 bg-white dark:bg-slate-900 border-b border-slate-200/90 dark:border-slate-800 shrink-0">
-                <div className="flex items-center gap-2">
-                  <span className="font-bold text-xs tracking-wider text-slate-800 dark:text-slate-100 uppercase">
-                    {columna.titulo}
+              {/* Cabecera del Acordeón con Persistencia */}
+              <button
+                type="button"
+                onClick={() => toggleArea(area.id)}
+                className="w-full flex items-center justify-between px-5 py-3.5 bg-slate-50/90 hover:bg-slate-100/80 dark:bg-slate-800/60 dark:hover:bg-slate-800 transition-colors border-b border-slate-200/80 dark:border-slate-800 cursor-pointer"
+              >
+                <div className="flex items-center gap-3">
+                  <span className={`w-3 h-3 rounded-full ${area.dotColor} shadow-xs`} />
+                  <h3 className="font-extrabold text-sm tracking-wider text-slate-900 dark:text-white uppercase">
+                    {area.titulo}
+                  </h3>
+                  <span className="px-2.5 py-0.5 text-xs font-black rounded-full bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-200">
+                    {ordenesArea.length}
                   </span>
-                  <span className="inline-flex items-center justify-center px-2 py-0.5 text-[11px] font-extrabold rounded-full bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300">
-                    {ordenesFiltradas.length}
+                  <span className="hidden md:inline text-xs text-slate-400 font-normal">
+                    — {area.desc}
                   </span>
                 </div>
-              </div>
 
-              {/* Scroll interno independiente por columna con scrollbar delgada */}
-              <div className="flex-1 overflow-y-auto p-2.5 space-y-2.5 custom-scrollbar">
-                {ordenesFiltradas.length === 0 ? (
-                  <div className="h-40 flex flex-col items-center justify-center text-slate-400 dark:text-slate-500 text-xs gap-1.5">
-                    <Inbox className="w-6 h-6 stroke-1 opacity-40" />
-                    <span className="font-bold text-[10px] uppercase tracking-widest opacity-60">SIN ACTIVIDAD</span>
-                  </div>
-                ) : (
-                  ordenesFiltradas.map((orden) => (
-                    <TarjetaProduccionCompacta
-                      key={orden.id}
-                      orden={orden}
-                      area={columna.id}
-                      isAvanzandoId={isAvanzandoId}
-                      handleAbrirModalRegistro={openRegistroModal}
-                      handleEditar={openRegistrosListModal}
-                      handleAbrirModalConsumoMP={setOrdenDetalleMP}
-                      handleAvanzarFase={handleOpenAvanzarModal}
-                      handleFinalizarExtrusion={handleFinalizarExtrusion}
-                      handleFinalizarSellado={handleFinalizar}
-                      handleEliminarOrden={handleEliminarOrden}
-                      handleConfirmarEliminacionFase={handleConfirmarEliminacionFase}
-                      faseParalela={producciones.find(
-                        (p) =>
-                          p.id !== orden.id &&
-                          p.estado === 'EnProceso' &&
-                          ((orden.codigoLote && p.loteOrigen === orden.codigoLote) ||
-                            (orden.pedidoId && p.pedidoId === orden.pedidoId))
-                      )}
-                      getDisplayValues={getDisplayValues}
-                      calcularTotalCantidad={calcularTotalCantidad}
-                    />
-                  ))
-                )}
-              </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">
+                    {estaAbierto ? 'Ocultar' : 'Mostrar'}
+                  </span>
+                  {estaAbierto ? (
+                    <ChevronUp className="w-4 h-4 text-slate-500" />
+                  ) : (
+                    <ChevronDown className="w-4 h-4 text-slate-500" />
+                  )}
+                </div>
+              </button>
+
+              {/* Listado de Filas de Producción */}
+              {estaAbierto && (
+                <div>
+                  {ordenesArea.length === 0 ? (
+                    <div className="py-8 text-center text-slate-400 dark:text-slate-500 text-xs font-medium">
+                      No hay órdenes activas en {area.titulo.toLowerCase()}.
+                    </div>
+                  ) : (
+                    <div className="divide-y divide-slate-100 dark:divide-slate-800/80">
+                      {ordenesArea.map((orden) => (
+                        <FilaProduccionHorizontal
+                          key={orden.id}
+                          orden={orden}
+                          areaId={area.id}
+                          isAvanzandoId={isAvanzandoId}
+                          handleAbrirModalRegistro={openRegistroModal}
+                          handleEditar={openRegistrosListModal}
+                          handleAbrirModalConsumoMP={setOrdenDetalleMP}
+                          handleAvanzarFase={handleOpenAvanzarModal}
+                          handleFinalizarExtrusion={handleFinalizarExtrusion}
+                          handleFinalizarSellado={handleFinalizar}
+                          handleEliminarOrden={handleEliminarOrden}
+                          handleConfirmarEliminacionFase={handleConfirmarEliminacionFase}
+                          faseParalela={producciones.find(
+                            (p) =>
+                              p.id !== orden.id &&
+                              p.estado === 'EnProceso' &&
+                              ((orden.codigoLote && p.loteOrigen === orden.codigoLote) ||
+                                (orden.pedidoId && p.pedidoId === orden.pedidoId))
+                          )}
+                          getDisplayValues={getDisplayValues}
+                          calcularTotalCantidad={calcularTotalCantidad}
+                        />
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           );
         })}
