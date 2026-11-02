@@ -25,6 +25,7 @@ import {
   Layers,
 } from 'lucide-react';
 import ModalDetalleConsumoMP from '@/components/produccion/ModalDetalleConsumoMP';
+import { eliminarORevertirFaseSellado } from '@/actions/produccion';
 import { formatNumber } from '@/lib/utils';
 import { calculateBagWeight, getPlasticDensity } from '@/lib/utils/bag-weight';
 import { calcularDesperdicioInfo } from '@/lib/utils/merma';
@@ -482,6 +483,36 @@ export function ProduccionContent() {
         description: error?.message || "Error al finalizar el pedido",
         variant: "destructive",
       });
+    } finally {
+      setIsAvanzandoId(null);
+    }
+  };
+
+  const handleConfirmarEliminacionFase = async (orden: Produccion) => {
+    const loteNombre = orden.codigoLote || orden.id.slice(0, 8).toUpperCase();
+    const confirmacion = window.confirm(
+      `¿Deseas cancelar y eliminar la fase de sellado para el lote ${loteNombre}?\n\n- Se liberará la selladora (${orden.maquina?.nombre || 'Selladora'}).\n- Se reactivará el botón "Avanzar a Sellado" en la extrusora para cuando las bobinas estén listas.`
+    );
+
+    if (!confirmacion) return;
+
+    try {
+      setIsAvanzandoId(orden.id);
+      const res = await eliminarORevertirFaseSellado(orden.id, orden.codigoLote || undefined);
+      if (res.success) {
+        setProducciones((prev) => prev.filter((p) => p.id !== orden.id));
+        toast({
+          title: 'Fase de sellado eliminada',
+          description: res.message || 'La máquina quedó disponible y el botón en Extrusión ha sido rehabilitado.',
+        });
+        await fetchProducciones();
+        router.refresh();
+      } else {
+        alert(res.error || 'No se pudo eliminar la fase.');
+      }
+    } catch (error: any) {
+      console.error('Error al eliminar fase de sellado:', error);
+      alert(error?.message || 'No se pudo eliminar la fase.');
     } finally {
       setIsAvanzandoId(null);
     }
@@ -1191,7 +1222,7 @@ export function ProduccionContent() {
                               {(() => {
                                 if (prod.area !== 'Extrusion') return null;
                                 const faseParalela = producciones.find(
-                                  (p) => p.id !== prod.id && p.pedidoId === prod.pedidoId && p.estado === 'EnProceso'
+                                  (p) => p.id !== prod.id && p.estado === 'EnProceso' && ((prod.codigoLote && p.loteOrigen === prod.codigoLote) || (prod.pedidoId && p.pedidoId === prod.pedidoId))
                                 );
                                 if (!faseParalela) return null;
                                 return (
@@ -1202,11 +1233,11 @@ export function ProduccionContent() {
                                 );
                               })()}
 
-                              <div className="grid grid-cols-2 gap-2 mt-2">
+                              <div className="flex items-center gap-2 mt-2">
                                 <button
                                   onClick={() => openRegistroModal(prod)}
                                   disabled={sinStock}
-                                  className={`flex items-center justify-center gap-2 rounded-xl py-2.5 text-[10px] font-black uppercase tracking-widest transition-all
+                                  className={`flex-1 flex items-center justify-center gap-2 rounded-xl py-2.5 px-3 text-[10px] font-black uppercase tracking-widest transition-all
                                     ${sinStock
                                       ? 'bg-slate-100 dark:bg-slate-800 text-slate-400 cursor-not-allowed'
                                       : 'bg-indigo-600 text-white hover:bg-indigo-700 shadow-lg shadow-indigo-100 dark:shadow-none'
@@ -1216,10 +1247,21 @@ export function ProduccionContent() {
                                 </button>
                                 <button
                                   onClick={() => openRegistrosListModal(prod)}
-                                  className="flex items-center justify-center gap-2 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 py-2.5 text-[10px] font-black uppercase tracking-widest hover:bg-slate-200 dark:hover:bg-slate-700 transition-all"
+                                  className="inline-flex items-center justify-center gap-1.5 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 py-2.5 px-3 text-[10px] font-black uppercase tracking-widest hover:bg-slate-200 dark:hover:bg-slate-700 transition-all"
                                 >
                                   <Pencil className="h-3.5 w-3.5" /> EDITAR
                                 </button>
+                                {prod.area === 'Sellado' && (
+                                  <button
+                                    type="button"
+                                    title="Revertir y eliminar fase de sellado"
+                                    onClick={() => handleConfirmarEliminacionFase(prod)}
+                                    disabled={isAvanzandoId === prod.id}
+                                    className="inline-flex items-center justify-center p-2.5 text-xs font-semibold rounded-xl text-rose-600 bg-rose-50 hover:bg-rose-100 dark:bg-rose-950/40 dark:text-rose-400 dark:hover:bg-rose-900/60 border border-rose-200 dark:border-rose-800 transition-colors disabled:opacity-50"
+                                  >
+                                    <Trash2 className="w-4 h-4" />
+                                  </button>
+                                )}
                               </div>
 
                               {prod.area === 'Extrusion' && (
@@ -1236,7 +1278,7 @@ export function ProduccionContent() {
                               <div className="mt-1 space-y-1.5">
                                 {(() => {
                                   const faseParalela = producciones.find(
-                                    (p) => p.id !== prod.id && p.pedidoId === prod.pedidoId && p.estado === 'EnProceso'
+                                    (p) => p.id !== prod.id && p.estado === 'EnProceso' && ((prod.codigoLote && p.loteOrigen === prod.codigoLote) || (prod.pedidoId && p.pedidoId === prod.pedidoId))
                                   );
 
                                   if (prod.area === 'Extrusion') {
