@@ -58,3 +58,4 @@ describe('resolverConsumoExtrusion - Regla Real de Planta (Base 100% Virgen + AÃ
     expect(adDesl?.kg).toBeCloseTo(4, 4);
   });
 });
+

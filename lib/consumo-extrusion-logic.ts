@@ -79,7 +79,7 @@ export async function resolverConsumoExtrusion(
 
   // 1. Balance Base Polímero: A. Peletizado
   const peletizadoPct = Number(formulacion.peletizadoPorcentaje) || 0;
-  const kgPeletizado = peletizadoPct > 0 ? kgNetos * (peletizadoPct / 100) : 0;
+  const kgPeletizado = peletizadoPct > 0 ? Math.round((kgNetos * (peletizadoPct / 100) + Number.EPSILON) * 100) / 100 : 0;
 
   if (kgPeletizado > 0) {
     let itemPeletizado: any = null;
@@ -121,7 +121,7 @@ export async function resolverConsumoExtrusion(
     for (const resina of RESINAS_VIRGENES_CONFIG) {
       const resinaPct = Number((formulacion as any)[resina.key] ?? (formulacion as any)[resina.altKey]) || 0;
       if (resinaPct > 0) {
-        const kgResina = kgNetos * (resinaPct / 100);
+        const kgResina = Math.round((kgNetos * (resinaPct / 100) + Number.EPSILON) * 100) / 100;
 
         let itemMp: any = null;
         for (const term of resina.searchTerms) {
@@ -168,7 +168,7 @@ export async function resolverConsumoExtrusion(
   for (const aditivo of ADITIVOS_CONFIG) {
     const aditivoPct = Number((formulacion as any)[aditivo.key] ?? (formulacion as any)[aditivo.altKey]) || 0;
     if (aditivoPct > 0) {
-      const kgAditivo = kgNetos * (aditivoPct / 100);
+      const kgAditivo = Math.round((kgNetos * (aditivoPct / 100) + Number.EPSILON) * 100) / 100;
 
       let itemAditivo = await tx.inventario.findFirst({
         where: {

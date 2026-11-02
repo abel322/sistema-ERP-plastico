@@ -6,6 +6,8 @@ import { motion } from 'framer-motion';
 import { ArrowLeft, ArrowDownCircle, ArrowUpCircle, RefreshCw, Undo2, Filter, Edit, Trash2 } from 'lucide-react';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import { MovimientoModal } from '@/components/modals/MovimientoModal';
+import { ejecutarRecalculoHistoricoAction } from '@/actions/inventario';
+import { useToast } from '@/hooks/use-toast';
 
 interface Movimiento {
   id: string;
@@ -36,9 +38,16 @@ const tipoLabels: Record<string, string> = {
   Devolucion: 'Devolución'
 };
 
+function formatCantidad(num: number): string {
+  const rounded = Math.round((Number(num) + Number.EPSILON) * 100) / 100;
+  return Number.isInteger(rounded) ? String(rounded) : rounded.toFixed(2);
+}
+
 export default function MovimientosPage() {
+  const { toast } = useToast();
   const [movimientos, setMovimientos] = useState<Movimiento[]>([]);
   const [loading, setLoading] = useState(true);
+  const [sincronizando, setSincronizando] = useState(false);
   const [tipo, setTipo] = useState('');
   const [fechaInicio, setFechaInicio] = useState('');
   const [fechaFin, setFechaFin] = useState('');
@@ -71,6 +80,36 @@ export default function MovimientosPage() {
   useEffect(() => {
     fetchMovimientos();
   }, [tipo, fechaInicio, fechaFin, page]);
+
+  const handleSincronizar = async () => {
+    if (!confirm('¿Deseas recalcular todas las salidas de Extrusión según las fórmulas corregidas?')) return;
+    setSincronizando(true);
+    try {
+      const res = await ejecutarRecalculoHistoricoAction();
+      if (res.success) {
+        toast({
+          title: 'Sincronización exitosa',
+          description: `Se recalcularon y actualizaron ${res.count} registro(s) en el historial de movimientos.`,
+        });
+        await fetchMovimientos();
+      } else {
+        toast({
+          title: 'Error al sincronizar',
+          description: res.error || 'No se pudo completar el recálculo de movimientos.',
+          variant: 'destructive',
+        });
+      }
+    } catch (error: any) {
+      console.error('Error:', error);
+      toast({
+        title: 'Error',
+        description: error?.message || 'Error al sincronizar consumos históricos.',
+        variant: 'destructive',
+      });
+    } finally {
+      setSincronizando(false);
+    }
+  };
 
   const handleDelete = async (id: string) => {
     if (!confirm('¿Estás seguro de eliminar este movimiento? Esto revertirá su efecto en el inventario.')) return;
@@ -108,7 +147,7 @@ export default function MovimientosPage() {
 
         {/* Filtros */}
         <div className="rounded-lg bg-white p-4 shadow-md">
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
             <select
               value={tipo}
               onChange={(e) => { setTipo(e.target.value); setPage(1); }}
@@ -137,6 +176,15 @@ export default function MovimientosPage() {
               className="flex items-center justify-center gap-2 rounded-lg border border-gray-300 px-3 py-2 text-sm hover:bg-gray-50"
             >
               <Filter className="h-4 w-4" /> Limpiar
+            </button>
+            <button
+              type="button"
+              onClick={handleSincronizar}
+              disabled={sincronizando || loading}
+              className="inline-flex items-center justify-center gap-2 px-3 py-2 text-xs font-semibold rounded-lg bg-indigo-50 text-indigo-700 hover:bg-indigo-100 border border-indigo-200 dark:bg-indigo-950/40 dark:text-indigo-300 dark:border-indigo-800 transition-colors"
+            >
+              <RefreshCw className={`w-3.5 h-3.5 ${sincronizando ? 'animate-spin' : ''}`} />
+              {sincronizando ? 'Recalculando...' : 'Sincronizar Consumos Históricos'}
             </button>
           </div>
         </div>
@@ -175,7 +223,7 @@ export default function MovimientosPage() {
                       mov.tipo === 'Entrada' || mov.tipo === 'Devolucion' ? 'text-green-600' : 
                       mov.tipo === 'Salida' ? 'text-red-600' : 'text-yellow-600'
                     }`}>
-                      {mov.tipo === 'Salida' ? '-' : '+'}{mov.cantidad} {mov.inventario.unidad}
+                      {mov.tipo === 'Salida' ? '-' : '+'}{formatCantidad(mov.cantidad)} {mov.inventario.unidad}
                     </span>
                   </div>
                   <div className="mt-2 flex items-center justify-between text-sm text-gray-500">
@@ -244,7 +292,7 @@ export default function MovimientosPage() {
                             mov.tipo === 'Entrada' || mov.tipo === 'Devolucion' ? 'text-green-600' : 
                             mov.tipo === 'Salida' ? 'text-red-600' : 'text-yellow-600'
                           }`}>
-                            {mov.tipo === 'Salida' ? '-' : '+'}{mov.cantidad} {mov.inventario.unidad}
+                            {mov.tipo === 'Salida' ? '-' : '+'}{formatCantidad(mov.cantidad)} {mov.inventario.unidad}
                           </span>
                         </td>
                         <td className="px-4 py-3 text-sm text-gray-600">{mov.motivo || '-'}</td>
