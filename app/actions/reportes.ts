@@ -183,7 +183,7 @@ export async function getReporteProduccion(filtros: FiltrosReporteProduccion = {
         totalPeletizadoKg += kgPelet;
 
         // Vírgenes
-        const kgVirgenTotal = Math.max(0, kgExt - kgPelet);
+        const kgVirgenTotal = kgExt;
         const f3003 = Number(formulacion.form3003) || 0;
         const fLineal = Number(formulacion.formLineal) || 0;
         const fFB7000 = Number(formulacion.formFB7000) || 0;
@@ -193,12 +193,12 @@ export async function getReporteProduccion(filtros: FiltrosReporteProduccion = {
         const sumaVirgen = f3003 + fLineal + fFB7000 + f0240 + f0348 + f7000F;
 
         if (sumaVirgen > 0) {
-          resinasVirgenes['3003'] += kgVirgenTotal * (f3003 / sumaVirgen);
-          resinasVirgenes['Lineal'] += kgVirgenTotal * (fLineal / sumaVirgen);
-          resinasVirgenes['FB7000'] += kgVirgenTotal * (fFB7000 / sumaVirgen);
-          resinasVirgenes['0240'] += kgVirgenTotal * (f0240 / sumaVirgen);
-          resinasVirgenes['0348'] += kgVirgenTotal * (f0348 / sumaVirgen);
-          resinasVirgenes['7000F'] += kgVirgenTotal * (f7000F / sumaVirgen);
+          resinasVirgenes['3003'] += kgExt * (f3003 / 100);
+          resinasVirgenes['Lineal'] += kgExt * (fLineal / 100);
+          resinasVirgenes['FB7000'] += kgExt * (fFB7000 / 100);
+          resinasVirgenes['0240'] += kgExt * (f0240 / 100);
+          resinasVirgenes['0348'] += kgExt * (f0348 / 100);
+          resinasVirgenes['7000F'] += kgExt * (f7000F / 100);
         } else {
           resinasVirgenes['3003'] += kgVirgenTotal * 0.75;
           resinasVirgenes['Lineal'] += kgVirgenTotal * 0.25;

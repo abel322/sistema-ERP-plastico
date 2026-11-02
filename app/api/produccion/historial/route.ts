@@ -222,7 +222,7 @@ export async function GET(request: Request) {
       }
 
       // 2. Balance Base Polímero: Resinas Vírgenes (distribución proporcional sobre kgVirgenTotal)
-      const kgVirgenTotal = Math.max(0, kgExtrusion - kgPel);
+      const kgVirgenTotal = kgExtrusion;
 
       const resinaPcts = {
         formFB7000: Number(f.formFB7000 ?? f.fb7000 ?? 0),
@@ -236,12 +236,12 @@ export async function GET(request: Request) {
       const sumaVirgen = Object.values(resinaPcts).reduce((acc, val) => acc + val, 0);
 
       if (kgVirgenTotal > 0 && sumaVirgen > 0) {
-        consumoConsolidadoExtrusion.formFB7000 += kgVirgenTotal * (resinaPcts.formFB7000 / sumaVirgen);
-        consumoConsolidadoExtrusion.form3003 += kgVirgenTotal * (resinaPcts.form3003 / sumaVirgen);
-        consumoConsolidadoExtrusion.formLineal += kgVirgenTotal * (resinaPcts.formLineal / sumaVirgen);
-        consumoConsolidadoExtrusion.form0240 += kgVirgenTotal * (resinaPcts.form0240 / sumaVirgen);
-        consumoConsolidadoExtrusion.form0348 += kgVirgenTotal * (resinaPcts.form0348 / sumaVirgen);
-        consumoConsolidadoExtrusion.form7000F += kgVirgenTotal * (resinaPcts.form7000F / sumaVirgen);
+        consumoConsolidadoExtrusion.formFB7000 += kgExtrusion * (resinaPcts.formFB7000 / 100);
+        consumoConsolidadoExtrusion.form3003 += kgExtrusion * (resinaPcts.form3003 / 100);
+        consumoConsolidadoExtrusion.formLineal += kgExtrusion * (resinaPcts.formLineal / 100);
+        consumoConsolidadoExtrusion.form0240 += kgExtrusion * (resinaPcts.form0240 / 100);
+        consumoConsolidadoExtrusion.form0348 += kgExtrusion * (resinaPcts.form0348 / 100);
+        consumoConsolidadoExtrusion.form7000F += kgExtrusion * (resinaPcts.form7000F / 100);
       }
 
       // 3. Aditivos: dosificación externa al 100% sobre kgExtrusion

@@ -164,8 +164,8 @@ export async function GET(
     // 4. Balance Resinas Vírgenes
     const kgPelConsumido = peletizadoInfo ? peletizadoInfo.kgConsumido : 0;
     const kgPelFaltante = peletizadoInfo ? peletizadoInfo.kgFaltante : 0;
-    const baseVirgenActual = Math.max(0, kgProducidos - kgPelConsumido);
-    const baseVirgenFaltante = Math.max(0, kgPendientes - kgPelFaltante);
+    const baseVirgenActual = kgProducidos;
+    const baseVirgenFaltante = kgPendientes;
 
     const sumaVirgenPct = RESINAS_VIRGENES_CONFIG.reduce((sum, r) => {
       const pct = Number((productoCliente as any)?.[r.key] ?? (productoCliente as any)?.[r.altKey]) || 0;
@@ -177,7 +177,7 @@ export async function GET(
     for (const resina of RESINAS_VIRGENES_CONFIG) {
       const pct = Number((productoCliente as any)?.[resina.key] ?? (productoCliente as any)?.[resina.altKey]) || 0;
       if (pct > 0) {
-        const factor = sumaVirgenPct > 0 ? (pct / sumaVirgenPct) : (pct / 100);
+        const factor = pct / 100;
         const kgConsumido = baseVirgenActual * factor;
         const kgFaltante = baseVirgenFaltante * factor;
 

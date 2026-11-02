@@ -385,7 +385,7 @@ export default function ModalDetalleConsumoMP({ ordenId, onClose }: ModalDetalle
               <div className="flex items-center justify-between">
                 <h4 className="text-xs font-black uppercase tracking-widest text-slate-800 dark:text-slate-200 flex items-center gap-2">
                   <span className="w-2.5 h-2.5 rounded-full bg-emerald-500" />
-                  1. Peletizado / Recuperado (% en Tolva)
+                  1. PELETIZADO / RECUPERADO (AÑADIDURA DIRECTA EN TOLVA)
                 </h4>
                 {data.peletizado && (
                   <span className="text-xs font-bold text-emerald-600 dark:text-emerald-400">
@@ -456,7 +456,7 @@ export default function ModalDetalleConsumoMP({ ordenId, onClose }: ModalDetalle
               <div className="flex items-center justify-between">
                 <h4 className="text-xs font-black uppercase tracking-widest text-slate-800 dark:text-slate-200 flex items-center gap-2">
                   <span className="w-2.5 h-2.5 rounded-full bg-blue-500" />
-                  2. Resinas Vírgenes (% sobre Base Virgen Restante)
+                  2. RESINAS VÍRGENES (FORMULACIÓN BASE)
                 </h4>
                 <span className="text-[10px] text-slate-400 font-bold uppercase">
                   {data.resinasVirgenes.length} componente(s)

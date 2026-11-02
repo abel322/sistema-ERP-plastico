@@ -110,7 +110,7 @@ export async function resolverConsumoExtrusion(
 
   // 2. Balance Base Polímero: B. Materias Primas Vírgenes Disponibles y Distribución Proporcional
   const kgPeletizadoEfectivo = resultado.peletizado ? resultado.peletizado.kg : (peletizadoPct > 0 ? kgPeletizado : 0);
-  const kgVirgenTotal = Math.max(0, kgNetos - kgPeletizadoEfectivo);
+  const kgVirgenTotal = kgNetos;
 
   const sumaVirgen = RESINAS_VIRGENES_CONFIG.reduce((sum, r) => {
     const pct = Number((formulacion as any)[r.key] ?? (formulacion as any)[r.altKey]) || 0;
@@ -121,7 +121,7 @@ export async function resolverConsumoExtrusion(
     for (const resina of RESINAS_VIRGENES_CONFIG) {
       const resinaPct = Number((formulacion as any)[resina.key] ?? (formulacion as any)[resina.altKey]) || 0;
       if (resinaPct > 0) {
-        const kgResina = kgVirgenTotal * (resinaPct / sumaVirgen);
+        const kgResina = kgNetos * (resinaPct / 100);
 
         let itemMp: any = null;
         for (const term of resina.searchTerms) {
