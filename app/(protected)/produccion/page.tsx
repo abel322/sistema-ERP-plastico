@@ -25,7 +25,7 @@ import {
   Layers,
 } from 'lucide-react';
 import ModalDetalleConsumoMP from '@/components/produccion/ModalDetalleConsumoMP';
-import { eliminarORevertirFaseSellado } from '@/actions/produccion';
+import { eliminarORevertirFaseSellado, eliminarOrdenProduccion } from '@/actions/produccion';
 import { formatNumber } from '@/lib/utils';
 import { calculateBagWeight, getPlasticDensity } from '@/lib/utils/bag-weight';
 import { calcularDesperdicioInfo } from '@/lib/utils/merma';
@@ -513,6 +513,42 @@ export function ProduccionContent() {
     } catch (error: any) {
       console.error('Error al eliminar fase de sellado:', error);
       alert(error?.message || 'No se pudo eliminar la fase.');
+    } finally {
+      setIsAvanzandoId(null);
+    }
+  };
+
+  const handleEliminarOrden = async (orden: Produccion) => {
+    const loteCodigo = orden.codigoLote || orden.id.slice(0, 8).toUpperCase();
+    const productoNombre =
+      orden.pedido?.productoCliente?.nombreProducto ||
+      orden.productoCliente?.nombreProducto ||
+      orden.pedido?.cliente?.nombre ||
+      'Sin producto';
+
+    const confirmacion = window.confirm(
+      `¿Estás seguro de que deseas eliminar permanentemente la orden ${loteCodigo}?\n\n- Producto: ${productoNombre}\n- Máquina: ${orden.maquina?.nombre || 'Extrusora'}\n- Se cancelará la orden y la máquina quedará disponible.`
+    );
+
+    if (!confirmacion) return;
+
+    try {
+      setIsAvanzandoId(orden.id);
+      const res = await eliminarOrdenProduccion(orden.id);
+      if (res.success) {
+        setProducciones((prev) => prev.filter((p) => p.id !== orden.id));
+        toast({
+          title: 'Orden de producción eliminada',
+          description: res.message || `La orden ${loteCodigo} fue eliminada y la máquina quedó disponible.`,
+        });
+        await fetchProducciones();
+        router.refresh();
+      } else {
+        alert(res.error || 'No se pudo eliminar la orden.');
+      }
+    } catch (error: any) {
+      console.error('Error al eliminar orden de producción:', error);
+      alert(error?.message || 'Error al intentar eliminar la orden.');
     } finally {
       setIsAvanzandoId(null);
     }
@@ -1251,7 +1287,17 @@ export function ProduccionContent() {
                                 >
                                   <Pencil className="h-3.5 w-3.5" /> EDITAR
                                 </button>
-                                {prod.area === 'Sellado' && (
+                                {prod.area !== 'Sellado' ? (
+                                  <button
+                                    type="button"
+                                    title="Eliminar esta orden de producción"
+                                    onClick={() => handleEliminarOrden(prod)}
+                                    disabled={isAvanzandoId === prod.id}
+                                    className="inline-flex items-center justify-center p-2.5 text-xs font-semibold rounded-xl text-rose-600 bg-rose-50 hover:bg-rose-100 dark:bg-rose-950/40 dark:text-rose-400 dark:hover:bg-rose-900/60 border border-rose-200 dark:border-rose-800 transition-colors disabled:opacity-50"
+                                  >
+                                    <Trash2 className="w-4 h-4" />
+                                  </button>
+                                ) : (
                                   <button
                                     type="button"
                                     title="Revertir y eliminar fase de sellado"

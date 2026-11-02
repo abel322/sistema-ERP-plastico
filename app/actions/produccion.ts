@@ -1,3 +1,3 @@
 'use server';
 
-export { eliminarORevertirFaseSellado } from '@/actions/produccion';
+export { eliminarORevertirFaseSellado, eliminarOrdenProduccion } from '@/actions/produccion';
