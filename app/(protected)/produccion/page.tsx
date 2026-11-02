@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useMemo, FormEvent, Suspense } from 'react';
+import { useState, useEffect, useMemo, useCallback, FormEvent, Suspense } from 'react';
 import { useSession } from 'next-auth/react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
@@ -23,6 +23,10 @@ import {
   ClipboardList,
   ChevronRight,
   Layers,
+  Search,
+  ChevronDown,
+  Edit3,
+  Inbox,
 } from 'lucide-react';
 import ModalDetalleConsumoMP from '@/components/produccion/ModalDetalleConsumoMP';
 import { eliminarORevertirFaseSellado, eliminarOrdenProduccion } from '@/actions/produccion';
@@ -40,9 +44,16 @@ import { getTodayInputDate, formatUTCtoDisplayDate, formatUTCtoInputDate } from 
 
 const AREAS = [
   { value: 'Extrusion', label: 'Extrusión' },
-  { value: 'Sellado', label: 'Sellado' },
   { value: 'Serigrafia', label: 'Serigrafía' },
   { value: 'Refilado', label: 'Refilado' },
+  { value: 'Sellado', label: 'Sellado' },
+];
+
+const COLUMNAS = [
+  { id: 'Extrusion', titulo: 'Extrusión' },
+  { id: 'Serigrafia', titulo: 'Serigrafía' },
+  { id: 'Refilado', titulo: 'Refilado' },
+  { id: 'Sellado', titulo: 'Sellado' },
 ];
 
 const TURNOS = [
@@ -155,6 +166,254 @@ interface Pedido {
   cliente: { nombre: string; tipoProducto: string; conImpresion?: boolean; pesoPorUnidad?: number };
 }
 
+interface TarjetaProduccionCompactaProps {
+  orden: Produccion;
+  area: string;
+  isAvanzandoId: string | null;
+  handleAbrirModalRegistro: (orden: Produccion) => void;
+  handleEditar: (orden: Produccion) => void;
+  handleAbrirModalConsumoMP: (orden: Produccion) => void;
+  handleAvanzarFase: (orden: Produccion) => void;
+  handleFinalizarExtrusion: (orden: Produccion) => void;
+  handleFinalizarSellado: (orden: Produccion) => void;
+  handleEliminarOrden: (orden: Produccion) => void;
+  handleConfirmarEliminacionFase: (orden: Produccion) => void;
+  faseParalela?: Produccion;
+  getDisplayValues: (prod: Produccion, totalProducido: number) => any;
+  calcularTotalCantidad: (registros: RegistroProduccion[]) => number;
+}
+
+export function TarjetaProduccionCompacta({
+  orden,
+  area,
+  isAvanzandoId,
+  handleAbrirModalRegistro,
+  handleEditar,
+  handleAbrirModalConsumoMP,
+  handleAvanzarFase,
+  handleFinalizarExtrusion,
+  handleFinalizarSellado,
+  handleEliminarOrden,
+  handleConfirmarEliminacionFase,
+  faseParalela,
+  getDisplayValues,
+  calcularTotalCantidad,
+}: TarjetaProduccionCompactaProps) {
+  const totalProducido = calcularTotalCantidad(orden.registros || []);
+  const dv = getDisplayValues(orden, totalProducido);
+  const isUnidades = dv.displayUnit?.toLowerCase().startsWith('un') || dv.displayUnit?.toLowerCase().startsWith('ud') || orden.area === 'Sellado';
+  const metaKg = Number(dv.targetAmount || 0);
+  const producidoKg = Number(dv.displayTotal || 0);
+  const porcentaje = metaKg > 0 ? Math.min(100, Math.round((producidoKg / metaKg) * 100)) : (producidoKg > 0 ? 100 : 0);
+  const esCompletado = dv.isCompleted || orden.estado === 'Finalizado' || orden.estado === 'COMPLETADO' || porcentaje >= 100;
+
+  // Lógica de bifurcación técnica según Ficha Técnica
+  const pc = orden.pedido?.productoCliente || orden.productoCliente;
+  const llevaImpresion = Boolean(pc?.conImpresion ?? (orden.pedido?.cliente as any)?.conImpresion);
+  const destinoSiguiente = llevaImpresion ? 'SERIGRAFÍA' : 'SELLADO';
+
+  const isSellado = orden.area === 'Sellado';
+  const disponibleKg = orden.stockPrevio?.cantidad ?? 0;
+  const sinStock = orden.area !== 'Extrusion' && (!orden.stockPrevio || orden.stockPrevio.cantidad <= 0);
+
+  const codigoPedido = orden.pedido?.id?.slice(-5).toUpperCase() || orden.pedidoId?.slice(-5).toUpperCase() || 'N/A';
+  const codigoLote = orden.codigoLote || orden.id.slice(0, 8).toUpperCase();
+  const clienteNombre = orden.pedido?.cliente?.nombre || 'PRODUCCIÓN INTERNA';
+  const productoNombre = pc?.nombreProducto || (orden.pedido?.cliente as any)?.tipoProducto || 'Bolsa / Bobina';
+
+  return (
+    <div className="bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 rounded-xl p-2.5 shadow-xs hover:shadow-md transition-all flex flex-col justify-between gap-1.5 min-h-[165px]">
+      {/* FILA 1: Badges, Lote y Menú de Iconos Compactos */}
+      <div className="flex items-center justify-between gap-1">
+        <div className="flex items-center gap-1.5 flex-wrap min-w-0">
+          <span className="px-1.5 py-0.5 text-[9px] font-bold rounded-md bg-blue-50 text-blue-700 dark:bg-blue-950/60 dark:text-blue-300 border border-blue-200/60 dark:border-blue-800 shrink-0">
+            P-{codigoPedido}
+          </span>
+          <span className={`px-1.5 py-0.5 text-[9px] font-bold rounded-md uppercase tracking-tight shrink-0 ${
+            esCompletado
+              ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300'
+              : 'bg-amber-50 text-amber-700 dark:bg-amber-950/60 dark:text-amber-300'
+          }`}>
+            {esCompletado ? 'Completado' : 'En proceso'}
+          </span>
+          <span className="text-[11px] font-bold text-slate-800 dark:text-slate-100 tracking-tight font-mono truncate" title={codigoLote}>
+            {codigoLote}
+          </span>
+        </div>
+
+        {/* Acciones de Auditoría y Control en Iconos */}
+        <div className="flex items-center gap-0.5 shrink-0">
+          {orden.area === 'Extrusion' && (
+            <button
+              type="button"
+              title="Consumo MP en tiempo real (Sacas y Materia Prima)"
+              onClick={() => handleAbrirModalConsumoMP(orden)}
+              className="p-1 rounded-lg text-slate-500 hover:text-blue-600 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
+            >
+              <Layers className="w-3.5 h-3.5"/>
+            </button>
+          )}
+          <button
+            type="button"
+            title="Editar Orden / Turnos"
+            onClick={() => handleEditar(orden)}
+            className="p-1 rounded-lg text-slate-500 hover:text-slate-800 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
+          >
+            <Edit3 className="w-3.5 h-3.5"/>
+          </button>
+          {producidoKg === 0 && (
+            <button
+              type="button"
+              title={orden.area === 'Sellado' ? "Revertir y eliminar fase de sellado (0 KG)" : "Eliminar orden creada por error (0 KG)"}
+              onClick={() => orden.area === 'Sellado' ? handleConfirmarEliminacionFase(orden) : handleEliminarOrden(orden)}
+              disabled={isAvanzandoId === orden.id}
+              className="p-1 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition-colors disabled:opacity-50 cursor-pointer"
+            >
+              <Trash2 className="w-3.5 h-3.5 text-rose-500"/>
+            </button>
+          )}
+        </div>
+      </div>
+
+      {/* FILA 2: Cliente, Producto y Máquina Asignada */}
+      <div className="flex flex-col gap-0.5 min-w-0">
+        <h4 className="text-xs font-bold text-slate-900 dark:text-white truncate" title={clienteNombre}>
+          {clienteNombre}
+        </h4>
+        <p className="text-[11px] text-slate-500 dark:text-slate-400 truncate leading-tight" title={productoNombre}>
+          {productoNombre}
+        </p>
+        <div className="flex items-center justify-between text-[10px] text-blue-600 dark:text-blue-400 font-semibold mt-0.5">
+          <div className="flex items-center gap-1.5 truncate">
+            <span className="w-1.5 h-1.5 rounded-full bg-blue-600 animate-pulse shrink-0"/>
+            <span className="truncate">{orden.maquina?.nombre || 'Máquina no asignada'}</span>
+          </div>
+          {orden.loteOrigen && (
+            <span className="text-[9px] font-mono text-amber-800 dark:text-amber-300 bg-amber-50 dark:bg-amber-950/40 px-1 py-0.2 rounded border border-amber-200 dark:border-amber-900/60 shrink-0" title={`Bobina de origen: ${orden.loteOrigen}`}>
+              {orden.loteOrigen}
+            </span>
+          )}
+        </div>
+        {faseParalela && (
+          <div className="flex items-center gap-1.5 px-2 py-0.5 mt-0.5 bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300 rounded text-[9px] font-bold border border-blue-200 dark:border-blue-900/60">
+            <span className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-ping shrink-0" />
+            <span className="truncate">Paralelo con {faseParalela.area}</span>
+          </div>
+        )}
+      </div>
+
+      {/* FILA 3: Métricas de Producción y Barra Delgada */}
+      <div className="bg-slate-50 dark:bg-slate-800/60 rounded-lg p-2 border border-slate-100 dark:border-slate-800">
+        <div className="flex items-baseline justify-between text-xs mb-1">
+          <div>
+            <span className="font-extrabold text-slate-900 dark:text-white text-sm">
+              {formatNumber(producidoKg, { minDecimals: isUnidades ? 0 : 1, maxDecimals: 2 })}
+            </span>
+            <span className="text-[10px] font-semibold text-slate-400 ml-0.5 uppercase">{dv.displayUnit}</span>
+          </div>
+          <div className="text-[10px] text-slate-500 font-medium">
+            Meta: <span className="font-bold text-slate-700 dark:text-slate-300">{formatNumber(metaKg, { minDecimals: isUnidades ? 0 : 0, maxDecimals: 2 })} {dv.displayUnit}</span>
+          </div>
+        </div>
+
+        <div className="w-full h-1.5 bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden">
+          <div
+            className={`h-full transition-all duration-300 rounded-full ${
+              porcentaje >= 100 ? 'bg-emerald-500' : 'bg-blue-600'
+            }`}
+            style={{ width: `${Math.min(100, porcentaje)}%` }}
+          />
+        </div>
+
+        {/* Sellado WIP o Merma */}
+        {isSellado ? (
+          disponibleKg <= 0 ? (
+            <div className="flex items-center gap-1 text-[9px] font-bold text-rose-600 dark:text-rose-400 mt-1.5">
+              <AlertTriangle className="w-3 h-3 shrink-0 animate-pulse"/>
+              <span>En espera de bobina (0 KG disp.)</span>
+            </div>
+          ) : (
+            <div className="flex items-center justify-between text-[9px] text-slate-500 dark:text-slate-400 mt-1.5">
+              <span>Bobina en piso:</span>
+              <strong className="text-emerald-700 dark:text-emerald-400">{formatNumber(disponibleKg, { minDecimals: 1, maxDecimals: 2 })} KG</strong>
+            </div>
+          )
+        ) : Number(orden.merma || 0) > 0 ? (
+          <div className="flex items-center justify-between text-[9px] text-slate-500 dark:text-slate-400 mt-1.5">
+            <span>Merma:</span>
+            <strong className="text-slate-700 dark:text-slate-300">{formatNumber(Number(orden.merma), { minDecimals: 1, maxDecimals: 2 })} KG</strong>
+          </div>
+        ) : null}
+      </div>
+
+      {/* FILA 4: Botones Principales en una Sola Línea */}
+      <div className="flex items-center gap-1.5 mt-0.5">
+        <button
+          type="button"
+          onClick={() => handleAbrirModalRegistro(orden)}
+          disabled={sinStock}
+          className={`flex-1 inline-flex items-center justify-center gap-1 py-1.5 px-2 text-xs font-semibold rounded-lg text-white shadow-xs transition-colors cursor-pointer ${
+            sinStock
+              ? 'bg-slate-300 dark:bg-slate-700 text-slate-400 cursor-not-allowed'
+              : 'bg-blue-600 hover:bg-blue-700'
+          }`}
+        >
+          <Plus className="w-3.5 h-3.5"/>
+          <span>Registro</span>
+        </button>
+
+        {orden.area === 'Extrusion' && (
+          faseParalela ? (
+            <button
+              type="button"
+              onClick={() => handleFinalizarExtrusion(orden)}
+              disabled={isAvanzandoId === orden.id}
+              className="flex-1 inline-flex items-center justify-center gap-1 py-1.5 px-2 text-xs font-semibold rounded-lg text-white bg-slate-800 hover:bg-slate-900 dark:bg-slate-700 dark:hover:bg-slate-600 transition-colors disabled:opacity-50 cursor-pointer"
+            >
+              <CheckCircle className="w-3.5 h-3.5 text-emerald-400"/>
+              <span className="truncate">Finalizar Extrusión</span>
+            </button>
+          ) : (
+            <button
+              type="button"
+              onClick={() => handleAvanzarFase(orden)}
+              disabled={isAvanzandoId === orden.id}
+              className="flex-1 inline-flex items-center justify-center gap-1 py-1.5 px-2 text-xs font-semibold rounded-lg text-slate-800 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-100 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-700 transition-colors disabled:opacity-50 cursor-pointer"
+            >
+              <span className="truncate">A {destinoSiguiente === 'SERIGRAFÍA' ? 'Serigrafía' : 'Sellado'}</span>
+              <ChevronRight className="w-3 h-3 text-slate-400 shrink-0"/>
+            </button>
+          )
+        )}
+
+        {(orden.area === 'Serigrafia' || orden.area === 'Refilado') && (
+          <button
+            type="button"
+            onClick={() => handleAvanzarFase(orden)}
+            disabled={isAvanzandoId === orden.id}
+            className="flex-1 inline-flex items-center justify-center gap-1 py-1.5 px-2 text-xs font-semibold rounded-lg text-slate-800 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-100 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-700 transition-colors disabled:opacity-50 cursor-pointer"
+          >
+            <span className="truncate">A Sellado</span>
+            <ChevronRight className="w-3 h-3 text-slate-400 shrink-0"/>
+          </button>
+        )}
+
+        {orden.area === 'Sellado' && (
+          <button
+            type="button"
+            onClick={() => handleFinalizarSellado(orden)}
+            disabled={isAvanzandoId === orden.id}
+            className="flex-1 inline-flex items-center justify-center gap-1 py-1.5 px-2 text-xs font-semibold rounded-lg text-emerald-700 bg-emerald-50 hover:bg-emerald-100 dark:bg-emerald-950/60 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 transition-colors disabled:opacity-50 cursor-pointer"
+          >
+            <CheckCircle className="w-3.5 h-3.5"/>
+            <span>Finalizar</span>
+          </button>
+        )}
+      </div>
+    </div>
+  );
+}
+
 export function ProduccionContent() {
   const { data: session } = useSession() || {};
   const router = useRouter();
@@ -170,6 +429,71 @@ export function ProduccionContent() {
     fechaInicio: '',
     fechaFin: '',
   });
+
+  // Filtros rápidos en vivo
+  const [busqueda, setBusqueda] = useState('');
+  const [maquinaFiltro, setMaquinaFiltro] = useState('TODAS');
+
+  const [maquinas, setMaquinas] = useState<Maquina[]>([]);
+  // Listado dinámico de máquinas disponibles
+  const maquinasDisponibles = useMemo(() => {
+    const lista = new Set<string>();
+    maquinas.forEach((m) => {
+      if (m.nombre) lista.add(m.nombre);
+    });
+    producciones.forEach((o) => {
+      if (o.maquina?.nombre) lista.add(o.maquina.nombre);
+    });
+    return Array.from(lista).sort((a, b) =>
+      a.localeCompare(b, undefined, { numeric: true, sensitivity: 'base' })
+    );
+  }, [maquinas, producciones]);
+
+  // Función de filtrado reactivo instantáneo
+  const filtrarOrdenes = useCallback(
+    (ordenes: Produccion[]) => {
+      return ordenes.filter((orden) => {
+        // 1. Filtro de búsqueda textual
+        const termino = busqueda.toLowerCase().trim();
+        const clienteNombre =
+          orden.pedido?.cliente?.nombre ||
+          (orden as any).cliente?.nombre ||
+          '';
+        const productoNombre =
+          orden.pedido?.productoCliente?.nombreProducto ||
+          orden.productoCliente?.nombreProducto ||
+          (orden as any).producto?.nombre ||
+          '';
+        const pedidoCodigo =
+          orden.pedido?.id ||
+          orden.pedidoId ||
+          (orden as any).codigoPedido ||
+          '';
+        const loteCodigo =
+          orden.codigoLote ||
+          (orden as any).loteCodigo ||
+          '';
+
+        const coincideTexto =
+          !termino ||
+          loteCodigo.toLowerCase().includes(termino) ||
+          clienteNombre.toLowerCase().includes(termino) ||
+          productoNombre.toLowerCase().includes(termino) ||
+          pedidoCodigo.toLowerCase().includes(termino);
+
+        // 2. Filtro por máquina
+        const coincideMaquina =
+          maquinaFiltro === 'TODAS' || orden.maquina?.nombre === maquinaFiltro;
+
+        return coincideTexto && coincideMaquina;
+      });
+    },
+    [busqueda, maquinaFiltro]
+  );
+
+  const totalOrdenesFiltradas = useMemo(() => {
+    return filtrarOrdenes(producciones).length;
+  }, [producciones, filtrarOrdenes]);
 
   const [showCrearModal, setShowCrearModal] = useState(false);
   const [showRegistroModal, setShowRegistroModal] = useState(false);
@@ -189,7 +513,6 @@ export function ProduccionContent() {
 
   const [ordenDetalleMP, setOrdenDetalleMP] = useState<Produccion | null>(null);
 
-  const [maquinas, setMaquinas] = useState<Maquina[]>([]);
   const [pedidosFiltrados, setPedidosFiltrados] = useState<Pedido[]>([]);
   const [showPedidoWarning, setShowPedidoWarning] = useState(false);
   const [isAvance, setIsAvance] = useState(false);
@@ -853,542 +1176,185 @@ export function ProduccionContent() {
   const maquinasFiltradas = maquinas.filter((m) => m.area === formData.area);
 
   return (
-    <div className="p-4 sm:p-6 lg:p-8 bg-slate-50 dark:bg-slate-950 min-h-screen transition-colors duration-300 w-full max-w-full overflow-x-hidden">
-      {/* Header Area */}
-      <div className="mb-8">
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 bg-white dark:bg-slate-900 p-4 sm:p-6 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-800 transition-colors">
-          <div className="flex items-center gap-4">
-            <div className="w-14 h-14 bg-indigo-600 rounded-2xl flex items-center justify-center text-white shadow-lg shadow-indigo-200 dark:shadow-none">
-              <Factory className="w-8 h-8" />
-            </div>
-            <div>
-              <h1 className="text-2xl md:text-3xl font-black text-slate-900 dark:text-white leading-tight">Producción</h1>
-              <div className="flex items-center gap-2 mt-1">
-                <span className="px-2 py-0.5 bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 text-[10px] font-bold uppercase tracking-widest rounded">Operaciones en Tiempo Real</span>
-                <span className="w-1 h-1 bg-slate-300 dark:bg-slate-700 rounded-full" />
-                <span className="text-slate-400 dark:text-slate-500 text-xs font-medium">{producciones.length} órdenes en proceso</span>
-              </div>
-            </div>
+    <div className="p-3 sm:p-4 lg:p-5 bg-slate-50 dark:bg-slate-950 min-h-screen lg:h-screen lg:overflow-hidden transition-colors duration-300 w-full max-w-full flex flex-col">
+      {/* Header Compacto de Planta */}
+      <div className="flex flex-wrap items-center justify-between gap-3 mb-2.5 shrink-0">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 bg-indigo-600 rounded-xl flex items-center justify-center text-white shadow-md shadow-indigo-200 dark:shadow-none">
+            <Factory className="w-5 h-5" />
           </div>
-          
-          <div className="flex flex-col sm:flex-row gap-3">
-            <Link href="/produccion/historial">
-              <motion.button
-                whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.98 }}
-                className="flex items-center justify-center gap-2 rounded-xl bg-slate-100 dark:bg-slate-800 px-5 py-2.5 font-bold text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 transition-all shadow-sm"
-              >
-                <Clock className="h-4 w-4" />
-                HISTORIAL
-              </motion.button>
-            </Link>
-            <motion.button
-              whileHover={{ scale: 1.02, boxShadow: '0 10px 15px -3px rgba(79, 70, 229, 0.3)' }}
-              whileTap={{ scale: 0.98 }}
-              onClick={() => setShowCrearModal(true)}
-              className="flex items-center justify-center gap-2 rounded-xl bg-indigo-600 px-5 py-2.5 font-bold text-white shadow-lg transition-all hover:bg-indigo-700 active:scale-95"
+          <div>
+            <div className="flex items-center gap-2">
+              <h1 className="text-xl md:text-2xl font-black text-slate-900 dark:text-white leading-none">
+                Producción
+              </h1>
+              <span className="px-2 py-0.5 bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 text-[10px] font-extrabold uppercase tracking-widest rounded-md border border-indigo-200/60 dark:border-indigo-800">
+                En Vivo
+              </span>
+            </div>
+            <p className="text-slate-400 dark:text-slate-500 text-xs font-medium mt-0.5">
+              {producciones.length} órdenes en planta · Vista compacta
+            </p>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-2">
+          <Link href="/produccion/historial">
+            <button
+              type="button"
+              className="flex items-center justify-center gap-1.5 rounded-xl bg-white dark:bg-slate-800 px-3 py-1.5 text-xs font-bold text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-700 transition-all shadow-xs cursor-pointer"
             >
-              <Plus className="h-4 w-4" />
-              NUEVA PRODUCCIÓN
-            </motion.button>
-          </div>
+              <Clock className="h-3.5 w-3.5" />
+              <span>Historial</span>
+            </button>
+          </Link>
+          <button
+            type="button"
+            onClick={() => setShowCrearModal(true)}
+            className="flex items-center justify-center gap-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 px-3.5 py-1.5 text-xs font-bold text-white shadow-md transition-all active:scale-95 cursor-pointer"
+          >
+            <Plus className="h-3.5 w-3.5" />
+            <span>Nueva Producción</span>
+          </button>
         </div>
       </div>
 
-      {/* Filtros */}
-      <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-800 p-4 sm:p-6 mb-8 transition-colors">
-        <div className="flex flex-col lg:flex-row items-start lg:items-center gap-6">
-          <div className="flex items-center gap-2 px-3 py-1 bg-slate-100 dark:bg-slate-800 rounded-lg">
-            <Filter className="h-3 w-3 text-slate-500" />
-            <span className="text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest">Filtros</span>
+      {/* Barra Superior de Filtros Rápidos en Vivo */}
+      <div className="flex flex-wrap items-center justify-between gap-3 mb-3 bg-white dark:bg-slate-900 p-2.5 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-xs shrink-0">
+        <div className="flex items-center gap-2 flex-1 min-w-[280px]">
+          {/* Buscador Rápido */}
+          <div className="relative flex-1">
+            <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+            <input
+              type="text"
+              placeholder="Buscar cliente, producto, lote o pedido..."
+              value={busqueda}
+              onChange={(e) => setBusqueda(e.target.value)}
+              className="w-full pl-9 pr-8 py-1.5 text-xs bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 text-slate-800 dark:text-slate-100 placeholder:text-slate-400"
+            />
+            {busqueda && (
+              <button
+                type="button"
+                onClick={() => setBusqueda('')}
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 cursor-pointer"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            )}
           </div>
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 flex-1 w-full">
+
+          {/* Selector de Máquina */}
+          <div className="relative min-w-[170px]">
+            <Filter className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
             <select
-              value={filters.area}
-              onChange={(e) => setFilters({ ...filters, area: e.target.value })}
-              className="bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-sm font-semibold text-slate-700 dark:text-slate-300 focus:ring-2 focus:ring-indigo-500 outline-none transition-all"
+              value={maquinaFiltro}
+              onChange={(e) => setMaquinaFiltro(e.target.value)}
+              className="w-full pl-8 pr-7 py-1.5 text-xs bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 text-slate-700 dark:text-slate-200 font-medium cursor-pointer appearance-none"
             >
-              <option value="">Todas las áreas</option>
-              {AREAS.map((a) => (
-                <option key={a.value} value={a.value}>
-                  {a.label}
+              <option value="TODAS">Todas las máquinas</option>
+              {maquinasDisponibles.map((maq) => (
+                <option key={maq} value={maq}>
+                  {maq}
                 </option>
               ))}
             </select>
-            <div className="relative">
-              <Calendar className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
-              <input
-                type="date"
-                value={filters.fechaInicio}
-                onChange={(e) => setFilters({ ...filters, fechaInicio: e.target.value })}
-                className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl py-2.5 pl-10 pr-4 text-sm font-semibold text-slate-700 dark:text-slate-300 focus:ring-2 focus:ring-indigo-500 outline-none transition-all"
-              />
-            </div>
-            <div className="relative">
-              <Calendar className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
-              <input
-                type="date"
-                value={filters.fechaFin}
-                onChange={(e) => setFilters({ ...filters, fechaFin: e.target.value })}
-                className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl py-2.5 pl-10 pr-4 text-sm font-semibold text-slate-700 dark:text-slate-300 focus:ring-2 focus:ring-indigo-500 outline-none transition-all"
-              />
-            </div>
+            <ChevronDown className="w-3 h-3 absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
           </div>
+        </div>
+
+        {/* Contador de Órdenes Visibles */}
+        <div className="flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400 px-1 font-medium shrink-0">
+          <span>
+            Mostrando: <strong className="text-slate-800 dark:text-slate-200">{totalOrdenesFiltradas}</strong> activas
+          </span>
+          {(busqueda || maquinaFiltro !== 'TODAS') && (
+            <button
+              type="button"
+              onClick={() => {
+                setBusqueda('');
+                setMaquinaFiltro('TODAS');
+              }}
+              className="text-[11px] font-semibold text-blue-600 hover:text-blue-700 dark:text-blue-400 underline ml-1 cursor-pointer"
+            >
+              Restablecer
+            </button>
+          )}
         </div>
       </div>
 
-      {/* Filtro activo por Pedido */}
+      {/* Banner de filtro activo por Pedido (si se accede desde URL) */}
       {pedidoIdParam && (
-        <div className="mb-6 flex flex-wrap items-center justify-between gap-3 rounded-2xl bg-indigo-50 border border-indigo-200/80 dark:bg-indigo-950/40 dark:border-indigo-800/60 p-4 transition-all">
-          <div className="flex items-center gap-3">
-            <div className="p-2.5 rounded-xl bg-indigo-600 text-white shadow-sm">
-              <Factory className="h-5 w-5" />
-            </div>
-            <div>
-              <p className="text-sm font-bold text-indigo-950 dark:text-indigo-100">
-                Mostrando producción vinculada al Pedido #{pedidoIdParam.slice(-6).toUpperCase()}
-              </p>
-              <p className="text-xs text-indigo-700/80 dark:text-indigo-300/80">
-                {producciones.length > 0 
-                  ? `Se encontraron ${producciones.length} orden(es) de producción en proceso para este pedido.` 
-                  : 'No se encontraron órdenes de producción en proceso para este pedido.'}
-              </p>
-            </div>
+        <div className="mb-2.5 flex items-center justify-between gap-3 rounded-xl bg-indigo-50 border border-indigo-200/80 dark:bg-indigo-950/40 dark:border-indigo-800/60 px-3.5 py-2 shrink-0">
+          <div className="flex items-center gap-2.5">
+            <Factory className="h-4 w-4 text-indigo-600 dark:text-indigo-400" />
+            <span className="text-xs font-bold text-indigo-950 dark:text-indigo-100">
+              Filtrado por Pedido #{pedidoIdParam.slice(-6).toUpperCase()} ({producciones.length} órdenes)
+            </span>
           </div>
           <button
             onClick={() => router.push('/produccion')}
-            className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-bold text-indigo-700 dark:text-indigo-300 bg-white dark:bg-slate-900 border border-indigo-200 dark:border-indigo-800 hover:bg-indigo-100/60 dark:hover:bg-indigo-900/40 shadow-sm transition-all"
+            className="text-[11px] font-bold text-indigo-700 dark:text-indigo-300 underline cursor-pointer"
           >
             Ver todas las órdenes
           </button>
         </div>
       )}
 
-      {/* Tablero Kanban */}
-      <div className="flex gap-4 sm:gap-6 overflow-x-auto pb-8 -mx-4 sm:-mx-6 lg:-mx-8 px-4 sm:px-6 lg:px-8 w-auto max-w-full">
-        {AREAS.map((areaCol) => {
-          const prodEnArea = producciones.filter(p => p.area === areaCol.value);
+      {/* Tablero Kanban con Scroll Interno Independiente */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3.5 flex-1 h-[calc(100vh-195px)] min-h-[500px] overflow-hidden">
+        {COLUMNAS.map((columna) => {
+          const ordenesFiltradas = filtrarOrdenes(producciones.filter((p) => p.area === columna.id));
+
           return (
-            <div key={areaCol.value} className="flex min-w-[280px] w-[85vw] max-w-[340px] lg:w-auto lg:flex-1 shrink-0 flex-col gap-6 rounded-[2.5rem] bg-slate-100 dark:bg-slate-800/40 p-4 sm:p-5 border border-slate-200 dark:border-slate-800 transition-colors">
-              <div className="flex items-center justify-between px-3">
-                <h2 className="text-xs font-black text-slate-800 dark:text-slate-200 uppercase tracking-[0.2em]">{areaCol.label}</h2>
-                <span className="flex h-6 w-8 items-center justify-center rounded-lg bg-white dark:bg-slate-800 text-[10px] font-black text-slate-600 dark:text-slate-400 shadow-sm border border-slate-200 dark:border-slate-700 transition-colors">
-                  {prodEnArea.length}
-                </span>
+            <div
+              key={columna.id}
+              className="flex flex-col bg-slate-50/75 dark:bg-slate-900/40 rounded-2xl border border-slate-200/80 dark:border-slate-800/80 h-full overflow-hidden"
+            >
+              {/* Cabecera Sticky Fija */}
+              <div className="flex items-center justify-between px-3.5 py-2.5 bg-white dark:bg-slate-900 border-b border-slate-200/90 dark:border-slate-800 shrink-0">
+                <div className="flex items-center gap-2">
+                  <span className="font-bold text-xs tracking-wider text-slate-800 dark:text-slate-100 uppercase">
+                    {columna.titulo}
+                  </span>
+                  <span className="inline-flex items-center justify-center px-2 py-0.5 text-[11px] font-extrabold rounded-full bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300">
+                    {ordenesFiltradas.length}
+                  </span>
+                </div>
               </div>
 
-              <div className="flex flex-col gap-5">
-                {prodEnArea.length === 0 ? (
-                  <div className="flex flex-col items-center justify-center py-16 text-slate-300 dark:text-slate-600 border-2 border-dashed border-slate-200 dark:border-slate-800/50 rounded-3xl transition-colors">
-                    <Factory className="mb-3 h-12 w-12 opacity-10" />
-                    <p className="text-[10px] font-black uppercase tracking-widest opacity-50">Sin actividad</p>
+              {/* Scroll interno independiente por columna con scrollbar delgada */}
+              <div className="flex-1 overflow-y-auto p-2.5 space-y-2.5 custom-scrollbar">
+                {ordenesFiltradas.length === 0 ? (
+                  <div className="h-40 flex flex-col items-center justify-center text-slate-400 dark:text-slate-500 text-xs gap-1.5">
+                    <Inbox className="w-6 h-6 stroke-1 opacity-40" />
+                    <span className="font-bold text-[10px] uppercase tracking-widest opacity-60">SIN ACTIVIDAD</span>
                   </div>
                 ) : (
-                  prodEnArea.map((prod, index) => {
-                    const nextArea = getNextArea(prod);
-                    const totalProducido = calcularTotalCantidad(prod.registros);
-                    const sinStock = prod.area !== 'Extrusion' && (!prod.stockPrevio || prod.stockPrevio.cantidad <= 0);
-                    
-                    return (
-                      <motion.div
-                        key={prod.id}
-                        initial={{ opacity: 0, y: 20 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ delay: index * 0.1 }}
-                        className="flex flex-col gap-4 rounded-[2rem] border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-5 shadow-sm hover:shadow-2xl hover:scale-[1.02] hover:border-indigo-200 dark:hover:border-indigo-800 transition-all group"
-                      >
-                        {(() => {
-                          const dv = getDisplayValues(prod, totalProducido);
-                          const desperdicioInfo = calcularDesperdicioInfo({
-                            area: prod.area,
-                            merma: prod.merma,
-                            producido: dv.displayTotal,
-                            unidad: dv.displayUnit,
-                            targetAmount: dv.targetAmount,
-                            productoCliente: prod.pedido?.productoCliente || prod.productoCliente,
-                            esOrdenFinalizada: false,
-                          });
-                          const isUnidades = dv.displayUnit.toLowerCase().startsWith('un') || dv.displayUnit.toLowerCase().startsWith('ud') || prod.area === 'Sellado';
-                          const isSellado = prod.area === 'Sellado';
-                          const isSeriORefilado = prod.area === 'Serigrafia' || prod.area === 'Refilado';
-                          const esImpresa = esOrdenImpresa(prod);
-                          const tipoMermaSellado = esImpresa ? 'Color' : 'Cristal';
-
-                          const mermaColorTotal = prod.registros && prod.registros.length > 0
-                            ? prod.registros.reduce((acc, r) => acc + ((r as any).mermaColor ?? r.mermaImpreso ?? 0), 0)
-                            : ((prod as any).mermaColor || 0);
-
-                          const mermaCristalTotal = prod.registros && prod.registros.length > 0
-                            ? prod.registros.reduce((acc, r) => acc + ((r as any).mermaCristal ?? r.mermaSinImpresion ?? 0), 0)
-                            : ((prod as any).mermaCristal || 0);
-
-                          let pesoBolsaKg = 0;
-                          let mostrarBolsasEstimadas = false;
-                          let bolsasEstimadas = 0;
-                          if (isSellado) {
-                            const esUnidadesPedido = prod.pedido?.unidad === 'Unidades' || (dv.originalDisplayUnit && (dv.originalDisplayUnit.toLowerCase().startsWith('unid') || dv.originalDisplayUnit.toLowerCase().startsWith('uds') || dv.originalDisplayUnit.toLowerCase().startsWith('und')));
-                            if (esUnidadesPedido) {
-                              const productoC = prod.pedido?.productoCliente || prod.productoCliente;
-                              if (productoC?.pesoPorUnidad) {
-                                pesoBolsaKg = productoC.pesoPorUnidad / 1000;
-                              } else if (dv.targetAmount > 0 && dv.originalTargetAmount && dv.originalTargetAmount > 0) {
-                                pesoBolsaKg = dv.targetAmount / dv.originalTargetAmount;
-                              }
-                              if (pesoBolsaKg > 0 && prod.stockPrevio?.cantidad) {
-                                mostrarBolsasEstimadas = true;
-                                bolsasEstimadas = Math.floor(prod.stockPrevio.cantidad / pesoBolsaKg);
-                              }
-                            }
-                          }
-
-                          return (
-                            <>
-                              <div className="flex items-start justify-between">
-                                <div className="flex items-center gap-1.5 flex-wrap">
-                                  <span className="px-2.5 py-1 bg-indigo-50 dark:bg-indigo-950/30 text-indigo-600 dark:text-indigo-400 text-[9px] font-black uppercase tracking-widest rounded-lg border border-indigo-100 dark:border-indigo-900/50">
-                                    P-{prod.pedido?.id?.slice(-5).toUpperCase() || prod.pedidoId?.slice(-5).toUpperCase() || 'N/A'}
-                                  </span>
-                                  {prod.codigoLote && (
-                                    <span className="px-2.5 py-1 bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900 text-[9px] font-black uppercase tracking-widest rounded-lg shadow-sm">
-                                      Lote: {prod.codigoLote}
-                                    </span>
-                                  )}
-                                </div>
-                                <span className={`px-2.5 py-1 text-[9px] font-black uppercase tracking-widest rounded-lg border ${
-                                  dv.isCompleted 
-                                    ? 'bg-emerald-50 dark:bg-emerald-950/30 text-emerald-600 dark:text-emerald-400 border-emerald-100 dark:border-emerald-900/50' 
-                                    : 'bg-amber-50 dark:bg-amber-950/30 text-amber-600 dark:text-amber-400 border-amber-100 dark:border-amber-900/50'
-                                }`}>
-                                  {dv.isCompleted ? 'Completado' : 'En proceso'}
-                                </span>
-                              </div>
-
-                              {prod.loteOrigen && (
-                                <div className="flex items-center gap-1.5 px-2.5 py-1 bg-amber-50 dark:bg-amber-950/40 text-amber-800 dark:text-amber-300 text-[9px] font-black uppercase tracking-widest rounded-lg border border-amber-200 dark:border-amber-900/60 -mt-1">
-                                  <span className="opacity-70">Bobina Origen:</span>
-                                  <span className="font-mono font-bold text-amber-900 dark:text-amber-200">{prod.loteOrigen}</span>
-                                </div>
-                              )}
-
-                              <div className="flex flex-col gap-1.5">
-                                <h3 className="font-black text-slate-900 dark:text-white text-sm line-clamp-1 uppercase tracking-tight">
-                                  {prod.pedido?.cliente?.nombre || 'Producción Interna'}
-                                </h3>
-                                {(prod.pedido?.productoCliente?.nombreProducto || prod.productoCliente?.nombreProducto) && (
-                                  <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider line-clamp-1">
-                                    {prod.pedido?.productoCliente?.nombreProducto || prod.productoCliente?.nombreProducto}
-                                  </span>
-                                )}
-                                <div className="flex items-center gap-2">
-                                  <div className="w-2 h-2 rounded-full bg-indigo-500 animate-pulse" />
-                                  <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest">
-                                    {prod.maquina.nombre}
-                                  </span>
-                                </div>
-                              </div>
-
-                              <div className="bg-slate-50 dark:bg-slate-800/50 rounded-2xl p-4 border border-slate-100 dark:border-slate-800/50 transition-colors">
-                                <div className="flex justify-between items-end mb-2.5">
-                                  <div className="flex flex-col">
-                                    <span className="text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-1 leading-none text-left">PRODUCIDO</span>
-                                    <span className="text-lg font-black text-slate-900 dark:text-white leading-none">
-                                      {formatNumber(dv.displayTotal, { minDecimals: isUnidades ? 0 : 2, maxDecimals: 2 })}{' '}
-                                      <span className="text-[10px] text-slate-400 uppercase">{dv.displayUnit}</span>
-                                    </span>
-                                  </div>
-                                  <div className="flex flex-col text-right">
-                                    <span className="text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-1 leading-none">META</span>
-                                    <span className="text-sm font-black text-slate-600 dark:text-slate-300 leading-none">
-                                      {formatNumber(dv.targetAmount, { minDecimals: isUnidades ? 0 : 2, maxDecimals: 2 })}{' '}
-                                      <span className="text-[10px] text-slate-400 uppercase">{dv.displayUnit}</span>
-                                    </span>
-                                    {dv.originalTargetAmount && dv.originalDisplayUnit && dv.displayUnit !== dv.originalDisplayUnit && (dv.originalDisplayUnit.toLowerCase().startsWith('unid') || dv.originalDisplayUnit.toLowerCase().startsWith('uds')) && (
-                                      <span className="text-[9px] text-slate-400 mt-1 leading-none">
-                                        ({formatNumber(dv.originalTargetAmount, { minDecimals: 0, maxDecimals: 0 })} uds)
-                                      </span>
-                                    )}
-                                  </div>
-                                </div>
-                                
-                                <div className="h-2 w-full bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden transition-colors">
-                                  <motion.div 
-                                    initial={{ width: 0 }}
-                                    animate={{ width: `${Math.min(100, (dv.displayTotal / (dv.targetAmount || 1)) * 100)}%` }}
-                                    className={`h-full shadow-[0_0_10px_rgba(0,0,0,0.1)] ${dv.isCompleted ? 'bg-emerald-500' : 'bg-indigo-600'}`}
-                                  />
-                                </div>
-
-                                <div className={`flex flex-col mt-2.5 pt-2 border-t transition-colors ${
-                                  desperdicioInfo.semaforo.esAlertaAlta
-                                    ? 'border-rose-300 dark:border-rose-900/60 bg-rose-50/70 dark:bg-rose-950/20 -mx-3 px-3 py-1.5 rounded-xl'
-                                    : 'border-slate-200/60 dark:border-slate-700/60'
-                                }`}>
-                                  <div className="flex justify-between items-center">
-                                    <div className="flex items-center gap-1.5">
-                                      <span className="text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest">
-                                        DESPERDICIO
-                                      </span>
-                                      {isSellado && (
-                                        <span className={`px-1.5 py-0.5 rounded text-[8px] font-black uppercase tracking-wider border ${
-                                          esImpresa 
-                                            ? 'bg-purple-50 dark:bg-purple-950/40 text-purple-700 dark:text-purple-300 border-purple-200 dark:border-purple-800' 
-                                            : 'bg-cyan-50 dark:bg-cyan-950/40 text-cyan-700 dark:text-cyan-300 border-cyan-200 dark:border-cyan-800'
-                                        }`}>
-                                          ({tipoMermaSellado})
-                                        </span>
-                                      )}
-                                      {desperdicioInfo.semaforo.esAlertaAlta && (
-                                        <span className="px-1.5 py-0.5 rounded text-[8px] font-black uppercase tracking-wider bg-rose-100 dark:bg-rose-900/50 text-rose-700 dark:text-rose-300 border border-rose-200 dark:border-rose-800">
-                                          Merma Alta
-                                        </span>
-                                      )}
-                                    </div>
-                                    <span className={`text-xs font-bold leading-none ${desperdicioInfo.semaforo.colorText}`}>
-                                      {formatNumber(prod.merma, { minDecimals: 2, maxDecimals: 2 })}{' '}
-                                      <span className="text-[10px] uppercase">KG</span>
-                                      {desperdicioInfo.esAjusteInicial ? (
-                                        <span className="text-[10px] text-slate-400 dark:text-slate-500 ml-1 font-medium italic">
-                                          ({desperdicioInfo.porcentaje !== null ? `${formatNumber(desperdicioInfo.porcentaje, { minDecimals: 1, maxDecimals: 1 })}% · ` : ''}Ajuste inicial)
-                                        </span>
-                                      ) : (
-                                        desperdicioInfo.tienePorcentaje && desperdicioInfo.porcentaje !== null && (
-                                          <span className="text-[10px] ml-1 font-medium opacity-90">
-                                            ({formatNumber(desperdicioInfo.porcentaje, { minDecimals: 1, maxDecimals: 1 })}%)
-                                          </span>
-                                        )
-                                      )}
-                                    </span>
-                                  </div>
-
-                                  {(() => {
-                                    const desgloseProd = calcularDesgloseMerma(prod.registros && prod.registros.length > 0 ? prod.registros : prod);
-                                    const activas = CLASIFICACIONES_MERMA.filter(c => (desgloseProd as any)[c.key] > 0);
-                                    if (activas.length === 0) return null;
-                                    return (
-                                      <div className="flex flex-wrap gap-2 text-[9px] font-semibold text-slate-500 dark:text-slate-400 mt-2 pt-1.5 border-t border-slate-200/50 dark:border-slate-700/50">
-                                        {activas.map(c => (
-                                          <span key={c.key} className="inline-flex items-center gap-1">
-                                            <span className={`w-1.5 h-1.5 rounded-full ${c.color} shrink-0`} />
-                                            {c.shortLabel}: <strong className="text-slate-800 dark:text-slate-200 font-bold">{formatNumber((desgloseProd as any)[c.key], { minDecimals: 2, maxDecimals: 2 })} kg</strong>
-                                          </span>
-                                        ))}
-                                      </div>
-                                    );
-                                  })()}
-                                </div>
-                              </div>
-
-                               {/* Indicador de Bobina en Piso (WIP) para Sellado */}
-                              {isSellado ? (
-                                (() => {
-                                  const disponibleKg = prod.stockPrevio?.cantidad ?? 0;
-                                  const entregadoKg = prod.stockPrevio?.cantidadTotal ?? (disponibleKg + (dv.displayTotal * (pesoBolsaKg || 0.026)));
-                                  const consumidoKg = Math.max(0, entregadoKg - disponibleKg);
-                                  const porcentaje = entregadoKg > 0 ? (disponibleKg / entregadoKg) * 100 : (disponibleKg > 0 ? 100 : 0);
-                                  const esAlertaCero = disponibleKg <= 0;
-                                  const esAlertaBaja = !esAlertaCero && porcentaje <= 20;
-
-                                  return (
-                                    <div className={`rounded-2xl p-3.5 border transition-all ${
-                                      esAlertaCero
-                                        ? 'bg-rose-50 dark:bg-rose-950/30 border-rose-200 dark:border-rose-900/60'
-                                        : esAlertaBaja
-                                        ? 'bg-amber-50 dark:bg-amber-950/30 border-amber-200 dark:border-amber-900/60'
-                                        : 'bg-emerald-50 dark:bg-emerald-950/30 border-emerald-200 dark:border-emerald-900/60'
-                                    }`}>
-                                      <div className="flex items-center justify-between mb-1.5">
-                                        <span className="text-[10px] font-black uppercase tracking-wider flex items-center gap-1.5">
-                                          <span className={`w-2 h-2 rounded-full ${
-                                            esAlertaCero ? 'bg-rose-500 animate-ping' : esAlertaBaja ? 'bg-amber-500' : 'bg-emerald-500'
-                                          }`} />
-                                          <span className={esAlertaCero ? 'text-rose-800 dark:text-rose-200' : esAlertaBaja ? 'text-amber-800 dark:text-amber-200' : 'text-emerald-800 dark:text-emerald-200'}>
-                                            Bobina en piso (WIP)
-                                          </span>
-                                        </span>
-                                        <span className={`text-xs font-black ${
-                                          esAlertaCero ? 'text-rose-700 dark:text-rose-300' : esAlertaBaja ? 'text-amber-700 dark:text-amber-300' : 'text-emerald-700 dark:text-emerald-300'
-                                        }`}>
-                                          {formatNumber(disponibleKg, { minDecimals: 2, maxDecimals: 2 })} KG disponibles
-                                        </span>
-                                      </div>
-
-                                      <div className="flex items-center justify-between text-[9px] font-bold text-slate-500 dark:text-slate-400 pt-1.5 border-t border-slate-200/60 dark:border-slate-800">
-                                        <span>Entregado: <strong className="text-slate-800 dark:text-slate-200">{formatNumber(entregadoKg, { minDecimals: 2, maxDecimals: 2 })} KG</strong></span>
-                                        <span>Consumido: <strong className="text-slate-800 dark:text-slate-200">{formatNumber(consumidoKg, { minDecimals: 2, maxDecimals: 2 })} KG</strong></span>
-                                      </div>
-
-                                      {mostrarBolsasEstimadas && disponibleKg > 0 && (
-                                        <div className="mt-1.5 text-[9px] font-semibold text-slate-500 dark:text-slate-400">
-                                          Capacidad restante estimada: <strong className="text-slate-700 dark:text-slate-300">≈ {bolsasEstimadas.toLocaleString('es-ES')} bolsas</strong>
-                                        </div>
-                                      )}
-
-                                      {esAlertaCero ? (
-                                        <p className="text-[9px] font-extrabold text-rose-600 dark:text-rose-400 mt-2 uppercase tracking-tight flex items-center gap-1">
-                                          <AlertTriangle className="h-3 w-3 shrink-0" /> Selladora en espera de bobinas de extrusión
-                                        </p>
-                                      ) : esAlertaBaja ? (
-                                        <p className="text-[9px] font-bold text-amber-700 dark:text-amber-300 mt-1.5 tracking-tight flex items-center gap-1">
-                                          <AlertTriangle className="h-3 w-3 shrink-0" /> Saldo bajo: queda menos del 20% de la bobina inicial
-                                        </p>
-                                      ) : null}
-                                    </div>
-                                  );
-                                })()
-                              ) : prod.area !== 'Extrusion' ? (
-                                <div className={`rounded-xl p-3 border transition-all ${
-                                  sinStock 
-                                    ? 'bg-red-50 dark:bg-red-950/20 border-red-100 dark:border-red-900/50' 
-                                    : 'bg-slate-50 dark:bg-slate-800/30 border-slate-100 dark:border-slate-800/50'
-                                }`}>
-                                  <div className="flex justify-between items-center">
-                                    <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">
-                                      STOCK PREVIO {prod.loteOrigen ? `· ${prod.loteOrigen}` : ''}
-                                    </span>
-                                    <div className="flex items-center gap-1.5 text-right">
-                                      <span className={`text-[10px] font-black uppercase tracking-widest ${sinStock ? 'text-red-600 animate-pulse' : 'text-emerald-600'}`}>
-                                        {sinStock ? '! SIN STOCK' : `${formatNumber(prod.stockPrevio?.cantidad, { minDecimals: 2, maxDecimals: 2 })} kg`}
-                                      </span>
-                                    </div>
-                                  </div>
-                                </div>
-                              ) : null}
-
-                              {/* Alerta de fase paralela activa para Extrusión */}
-                              {(() => {
-                                if (prod.area !== 'Extrusion') return null;
-                                const faseParalela = producciones.find(
-                                  (p) => p.id !== prod.id && p.estado === 'EnProceso' && ((prod.codigoLote && p.loteOrigen === prod.codigoLote) || (prod.pedidoId && p.pedidoId === prod.pedidoId))
-                                );
-                                if (!faseParalela) return null;
-                                return (
-                                  <div className="flex items-center gap-2 px-3 py-2 bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300 rounded-xl border border-blue-200 dark:border-blue-900/60 text-[10px] font-bold">
-                                    <span className="w-2 h-2 rounded-full bg-blue-500 animate-ping shrink-0" />
-                                    <span>Trabajando en paralelo con {getAreaLabel(faseParalela.area)}</span>
-                                  </div>
-                                );
-                              })()}
-
-                              <div className="flex items-center gap-2 mt-2">
-                                <button
-                                  onClick={() => openRegistroModal(prod)}
-                                  disabled={sinStock}
-                                  className={`flex-1 flex items-center justify-center gap-2 rounded-xl py-2.5 px-3 text-[10px] font-black uppercase tracking-widest transition-all
-                                    ${sinStock
-                                      ? 'bg-slate-100 dark:bg-slate-800 text-slate-400 cursor-not-allowed'
-                                      : 'bg-indigo-600 text-white hover:bg-indigo-700 shadow-lg shadow-indigo-100 dark:shadow-none'
-                                    }`}
-                                >
-                                  <Plus className="h-3.5 w-3.5" /> REGISTRO
-                                </button>
-                                <button
-                                  onClick={() => openRegistrosListModal(prod)}
-                                  className="inline-flex items-center justify-center gap-1.5 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 py-2.5 px-3 text-[10px] font-black uppercase tracking-widest hover:bg-slate-200 dark:hover:bg-slate-700 transition-all"
-                                >
-                                  <Pencil className="h-3.5 w-3.5" /> EDITAR
-                                </button>
-                                {prod.area !== 'Sellado' ? (
-                                  <button
-                                    type="button"
-                                    title="Eliminar esta orden de producción"
-                                    onClick={() => handleEliminarOrden(prod)}
-                                    disabled={isAvanzandoId === prod.id}
-                                    className="inline-flex items-center justify-center p-2.5 text-xs font-semibold rounded-xl text-rose-600 bg-rose-50 hover:bg-rose-100 dark:bg-rose-950/40 dark:text-rose-400 dark:hover:bg-rose-900/60 border border-rose-200 dark:border-rose-800 transition-colors disabled:opacity-50"
-                                  >
-                                    <Trash2 className="w-4 h-4" />
-                                  </button>
-                                ) : (
-                                  <button
-                                    type="button"
-                                    title="Revertir y eliminar fase de sellado"
-                                    onClick={() => handleConfirmarEliminacionFase(prod)}
-                                    disabled={isAvanzandoId === prod.id}
-                                    className="inline-flex items-center justify-center p-2.5 text-xs font-semibold rounded-xl text-rose-600 bg-rose-50 hover:bg-rose-100 dark:bg-rose-950/40 dark:text-rose-400 dark:hover:bg-rose-900/60 border border-rose-200 dark:border-rose-800 transition-colors disabled:opacity-50"
-                                  >
-                                    <Trash2 className="w-4 h-4" />
-                                  </button>
-                                )}
-                              </div>
-
-                              {prod.area === 'Extrusion' && (
-                                <button
-                                  type="button"
-                                  onClick={() => setOrdenDetalleMP(prod)}
-                                  className="w-full inline-flex items-center justify-center gap-1.5 px-3 py-2 text-xs font-semibold rounded-xl text-slate-700 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700 transition-colors shadow-sm mt-1"
-                                >
-                                  <Layers className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400" />
-                                  Consumo MP
-                                </button>
-                              )}
-
-                              <div className="mt-1 space-y-1.5">
-                                {(() => {
-                                  const faseParalela = producciones.find(
-                                    (p) => p.id !== prod.id && p.estado === 'EnProceso' && ((prod.codigoLote && p.loteOrigen === prod.codigoLote) || (prod.pedidoId && p.pedidoId === prod.pedidoId))
-                                  );
-
-                                  if (prod.area === 'Extrusion') {
-                                    if (faseParalela) {
-                                      return (
-                                        <button
-                                          onClick={() => handleFinalizarExtrusion(prod)}
-                                          disabled={isAvanzandoId === prod.id}
-                                          className="w-full flex items-center justify-center gap-2 rounded-xl bg-slate-800 hover:bg-slate-900 text-white dark:bg-slate-800 dark:hover:bg-slate-700 py-2.5 text-[10px] font-black uppercase tracking-widest transition-all shadow-md"
-                                        >
-                                          <CheckCircle className="h-3.5 w-3.5 text-emerald-400" /> FINALIZAR EXTRUSIÓN
-                                        </button>
-                                      );
-                                    }
-
-                                    return (
-                                      <>
-                                        <button
-                                          onClick={() => handleOpenAvanzarModal(prod)}
-                                          disabled={isAvanzandoId === prod.id}
-                                          className="w-full flex items-center justify-center gap-2 rounded-xl bg-slate-900 dark:bg-white text-white dark:text-slate-900 py-2.5 text-[10px] font-black uppercase tracking-widest hover:opacity-90 transition-all shadow-xl"
-                                        >
-                                          {isAvanzandoId === prod.id ? "PROCESANDO..." : `AVANZAR A ${getAreaLabel(nextArea || 'Sellado').toUpperCase()}`} {isAvanzandoId !== prod.id && <ChevronRight className="h-3 w-3" />}
-                                        </button>
-                                        <button
-                                          onClick={() => handleFinalizarExtrusion(prod)}
-                                          disabled={isAvanzandoId === prod.id}
-                                          className="w-full text-center text-[9px] font-bold text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 uppercase tracking-wider py-1 transition-colors"
-                                        >
-                                          Finalizar Extrusión (Sin pasar a Sellado)
-                                        </button>
-                                      </>
-                                    );
-                                  }
-
-                                  if (nextArea) {
-                                    return (
-                                      <button
-                                        onClick={() => handleOpenAvanzarModal(prod)}
-                                        disabled={isAvanzandoId === prod.id}
-                                        className="w-full flex items-center justify-center gap-2 rounded-xl bg-slate-900 dark:bg-white text-white dark:text-slate-900 py-2.5 text-[10px] font-black uppercase tracking-widest hover:opacity-90 transition-all shadow-xl"
-                                      >
-                                        {isAvanzandoId === prod.id ? "PROCESANDO..." : `AVANZAR A ${getAreaLabel(nextArea).toUpperCase()}`} {isAvanzandoId !== prod.id && <ChevronRight className="h-3 w-3" />}
-                                      </button>
-                                    );
-                                  }
-
-                                  return (
-                                    <button
-                                      onClick={() => handleFinalizar(prod)}
-                                      disabled={isAvanzandoId === prod.id}
-                                      className="w-full flex items-center justify-center gap-2 rounded-xl bg-emerald-600 text-white py-2.5 text-[10px] font-black uppercase tracking-widest hover:bg-emerald-700 transition-all shadow-xl shadow-emerald-100 dark:shadow-none"
-                                    >
-                                      <CheckCircle className="h-3.5 w-3.5" /> FINALIZAR {getAreaLabel(prod.area).toUpperCase()}
-                                    </button>
-                                  );
-                                })()}
-                              </div>
-                            </>
-                          );
-                        })()}
-                      </motion.div>
-                    );
-                  })
+                  ordenesFiltradas.map((orden) => (
+                    <TarjetaProduccionCompacta
+                      key={orden.id}
+                      orden={orden}
+                      area={columna.id}
+                      isAvanzandoId={isAvanzandoId}
+                      handleAbrirModalRegistro={openRegistroModal}
+                      handleEditar={openRegistrosListModal}
+                      handleAbrirModalConsumoMP={setOrdenDetalleMP}
+                      handleAvanzarFase={handleOpenAvanzarModal}
+                      handleFinalizarExtrusion={handleFinalizarExtrusion}
+                      handleFinalizarSellado={handleFinalizar}
+                      handleEliminarOrden={handleEliminarOrden}
+                      handleConfirmarEliminacionFase={handleConfirmarEliminacionFase}
+                      faseParalela={producciones.find(
+                        (p) =>
+                          p.id !== orden.id &&
+                          p.estado === 'EnProceso' &&
+                          ((orden.codigoLote && p.loteOrigen === orden.codigoLote) ||
+                            (orden.pedidoId && p.pedidoId === orden.pedidoId))
+                      )}
+                      getDisplayValues={getDisplayValues}
+                      calcularTotalCantidad={calcularTotalCantidad}
+                    />
+                  ))
                 )}
               </div>
             </div>
@@ -1396,24 +1362,24 @@ export function ProduccionContent() {
         })}
       </div>
 
-      {/* Paginación */}
+      {/* Paginación si aplica */}
       {totalPages > 1 && (
-        <div className="mt-8 flex flex-col items-center gap-6 sm:flex-row sm:justify-between bg-white dark:bg-slate-900 p-6 rounded-[2rem] border border-slate-200 dark:border-slate-800 transition-colors">
-          <p className="text-xs font-black text-slate-400 uppercase tracking-widest">
-            Página <span className="text-slate-900 dark:text-white">{page}</span> de <span className="text-slate-900 dark:text-white">{totalPages}</span>
+        <div className="mt-2 flex items-center justify-between bg-white dark:bg-slate-900 px-4 py-2 rounded-xl border border-slate-200 dark:border-slate-800 text-xs shrink-0">
+          <p className="text-slate-400 font-medium">
+            Página <span className="font-bold text-slate-800 dark:text-slate-200">{page}</span> de {totalPages}
           </p>
-          <div className="flex gap-2">
+          <div className="flex gap-1.5">
             <button
               onClick={() => setPage(Math.max(1, page - 1))}
               disabled={page === 1}
-              className="px-6 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 text-[10px] font-black uppercase tracking-widest text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 disabled:opacity-30 transition-all"
+              className="px-3 py-1 rounded-lg border border-slate-200 dark:border-slate-700 font-bold text-slate-600 dark:text-slate-300 disabled:opacity-30 cursor-pointer"
             >
               Anterior
             </button>
             <button
               onClick={() => setPage(Math.min(totalPages, page + 1))}
               disabled={page === totalPages}
-              className="px-6 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 text-[10px] font-black uppercase tracking-widest text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 disabled:opacity-30 transition-all"
+              className="px-3 py-1 rounded-lg border border-slate-200 dark:border-slate-700 font-bold text-slate-600 dark:text-slate-300 disabled:opacity-30 cursor-pointer"
             >
               Siguiente
             </button>
@@ -1429,7 +1395,7 @@ export function ProduccionContent() {
               initial={{ opacity: 0, scale: 0.95, y: 20 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: 20 }}
-              onClick={(e) => e.stopPropagation()}
+              onClick={(e: React.MouseEvent) => e.stopPropagation()}
               className="w-full max-w-2xl max-h-[90vh] overflow-y-auto rounded-[2.5rem] bg-white dark:bg-slate-900 p-8 shadow-2xl border border-slate-200 dark:border-slate-800 transition-colors"
             >
               <div className="flex items-center gap-4 mb-8">
@@ -1603,7 +1569,7 @@ export function ProduccionContent() {
                 initial={{ opacity: 0, scale: 0.95, y: 20 }}
                 animate={{ opacity: 1, scale: 1, y: 0 }}
                 exit={{ opacity: 0, scale: 0.95, y: 20 }}
-                onClick={(e) => e.stopPropagation()}
+                onClick={(e: React.MouseEvent) => e.stopPropagation()}
                 className="w-full max-w-xl max-h-[90vh] overflow-y-auto rounded-[2.5rem] bg-white dark:bg-slate-900 p-8 shadow-2xl border border-slate-200 dark:border-slate-800 transition-colors"
               >
                 <div className="flex items-center gap-4 mb-6">
@@ -1784,7 +1750,7 @@ export function ProduccionContent() {
               initial={{ opacity: 0, scale: 0.95, y: 20 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: 20 }}
-              onClick={(e) => e.stopPropagation()}
+              onClick={(e: React.MouseEvent) => e.stopPropagation()}
               className="w-full max-w-lg max-h-[90vh] overflow-y-auto rounded-[2.5rem] bg-white dark:bg-slate-900 p-8 shadow-2xl border border-slate-200 dark:border-slate-800 transition-colors"
             >
               <div className="flex items-center gap-4 mb-8">
@@ -2071,7 +2037,7 @@ export function ProduccionContent() {
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.95 }}
-              onClick={(e) => e.stopPropagation()}
+              onClick={(e: React.MouseEvent) => e.stopPropagation()}
               className="w-full max-w-3xl max-h-[90vh] overflow-y-auto rounded-[2.5rem] bg-white dark:bg-slate-900 p-8 shadow-2xl border border-slate-200 dark:border-slate-800 transition-colors"
             >
               <div className="flex items-center justify-between mb-8">
