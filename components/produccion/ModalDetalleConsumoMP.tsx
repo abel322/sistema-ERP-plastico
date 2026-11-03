@@ -35,6 +35,17 @@ interface DetalleMPItem {
   status: 'optimo' | 'critico' | 'agotado';
   deficitKg: number;
   deficitSacas: number;
+  tipoDosificacion?: 'PORCENTAJE' | 'KILOGRAMOS';
+  kgPor100?: number;
+  llevaResinaEnMolido?: boolean;
+  resinaMolidoNombre?: string;
+  resinaMolidoKgPor100?: number;
+  resinaMolidoKgConsumido?: number;
+  resinaMolidoSacasConsumidas?: number;
+  resinaMolidoKgFaltante?: number;
+  resinaMolidoSacasFaltantes?: number;
+  kgConsumidoBase?: number;
+  kgConsumidoExtraMolido?: number;
 }
 
 interface ConsumoMPData {
@@ -151,7 +162,7 @@ export default function ModalDetalleConsumoMP({ ordenId, onClose }: ModalDetalle
         initial={{ opacity: 0, scale: 0.95, y: 15 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
         exit={{ opacity: 0, scale: 0.95, y: 15 }}
-        onClick={(e) => e.stopPropagation()}
+        onClick={(e: React.MouseEvent) => e.stopPropagation()}
         className="w-full max-w-5xl max-h-[92vh] overflow-y-auto rounded-[2.5rem] bg-white dark:bg-slate-900 shadow-2xl border border-slate-200 dark:border-slate-800 p-6 sm:p-8 transition-colors print:max-w-full print:max-h-full print:shadow-none print:border-none print:p-4 print:text-black"
       >
         {/* Cabecera del Modal */}
@@ -389,7 +400,9 @@ export default function ModalDetalleConsumoMP({ ordenId, onClose }: ModalDetalle
                 </h4>
                 {data.peletizado && (
                   <span className="text-xs font-bold text-emerald-600 dark:text-emerald-400">
-                    Dosificación: {data.peletizado.porcentaje}%
+                    {data.peletizado.tipoDosificacion === 'KILOGRAMOS'
+                      ? `Dosificación: ${formatNumber(data.peletizado.kgPor100 || 0, { minDecimals: 1, maxDecimals: 2 })} KG / 100 KG`
+                      : `Dosificación: ${data.peletizado.porcentaje}%`}
                   </span>
                 )}
               </div>
@@ -400,7 +413,7 @@ export default function ModalDetalleConsumoMP({ ordenId, onClose }: ModalDetalle
                     <thead className="bg-slate-50 dark:bg-slate-800/60 text-slate-500 dark:text-slate-400 uppercase text-[9px] font-black tracking-wider">
                       <tr>
                         <th className="px-4 py-3">Material</th>
-                        <th className="px-3 py-3 text-center">% Tolva</th>
+                        <th className="px-3 py-3 text-center">{data.peletizado?.tipoDosificacion === 'KILOGRAMOS' ? 'Dosificación' : '% Tolva'}</th>
                         <th className="px-4 py-3 text-right">Consumo Real</th>
                         <th className="px-4 py-3 text-right">Sacas Usadas</th>
                         <th className="px-4 py-3 text-right">Faltante a Meta</th>
@@ -413,9 +426,16 @@ export default function ModalDetalleConsumoMP({ ordenId, onClose }: ModalDetalle
                         <td className="px-4 py-3">
                           <p className="font-bold text-slate-900 dark:text-white">{data.peletizado.nombre}</p>
                           <span className="text-[9px] text-slate-400 font-mono">{data.peletizado.codigo}</span>
+                          {data.peletizado.llevaResinaEnMolido && Number(data.peletizado.resinaMolidoKgConsumido || 0) > 0 && (
+                            <div className="mt-1.5 text-[10px] text-amber-800 dark:text-amber-300 bg-amber-50 dark:bg-amber-950/40 px-2 py-1 rounded-lg border border-amber-200 dark:border-amber-900/60 font-medium">
+                              + {data.peletizado.resinaMolidoNombre || 'LDPE 3003'} agregado a la mezcla: <strong>{formatNumber(data.peletizado.resinaMolidoKgConsumido, { minDecimals: 2, maxDecimals: 2 })} KG</strong> (~{formatNumber(data.peletizado.resinaMolidoSacasConsumidas, { minDecimals: 1, maxDecimals: 1 })} sacas)
+                            </div>
+                          )}
                         </td>
                         <td className="px-3 py-3 text-center font-bold text-emerald-600 dark:text-emerald-400">
-                          {data.peletizado.porcentaje}%
+                          {data.peletizado.tipoDosificacion === 'KILOGRAMOS'
+                            ? `${formatNumber(data.peletizado.kgPor100 || 0, { minDecimals: 1, maxDecimals: 2 })} KG / 100 KG`
+                            : `${data.peletizado.porcentaje}%`}
                         </td>
                         <td className="px-4 py-3 text-right font-black text-slate-800 dark:text-slate-200">
                           {formatNumber(data.peletizado.kgConsumido, { minDecimals: 2, maxDecimals: 2 })} KG
@@ -489,6 +509,11 @@ export default function ModalDetalleConsumoMP({ ordenId, onClose }: ModalDetalle
                           </td>
                           <td className="px-4 py-3 text-right font-black text-slate-800 dark:text-slate-200">
                             {formatNumber(resina.kgConsumido, { minDecimals: 2, maxDecimals: 2 })} KG
+                            {Number(resina.kgConsumidoExtraMolido || 0) > 0 && (
+                              <span className="block text-[9px] text-slate-500 dark:text-slate-400 font-normal mt-0.5">
+                                Base: {formatNumber(resina.kgConsumidoBase, { minDecimals: 1, maxDecimals: 2 })} + Mezcla: {formatNumber(resina.kgConsumidoExtraMolido, { minDecimals: 1, maxDecimals: 2 })} KG
+                              </span>
+                            )}
                           </td>
                           <td className="px-4 py-3 text-right font-bold text-slate-600 dark:text-slate-300">
                             {formatNumber(resina.sacasConsumidas, { minDecimals: 1, maxDecimals: 1 })} sacas

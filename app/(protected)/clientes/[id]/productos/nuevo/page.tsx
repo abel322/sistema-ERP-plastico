@@ -18,6 +18,42 @@ export default function NuevoProductoPage() {
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [activeTab, setActiveTab] = useState<TabType>('basico');
+  const [peletizadosInventario, setPeletizadosInventario] = useState<any[]>([]);
+  const [resinasInventario, setResinasInventario] = useState<any[]>([]);
+
+  useEffect(() => {
+    const fetchInventarios = async () => {
+      try {
+        const res = await fetch('/api/inventario?limit=250');
+        if (res.ok) {
+          const data = await res.json();
+          const items = (data.inventarios || []).filter((item: any) => 
+            item.categoria === 'Peletizado' ||
+            (item.nombre && item.nombre.toLowerCase().includes('peletizad')) ||
+            (item.nombre && item.nombre.toLowerCase().includes('molido')) ||
+            (item.codigo && item.codigo.toLowerCase().includes('pel'))
+          );
+          setPeletizadosInventario(items);
+
+          const resinas = (data.inventarios || []).filter((item: any) =>
+            item.categoria === 'MateriaPrima' ||
+            (item.nombre && (
+              item.nombre.toLowerCase().includes('3003') ||
+              item.nombre.toLowerCase().includes('resina') ||
+              item.nombre.toLowerCase().includes('polietileno') ||
+              item.nombre.toLowerCase().includes('lineal') ||
+              item.nombre.toLowerCase().includes('fb7000') ||
+              item.nombre.toLowerCase().includes('virgen')
+            ))
+          );
+          setResinasInventario(resinas);
+        }
+      } catch (err) {
+        console.error('Error al cargar inventario:', err);
+      }
+    };
+    fetchInventarios();
+  }, []);
   const [formData, setFormData] = useState<any>({
     nombreProducto: '',
     activo: true,
@@ -164,7 +200,7 @@ export default function NuevoProductoPage() {
   useEffect(() => {
     if (formData.tipoBobinaCliente === 'Lamina') {
       // Calcular ancho de lámina rebobinador
-      let laminaAncho = null;
+      let laminaAncho: number | null = null;
       
       if (formData.tipoSellado === 'Inferior' && formData.esBolsaPego && formData.ancho && formData.anchoFuelle && formData.anchoSolapa) {
         // Bolsa de pego con sellado inferior: (ancho * 2) + (fuelle * 2) + solapa
@@ -181,11 +217,11 @@ export default function NuevoProductoPage() {
       }
       
       if (laminaAncho !== null) {
-        setFormData((prev: any) => ({ ...prev, laminaRebobinadorAncho: parseFloat(laminaAncho.toFixed(2)) }));
+        setFormData((prev: any) => ({ ...prev, laminaRebobinadorAncho: parseFloat((laminaAncho as number).toFixed(2)) }));
       }
       
       // Calcular calibre de lámina rebobinador
-      let laminaCalibre = null;
+      let laminaCalibre: number | null = null;
       const calibre = parseFloat(formData.calibre) || 0;
       
       if (formData.tipoSellado === 'Lateral' && calibre) {
@@ -197,7 +233,7 @@ export default function NuevoProductoPage() {
       }
       
       if (laminaCalibre !== null) {
-        setFormData((prev: any) => ({ ...prev, laminaRebobinadorCalibre: parseFloat(laminaCalibre.toFixed(2)) }));
+        setFormData((prev: any) => ({ ...prev, laminaRebobinadorCalibre: parseFloat((laminaCalibre as number).toFixed(2)) }));
       }
     }
   }, [formData.tipoBobinaCliente, formData.tipoSellado, formData.esBolsaPego, formData.ancho, formData.largo, formData.anchoBobina, formData.anchoFuelle, formData.anchoSolapa, formData.calibre, formData.tipoProducto]);
@@ -825,41 +861,255 @@ export default function NuevoProductoPage() {
           {/* Tab: Formulación */}
           {activeTab === 'formulacion' && (
             <div className="space-y-6">
-              <h2 className="text-xl font-bold text-gray-900 mb-4">Formulación de Materia Prima (%)</h2>
-              
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                {[
-                  { key: 'molido', label: 'Molido' },
-                  { key: 'formFB7000', label: 'FB7000' },
-                  { key: 'form3003', label: '3003' },
-                  { key: 'formLineal', label: 'Lineal' },
-                  { key: 'form0240', label: '0240' },
-                  { key: 'form0348', label: '0348' },
-                  { key: 'form7000F', label: '7000F' },
-                  { key: 'formDeslizante', label: 'Deslizante' },
-                  { key: 'formMasterbachBlanco', label: 'Masterbach Blanco' },
-                  { key: 'formMasterbachNegro', label: 'Masterbach Negro' },
-                  { key: 'formMasterbachAzul', label: 'Masterbach Azul' },
-                  { key: 'formMasterbachAmarillo', label: 'Masterbach Amarillo' },
-                ].map((field) => (
-                  <div key={field.key}>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      {field.label} (%)
-                    </label>
-                    <input
-                      type="number"
-                      step="0.01"
-                      min="0"
-                      max="100"
-                      placeholder="0"
-                      value={formData[field.key] !== undefined && formData[field.key] !== null ? formData[field.key] : ''}
-                      onChange={(e) => handleChange(field.key, e.target.value !== '' ? parseFloat(e.target.value) : (field.key === 'molido' ? 0 : null))}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    />
-                  </div>
-                ))}
+              <div className="border-b pb-3">
+                <h2 className="text-xl font-bold text-gray-900">Formulación de Materia Prima (%)</h2>
+                <p className="text-xs text-gray-500 mt-0.5">
+                  Define la combinación de peletizado/molido de inventario y resinas vírgenes para este producto.
+                </p>
               </div>
 
+              {/* Selector y Configuración de Peletizado / Molido (Inventario) */}
+              <div className="p-4 sm:p-5 bg-gradient-to-r from-amber-50 to-emerald-50 rounded-xl border border-amber-200/80 shadow-sm space-y-4">
+                <div className="flex items-center justify-between flex-wrap gap-2">
+                  <div className="flex items-center gap-2">
+                    <span className="p-1.5 bg-amber-500/10 text-amber-700 rounded-lg">
+                      <Droplets className="w-4 h-4" />
+                    </span>
+                    <div>
+                      <h3 className="text-sm font-bold text-gray-900">
+                        Peletizado / Material Recuperado (Inventario)
+                      </h3>
+                      <p className="text-xs text-gray-500">
+                        Selecciona el material de inventario y la modalidad de dosificación en Extrusión.
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Selector de Modalidad: [%] Porcentaje vs [KG] Kilogramos directos */}
+                  <div className="flex items-center bg-white p-1 rounded-xl border border-slate-200 shadow-xs">
+                    <button
+                      type="button"
+                      onClick={() => handleChange('tipoDosificacionMolido', 'PORCENTAJE')}
+                      className={`px-3 py-1.5 text-xs font-bold rounded-lg transition-all cursor-pointer ${
+                        (formData.tipoDosificacionMolido || 'PORCENTAJE') === 'PORCENTAJE'
+                          ? 'bg-blue-600 text-white shadow-xs'
+                          : 'text-slate-600 hover:text-slate-900'
+                      }`}
+                    >
+                      [%] Porcentaje sobre producción
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleChange('tipoDosificacionMolido', 'KILOGRAMOS')}
+                      className={`px-3 py-1.5 text-xs font-bold rounded-lg transition-all cursor-pointer ${
+                        formData.tipoDosificacionMolido === 'KILOGRAMOS'
+                          ? 'bg-blue-600 text-white shadow-xs'
+                          : 'text-slate-600 hover:text-slate-900'
+                      }`}
+                    >
+                      [KG] Kilogramos directos
+                    </button>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-1">
+                  {/* Selector de Peletizado */}
+                  <div className="md:col-span-2">
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Tipo de Peletizado / Molido en Inventario
+                    </label>
+                    <select
+                      value={formData.peletizadoId || ''}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        handleChange('peletizadoId', val || null);
+                        if (!val) {
+                          handleChange('peletizadoPorcentaje', 0);
+                          handleChange('peletizadoKgPor100', 0);
+                          handleChange('molido', 0);
+                        }
+                      }}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-white text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+                    >
+                      <option value="">Sin Peletizado / 100% Virgen</option>
+                      {peletizadosInventario.map((item) => (
+                        <option key={item.id} value={item.id}>
+                          {item.nombre} ({item.codigo}) — Stock: {item.cantidad ?? 0} {item.unidad || 'kg'}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {/* Input según Modalidad */}
+                  {(formData.tipoDosificacionMolido || 'PORCENTAJE') === 'PORCENTAJE' ? (
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Peletizado (%)
+                      </label>
+                      <div className="relative">
+                        <input
+                          type="number"
+                          step="0.01"
+                          min="0"
+                          max="100"
+                          placeholder="0"
+                          disabled={!formData.peletizadoId}
+                          value={formData.peletizadoPorcentaje !== undefined && formData.peletizadoPorcentaje !== null ? formData.peletizadoPorcentaje : ''}
+                          onChange={(e) => {
+                            const val = e.target.value !== '' ? parseFloat(e.target.value) : 0;
+                            handleChange('peletizadoPorcentaje', val);
+                            handleChange('molido', val);
+                          }}
+                          className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm ${
+                            !formData.peletizadoId 
+                              ? 'bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed' 
+                              : 'bg-white border-gray-300 text-gray-900 font-semibold'
+                          }`}
+                        />
+                        <span className="absolute right-3 top-2 text-xs text-gray-400 font-semibold">%</span>
+                      </div>
+                    </div>
+                  ) : (
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Molido por cada 100 KG
+                      </label>
+                      <div className="relative">
+                        <input
+                          type="number"
+                          step="0.01"
+                          min="0"
+                          placeholder="20.00"
+                          disabled={!formData.peletizadoId}
+                          value={formData.peletizadoKgPor100 !== undefined && formData.peletizadoKgPor100 !== null ? formData.peletizadoKgPor100 : ''}
+                          onChange={(e) => {
+                            const val = e.target.value !== '' ? parseFloat(e.target.value) : 0;
+                            handleChange('peletizadoKgPor100', val);
+                          }}
+                          className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm ${
+                            !formData.peletizadoId 
+                              ? 'bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed' 
+                              : 'bg-white border-gray-300 text-gray-900 font-semibold'
+                          }`}
+                        />
+                        <span className="absolute right-3 top-2 text-xs text-gray-400 font-semibold">KG</span>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* Sección de Enriquecimiento / Mezcla con Resina Virgen (solo si es KILOGRAMOS) */}
+                {formData.tipoDosificacionMolido === 'KILOGRAMOS' && formData.peletizadoId && (
+                  <div className="p-4 bg-white/90 rounded-xl border border-amber-200/90 space-y-3">
+                    <label className="flex items-center gap-2.5 cursor-pointer select-none">
+                      <input
+                        type="checkbox"
+                        checked={Boolean(formData.llevaResinaEnMolido)}
+                        onChange={(e) => {
+                          const checked = e.target.checked;
+                          handleChange('llevaResinaEnMolido', checked);
+                          if (checked && !formData.resinaMolidoId) {
+                            const default3003 = resinasInventario.find((r) =>
+                              (r.codigo && r.codigo.toLowerCase().includes('3003')) ||
+                              (r.nombre && r.nombre.toLowerCase().includes('3003'))
+                            );
+                            if (default3003) {
+                              handleChange('resinaMolidoId', default3003.id);
+                            }
+                          }
+                        }}
+                        className="w-4 h-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500 cursor-pointer"
+                      />
+                      <span className="text-xs font-bold text-gray-900">
+                        ¿Se mezcla con resina virgen adicional en tolva? (ej. LDPE 3003 en Cestera)
+                      </span>
+                    </label>
+
+                    {formData.llevaResinaEnMolido && (
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-1">
+                        <div>
+                          <label className="block text-xs font-semibold text-gray-700 mb-1">
+                            Resina virgen para mezcla
+                          </label>
+                          <select
+                            value={formData.resinaMolidoId || ''}
+                            onChange={(e) => handleChange('resinaMolidoId', e.target.value || null)}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-white text-gray-900 focus:ring-2 focus:ring-blue-500 text-xs font-semibold"
+                          >
+                            <option value="">Seleccione resina virgen de refuerzo...</option>
+                            {resinasInventario.map((r) => (
+                              <option key={r.id} value={r.id}>
+                                {r.nombre} ({r.codigo}) — Stock: {r.cantidad ?? 0} {r.unidad || 'kg'}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+
+                        <div>
+                          <label className="block text-xs font-semibold text-gray-700 mb-1">
+                            KG de resina adicional por cada 100 KG
+                          </label>
+                          <div className="relative">
+                            <input
+                              type="number"
+                              step="0.01"
+                              min="0"
+                              placeholder="5.00"
+                              value={formData.resinaMolidoKgPor100 !== undefined && formData.resinaMolidoKgPor100 !== null ? formData.resinaMolidoKgPor100 : ''}
+                              onChange={(e) => handleChange('resinaMolidoKgPor100', e.target.value !== '' ? parseFloat(e.target.value) : 0)}
+                              className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-white text-gray-900 focus:ring-2 focus:ring-blue-500 text-xs font-bold"
+                            />
+                            <span className="absolute right-3 top-2 text-xs text-gray-400 font-semibold">KG</span>
+                          </div>
+                        </div>
+
+                        <div className="md:col-span-2">
+                          <p className="text-[11px] text-amber-800 bg-amber-50 p-2 rounded-lg border border-amber-200/80">
+                            <strong>Nota técnica:</strong> Estos kilos de resina se descontarán del inventario como refuerzo del molido, independiente del porcentaje base de la fórmula.
+                          </p>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+
+              {/* Materias Primas Vírgenes y Aditivos */}
+              <div>
+                <h3 className="text-sm font-bold text-gray-800 mb-3">Resinas Vírgenes y Aditivos (%)</h3>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  {[
+                    { key: 'formFB7000', label: 'FB7000' },
+                    { key: 'form3003', label: '3003' },
+                    { key: 'formLineal', label: 'Lineal' },
+                    { key: 'form0240', label: '0240' },
+                    { key: 'form0348', label: '0348' },
+                    { key: 'form7000F', label: '7000F' },
+                    { key: 'formDeslizante', label: 'Deslizante' },
+                    { key: 'formMasterbachBlanco', label: 'Masterbach Blanco' },
+                    { key: 'formMasterbachNegro', label: 'Masterbach Negro' },
+                    { key: 'formMasterbachAzul', label: 'Masterbach Azul' },
+                    { key: 'formMasterbachAmarillo', label: 'Masterbach Amarillo' },
+                  ].map((field) => (
+                    <div key={field.key}>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        {field.label} (%)
+                      </label>
+                      <input
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        max="100"
+                        placeholder="0"
+                        value={formData[field.key] !== undefined && formData[field.key] !== null ? formData[field.key] : ''}
+                        onChange={(e) => handleChange(field.key, e.target.value !== '' ? parseFloat(e.target.value) : null)}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+                      />
+                    </div>
+                  ))}
+                </div>
+              </div>
+              
               {/* Materia Prima Principal */}
               <div className="border-t pt-6">
                 <h3 className="text-lg font-semibold text-gray-900 mb-4">Materias Primas Principales</h3>

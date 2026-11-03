@@ -31,6 +31,7 @@ export async function GET(
             productoCliente: {
               include: {
                 peletizado: true,
+                resinaMolido: true,
               },
             },
           },
@@ -39,6 +40,7 @@ export async function GET(
           include: {
             cliente: true,
             peletizado: true,
+            resinaMolido: true,
           },
         },
         registros: {
@@ -77,7 +79,7 @@ export async function GET(
     if (productoCliente?.tipoProducto === 'Bolsa' && unidadPedido === 'Unidades') {
       let peso = productoCliente?.pesoPorUnidad || 0;
       if (!peso && productoCliente?.ancho && productoCliente?.largo && productoCliente?.calibre) {
-        const densidad = getPlasticDensity(productoCliente.material);
+        const densidad = getPlasticDensity(productoCliente.material || undefined);
         peso = calculateBagWeight({
           tipoBolsa:
             productoCliente.anchoValvula && productoCliente.anchoValvula > 0
@@ -88,8 +90,8 @@ export async function GET(
           ancho: productoCliente.ancho,
           largo: productoCliente.largo,
           calibre: productoCliente.calibre,
-          fuelle: productoCliente.anchoFuelle,
-          solapa: productoCliente.anchoSolapa,
+          fuelle: productoCliente.anchoFuelle || undefined,
+          solapa: productoCliente.anchoSolapa || undefined,
           densidad,
         });
       }
@@ -109,14 +111,40 @@ export async function GET(
     const sacasPendientes = kgPendientes / 25;
     const sacasMeta = metaKg / 25;
 
-    // 3. Balance Peletizado
+    // 3. Balance Peletizado / Molido
+    const tipoDosif = productoCliente?.tipoDosificacionMolido || 'PORCENTAJE';
     const peletizadoPct = Number(productoCliente?.peletizadoPorcentaje) || 0;
+    const peletizadoKgPor100 = Number(productoCliente?.peletizadoKgPor100) || 0;
+    const llevaResinaEnMolido = Boolean(productoCliente?.llevaResinaEnMolido);
+    const resinaMolidoKgPor100 = Number(productoCliente?.resinaMolidoKgPor100) || 0;
+
     let peletizadoInfo = null;
 
-    if (peletizadoPct > 0) {
-      const kgConsumido = kgProducidos * (peletizadoPct / 100);
-      const kgFaltante = kgPendientes * (peletizadoPct / 100);
+    let kgMolidoConsumido = 0;
+    let kgMolidoFaltante = 0;
+    let kgResinaMolidoConsumido = 0;
+    let kgResinaMolidoFaltante = 0;
 
+    if (tipoDosif === 'PORCENTAJE') {
+      if (peletizadoPct > 0) {
+        kgMolidoConsumido = kgProducidos * (peletizadoPct / 100);
+        kgMolidoFaltante = kgPendientes * (peletizadoPct / 100);
+      }
+    } else {
+      if (peletizadoKgPor100 > 0) {
+        const ratioProducido = kgProducidos / 100;
+        const ratioPendiente = kgPendientes / 100;
+        kgMolidoConsumido = ratioProducido * peletizadoKgPor100;
+        kgMolidoFaltante = ratioPendiente * peletizadoKgPor100;
+
+        if (llevaResinaEnMolido && resinaMolidoKgPor100 > 0) {
+          kgResinaMolidoConsumido = ratioProducido * resinaMolidoKgPor100;
+          kgResinaMolidoFaltante = ratioPendiente * resinaMolidoKgPor100;
+        }
+      }
+    }
+
+    if (kgMolidoConsumido > 0 || kgMolidoFaltante > 0 || peletizadoPct > 0 || peletizadoKgPor100 > 0) {
       let itemPel = null;
       if (productoCliente?.peletizadoId) {
         itemPel = inventarios.find((i) => i.id === productoCliente.peletizadoId);
@@ -125,9 +153,23 @@ export async function GET(
         itemPel = inventarios.find((i) => i.categoria === CategoriaInventario.Peletizado);
       }
 
+      // Enriquecimiento de resina (ej. LDPE 3003)
+      let itemResinaMolido = null;
+      if (llevaResinaEnMolido) {
+        if (productoCliente?.resinaMolidoId) {
+          itemResinaMolido = inventarios.find((i) => i.id === productoCliente.resinaMolidoId);
+        }
+        if (!itemResinaMolido) {
+          itemResinaMolido = inventarios.find((i) =>
+            i.categoria === CategoriaInventario.MateriaPrima &&
+            (i.codigo.toLowerCase().includes('3003') || i.nombre.toLowerCase().includes('3003'))
+          );
+        }
+      }
+
       const stockActualKg = itemPel?.cantidad ?? 0;
-      const sacasConsumidas = kgConsumido / 25;
-      const sacasFaltantes = kgFaltante / 25;
+      const sacasConsumidas = kgMolidoConsumido / 25;
+      const sacasFaltantes = kgMolidoFaltante / 25;
       const stockActualSacas = stockActualKg / 25;
 
       let status: 'optimo' | 'critico' | 'agotado' = 'optimo';
@@ -136,11 +178,11 @@ export async function GET(
 
       if (stockActualKg <= 0) {
         status = 'agotado';
-        deficitKg = kgFaltante;
+        deficitKg = kgMolidoFaltante;
         deficitSacas = sacasFaltantes;
-      } else if (stockActualKg < kgFaltante) {
+      } else if (stockActualKg < kgMolidoFaltante) {
         status = 'critico';
-        deficitKg = kgFaltante - stockActualKg;
+        deficitKg = kgMolidoFaltante - stockActualKg;
         deficitSacas = deficitKg / 25;
       }
 
@@ -148,29 +190,33 @@ export async function GET(
         inventarioId: itemPel?.id || null,
         codigo: itemPel?.codigo || 'PEL',
         nombre: itemPel?.nombre || productoCliente?.peletizado?.nombre || 'Peletizado Recuperado',
+        tipoDosificacion: tipoDosif,
         porcentaje: peletizadoPct,
-        kgConsumido,
+        kgPor100: peletizadoKgPor100,
+        kgConsumido: kgMolidoConsumido,
         sacasConsumidas,
-        kgFaltante,
+        kgFaltante: kgMolidoFaltante,
         sacasFaltantes,
         stockActualKg,
         stockActualSacas,
         status,
         deficitKg,
         deficitSacas,
+        // Datos de resina virgen de enriquecimiento
+        llevaResinaEnMolido,
+        resinaMolidoId: itemResinaMolido?.id || productoCliente?.resinaMolidoId || null,
+        resinaMolidoNombre: itemResinaMolido?.nombre || 'LDPE 3003',
+        resinaMolidoKgPor100,
+        resinaMolidoKgConsumido: kgResinaMolidoConsumido,
+        resinaMolidoSacasConsumidas: kgResinaMolidoConsumido / 25,
+        resinaMolidoKgFaltante: kgResinaMolidoFaltante,
+        resinaMolidoSacasFaltantes: kgResinaMolidoFaltante / 25,
       };
     }
 
     // 4. Balance Resinas Vírgenes
-    const kgPelConsumido = peletizadoInfo ? peletizadoInfo.kgConsumido : 0;
-    const kgPelFaltante = peletizadoInfo ? peletizadoInfo.kgFaltante : 0;
     const baseVirgenActual = kgProducidos;
     const baseVirgenFaltante = kgPendientes;
-
-    const sumaVirgenPct = RESINAS_VIRGENES_CONFIG.reduce((sum, r) => {
-      const pct = Number((productoCliente as any)?.[r.key] ?? (productoCliente as any)?.[r.altKey]) || 0;
-      return sum + pct;
-    }, 0);
 
     const resinasVirgenesInfo = [];
 
@@ -178,8 +224,8 @@ export async function GET(
       const pct = Number((productoCliente as any)?.[resina.key] ?? (productoCliente as any)?.[resina.altKey]) || 0;
       if (pct > 0) {
         const factor = pct / 100;
-        const kgConsumido = baseVirgenActual * factor;
-        const kgFaltante = baseVirgenFaltante * factor;
+        const kgConsumidoBase = baseVirgenActual * factor;
+        const kgFaltanteBase = baseVirgenFaltante * factor;
 
         let itemMp = null;
         for (const term of resina.searchTerms) {
@@ -203,9 +249,21 @@ export async function GET(
           }
         }
 
+        // Comprobar si esta resina virgen es la que se usó como enriquecimiento en el molido (ej. 3003)
+        const esResinaDeMolido = llevaResinaEnMolido && (
+          (productoCliente?.resinaMolidoId && itemMp?.id === productoCliente.resinaMolidoId) ||
+          resina.searchTerms.some((t) => t.includes('3003'))
+        );
+
+        const kgConsumidoExtra = esResinaDeMolido ? kgResinaMolidoConsumido : 0;
+        const kgFaltanteExtra = esResinaDeMolido ? kgResinaMolidoFaltante : 0;
+
+        const kgConsumidoTotal = kgConsumidoBase + kgConsumidoExtra;
+        const kgFaltanteTotal = kgFaltanteBase + kgFaltanteExtra;
+
         const stockActualKg = itemMp?.cantidad ?? 0;
-        const sacasConsumidas = kgConsumido / 25;
-        const sacasFaltantes = kgFaltante / 25;
+        const sacasConsumidas = kgConsumidoTotal / 25;
+        const sacasFaltantes = kgFaltanteTotal / 25;
         const stockActualSacas = stockActualKg / 25;
 
         let status: 'optimo' | 'critico' | 'agotado' = 'optimo';
@@ -214,11 +272,11 @@ export async function GET(
 
         if (stockActualKg <= 0) {
           status = 'agotado';
-          deficitKg = kgFaltante;
+          deficitKg = kgFaltanteTotal;
           deficitSacas = sacasFaltantes;
-        } else if (stockActualKg < kgFaltante) {
+        } else if (stockActualKg < kgFaltanteTotal) {
           status = 'critico';
-          deficitKg = kgFaltante - stockActualKg;
+          deficitKg = kgFaltanteTotal - stockActualKg;
           deficitSacas = deficitKg / 25;
         }
 
@@ -228,9 +286,13 @@ export async function GET(
           nombreInventario: itemMp?.nombre || `Resina ${resina.label}`,
           codigo: itemMp?.codigo || resina.label,
           porcentaje: pct,
-          kgConsumido,
+          kgConsumido: kgConsumidoTotal,
+          kgConsumidoBase,
+          kgConsumidoExtraMolido: kgConsumidoExtra,
           sacasConsumidas,
-          kgFaltante,
+          kgFaltante: kgFaltanteTotal,
+          kgFaltanteBase,
+          kgFaltanteExtraMolido: kgFaltanteExtra,
           sacasFaltantes,
           stockActualKg,
           stockActualSacas,

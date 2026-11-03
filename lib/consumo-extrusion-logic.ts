@@ -3,6 +3,11 @@ import { CategoriaInventario, TipoMovimiento } from '@prisma/client';
 export interface FormulacionConsumo {
   peletizadoId?: string | null;
   peletizadoPorcentaje?: number | null;
+  tipoDosificacionMolido?: 'PORCENTAJE' | 'KILOGRAMOS' | null;
+  peletizadoKgPor100?: number | null;
+  llevaResinaEnMolido?: boolean | null;
+  resinaMolidoId?: string | null;
+  resinaMolidoKgPor100?: number | null;
   // Resinas vírgenes
   formFB7000?: number | null;
   fb7000?: number | null;
@@ -51,10 +56,12 @@ export interface ItemConsumoResuelto {
   nombre: string;
   label: string;
   kg: number;
+  esExtraMezcla?: boolean;
 }
 
 export interface ConsumoExtrusionResuelto {
   peletizado?: ItemConsumoResuelto;
+  resinaMolidoExtra?: ItemConsumoResuelto; // Resina virgen de enriquecimiento (ej. LDPE 3003 para mezcla de molido)
   resinasVirgenes: ItemConsumoResuelto[];
   aditivos: ItemConsumoResuelto[];
 }
@@ -72,15 +79,35 @@ export async function resolverConsumoExtrusion(
   const kgNetos = Number(kgTurno) || 0;
   if (!formulacion || kgNetos <= 0) return null;
 
+  const round2 = (val: number) => Math.round((val + Number.EPSILON) * 100) / 100;
+
   const resultado: ConsumoExtrusionResuelto = {
     resinasVirgenes: [],
     aditivos: [],
   };
 
-  // 1. Balance Base Polímero: A. Peletizado
-  const peletizadoPct = Number(formulacion.peletizadoPorcentaje) || 0;
-  const kgPeletizado = peletizadoPct > 0 ? Math.round((kgNetos * (peletizadoPct / 100) + Number.EPSILON) * 100) / 100 : 0;
+  const tipoDosif = formulacion.tipoDosificacionMolido || 'PORCENTAJE';
 
+  // 1. Balance Base Polímero: A. Peletizado / Molido
+  let kgPeletizado = 0;
+  let kgResinaMolidoExtra = 0;
+
+  if (tipoDosif === 'PORCENTAJE') {
+    const peletizadoPct = Number(formulacion.peletizadoPorcentaje) || 0;
+    kgPeletizado = peletizadoPct > 0 ? round2(kgNetos * (peletizadoPct / 100)) : 0;
+  } else {
+    // KILOGRAMOS directos por cada 100 KG producidos
+    const ratio = kgNetos / 100;
+    const kgPor100 = Number(formulacion.peletizadoKgPor100) || 0;
+    kgPeletizado = kgPor100 > 0 ? round2(ratio * kgPor100) : 0;
+
+    // Resina virgen de enriquecimiento mezclada con el molido (ej. LDPE 3003 en Cestera)
+    if (formulacion.llevaResinaEnMolido && Number(formulacion.resinaMolidoKgPor100) > 0) {
+      kgResinaMolidoExtra = round2(ratio * Number(formulacion.resinaMolidoKgPor100));
+    }
+  }
+
+  // Resolver item Peletizado
   if (kgPeletizado > 0) {
     let itemPeletizado: any = null;
     if (formulacion.peletizadoId) {
@@ -108,8 +135,51 @@ export async function resolverConsumoExtrusion(
     }
   }
 
+  // Resolver item Resina Virgen de Enriquecimiento (ej. LDPE 3003 para mezcla de molido)
+  if (kgResinaMolidoExtra > 0) {
+    let itemResinaExtra: any = null;
+    if (formulacion.resinaMolidoId) {
+      itemResinaExtra = await tx.inventario.findUnique({
+        where: { id: formulacion.resinaMolidoId },
+      });
+    }
+
+    if (!itemResinaExtra) {
+      itemResinaExtra = await tx.inventario.findFirst({
+        where: {
+          categoria: CategoriaInventario.MateriaPrima,
+          OR: [
+            { codigo: { contains: '3003', mode: 'insensitive' } },
+            { nombre: { contains: '3003', mode: 'insensitive' } },
+          ],
+        },
+      });
+    }
+
+    if (!itemResinaExtra) {
+      itemResinaExtra = await tx.inventario.findFirst({
+        where: {
+          OR: [
+            { codigo: { contains: '3003', mode: 'insensitive' } },
+            { nombre: { contains: '3003', mode: 'insensitive' } },
+          ],
+        },
+      });
+    }
+
+    if (itemResinaExtra) {
+      resultado.resinaMolidoExtra = {
+        inventarioId: itemResinaExtra.id,
+        nombre: itemResinaExtra.nombre,
+        label: `${itemResinaExtra.nombre} (Enriquecimiento mezcla molido)`,
+        kg: kgResinaMolidoExtra,
+        esExtraMezcla: true,
+      };
+    }
+  }
+
   // 2. Balance Base Polímero: B. Materias Primas Vírgenes Disponibles y Distribución Proporcional
-  const kgPeletizadoEfectivo = resultado.peletizado ? resultado.peletizado.kg : (peletizadoPct > 0 ? kgPeletizado : 0);
+  const kgPeletizadoEfectivo = resultado.peletizado ? resultado.peletizado.kg : (kgPeletizado > 0 ? kgPeletizado : 0);
   const kgVirgenTotal = kgNetos;
 
   const sumaVirgen = RESINAS_VIRGENES_CONFIG.reduce((sum, r) => {
@@ -216,7 +286,7 @@ export async function aplicarConsumoExtrusion(
 ) {
   const { consumo, loteCodigo, turno, responsable } = params;
 
-  // 1. Peletizado
+  // 1. Peletizado / Molido
   if (consumo.peletizado && consumo.peletizado.kg > 0) {
     await tx.inventario.update({
       where: { id: consumo.peletizado.inventarioId },
@@ -230,7 +300,28 @@ export async function aplicarConsumoExtrusion(
         inventarioId: consumo.peletizado.inventarioId,
         tipo: TipoMovimiento.Salida,
         cantidad: consumo.peletizado.kg,
-        motivo: `Consumo Peletizado (${consumo.peletizado.nombre}) en Extrusión - Lote ${loteCodigo} (Turno ${turno})`,
+        motivo: `Consumo Molido (${consumo.peletizado.nombre}) en Extrusión - Lote ${loteCodigo} (Turno ${turno})`,
+        referencia: loteCodigo,
+        responsable: responsable || 'Sistema',
+      },
+    });
+  }
+
+  // 1.B Resina Virgen de Enriquecimiento para mezcla de molido (ej. LDPE 3003)
+  if (consumo.resinaMolidoExtra && consumo.resinaMolidoExtra.kg > 0) {
+    await tx.inventario.update({
+      where: { id: consumo.resinaMolidoExtra.inventarioId },
+      data: {
+        cantidad: { decrement: consumo.resinaMolidoExtra.kg },
+      },
+    });
+
+    await tx.movimientoInventario.create({
+      data: {
+        inventarioId: consumo.resinaMolidoExtra.inventarioId,
+        tipo: TipoMovimiento.Salida,
+        cantidad: consumo.resinaMolidoExtra.kg,
+        motivo: `Consumo ${consumo.resinaMolidoExtra.nombre || '3003'} (Enriquecimiento mezcla de molido) - Lote ${loteCodigo} (Turno ${turno})`,
         referencia: loteCodigo,
         responsable: responsable || 'Sistema',
       },

@@ -26,6 +26,8 @@ export async function GET(
       },
       include: {
         peletizado: true,
+        resinaMolido: true,
+        formulacion: true,
         parametrosSellado: true,
       }
     });

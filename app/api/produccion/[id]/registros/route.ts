@@ -7,6 +7,7 @@ import { determinarDestinoProducto } from '@/lib/producto-terminado-logic';
 import { calcularDesgloseMerma, aplicarMermaAInventario } from '@/lib/merma-logic';
 import { resolverConsumoExtrusion, aplicarConsumoExtrusion } from '@/lib/consumo-extrusion-logic';
 import { parseLocalDateToMiddayUTC } from '@/lib/utils/dates';
+import { calcularConsumoBobinaSellado, validarDisponibilidadBobina } from '@/lib/consumo-sellado-logic';
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
@@ -86,10 +87,10 @@ export async function POST(
         pedido: {
           include: {
             cliente: true,
-            productoCliente: { include: { peletizado: true } },
+            productoCliente: { include: { peletizado: true, resinaMolido: true } },
           },
         },
-        productoCliente: { include: { peletizado: true } },
+        productoCliente: { include: { peletizado: true, resinaMolido: true } },
         productoTerminado: true,
       },
     });

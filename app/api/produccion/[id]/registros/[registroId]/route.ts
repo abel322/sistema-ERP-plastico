@@ -31,10 +31,10 @@ export async function PUT(
                 pedido: {
                     include: {
                         cliente: true,
-                        productoCliente: { include: { peletizado: true } },
+                        productoCliente: { include: { peletizado: true, resinaMolido: true } },
                     },
                 },
-                productoCliente: { include: { peletizado: true } },
+                productoCliente: { include: { peletizado: true, resinaMolido: true } },
                 productoTerminado: true,
             }
         });
@@ -285,10 +285,10 @@ export async function DELETE(
             include: {
                 pedido: {
                     include: {
-                        productoCliente: { include: { peletizado: true } },
+                        productoCliente: { include: { peletizado: true, resinaMolido: true } },
                     },
                 },
-                productoCliente: { include: { peletizado: true } },
+                productoCliente: { include: { peletizado: true, resinaMolido: true } },
                 productoTerminado: true,
             },
         });

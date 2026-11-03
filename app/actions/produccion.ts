@@ -1,3 +1,3 @@
 'use server';
 
-export { eliminarORevertirFaseSellado, eliminarOrdenProduccion } from '@/actions/produccion';
+export { eliminarORevertirFaseSellado, eliminarOrdenProduccion, descontarConsumoExtrusionTurno } from '@/actions/produccion';

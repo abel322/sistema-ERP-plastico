@@ -3,6 +3,7 @@
 import { AreaProduccion, EstadoMaquina, EstadoProduccion } from '@prisma/client';
 import { prisma } from '@/lib/db';
 import { revalidatePath } from 'next/cache';
+import { resolverConsumoExtrusion, aplicarConsumoExtrusion } from '@/lib/consumo-extrusion-logic';
 
 export async function eliminarORevertirFaseSellado(ordenId: string, loteSelladoCodigo?: string) {
   try {
@@ -291,5 +292,70 @@ export async function eliminarOrdenProduccion(ordenId: string, forzar: boolean =
       success: false,
       error: error.message || 'Error al intentar eliminar la orden de producción.',
     };
+  }
+}
+
+
+/**
+ * Motor de descuento de inventario en extrusión para consumos base virgen,
+ * molido directo y resina virgen de enriquecimiento (ej. LDPE 3003 en tolva).
+ */
+export async function descontarConsumoExtrusionTurno(params: {
+  produccionId: string;
+  kgTurno: number;
+  turno: string;
+  operario?: string;
+}) {
+  const { produccionId, kgTurno, turno, operario } = params;
+  if (kgTurno <= 0) return { success: true, message: 'Sin kilos para descontar' };
+
+  try {
+    const produccion = await prisma.produccion.findUnique({
+      where: { id: produccionId },
+      include: {
+        pedido: {
+          include: {
+            productoCliente: {
+              include: { peletizado: true, resinaMolido: true },
+            },
+          },
+        },
+        productoCliente: {
+          include: { peletizado: true, resinaMolido: true },
+        },
+      },
+    });
+
+    if (!produccion) {
+      return { success: false, error: 'Producción no encontrada' };
+    }
+
+    const prodCli = produccion.pedido?.productoCliente || produccion.productoCliente;
+    if (!prodCli) {
+      return { success: false, error: 'Producto no vinculado a la orden' };
+    }
+
+    const consumoCalculado = await resolverConsumoExtrusion(prisma, prodCli, kgTurno);
+    if (!consumoCalculado) {
+      return { success: false, error: 'No se pudo calcular la formulación de consumo' };
+    }
+
+    await prisma.$transaction(async (tx) => {
+      await aplicarConsumoExtrusion(tx, {
+        consumo: consumoCalculado,
+        loteCodigo: produccion.codigoLote || produccion.id.slice(0, 8).toUpperCase(),
+        turno,
+        responsable: operario || 'Sistema',
+      });
+    });
+
+    revalidatePath('/produccion');
+    revalidatePath('/inventario');
+    revalidatePath('/inventario/movimientos');
+
+    return { success: true, consumo: consumoCalculado };
+  } catch (error: any) {
+    console.error('Error al descontar consumo de extrusión:', error);
+    return { success: false, error: error.message || 'Error al procesar descuento' };
   }
 }

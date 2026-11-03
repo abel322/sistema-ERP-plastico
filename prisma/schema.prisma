@@ -40,6 +40,11 @@ enum TipoBobinaCliente {
   MangaConFuelle
 }
 
+enum TipoDosificacionMolido {
+  PORCENTAJE
+  KILOGRAMOS
+}
+
 enum EstadoPedido {
   Pendiente
   EnProceso
@@ -336,6 +341,15 @@ model ProductoCliente {
   peletizadoId         String?
   peletizadoPorcentaje Float?         @default(0)
   peletizado           Inventario?    @relation("ProductoClientePeletizado", fields: [peletizadoId], references: [id])
+
+  // Configuración de Molido / Peletizado compuesto (Kilos / Enriquecimiento)
+  tipoDosificacionMolido      TipoDosificacionMolido? @default(PORCENTAJE)
+  peletizadoKgPor100          Float?                  @default(0) // Kg de molido por cada 100 kg producidos
+  llevaResinaEnMolido         Boolean?                @default(false)
+  resinaMolidoId              String?                 // Id de la resina virgen (ej. LDPE 3003)
+  resinaMolido                Inventario?             @relation("ProductoClienteResinaMolido", fields: [resinaMolidoId], references: [id])
+  resinaMolidoKgPor100        Float?                  @default(0) // Kg de 3003 agregados por cada 100 kg producidos
+  formulacion                 Formulacion?
   formFB7000           Float?
   form3003             Float?
   formLineal           Float?
@@ -542,6 +556,39 @@ model ProductoCliente {
 enum TurnoSellado {
   DIA
   TARDE
+}
+
+
+model Formulacion {
+  id                          String                  @id @default(cuid())
+  productoId                  String                  @unique
+  producto                    ProductoCliente         @relation(fields: [productoId], references: [id], onDelete: Cascade)
+
+  // Configuración de Molido / Peletizado
+  tipoDosificacionMolido      TipoDosificacionMolido  @default(PORCENTAJE)
+  peletizadoId                String?                 // ArticuloInventario de molido
+  peletizadoPorcentaje        Float?                  @default(0) // Usado si es PORCENTAJE
+  peletizadoKgPor100          Float?                  @default(0) // Kg de molido por cada 100 kg producidos
+
+  // Enriquecimiento de Molido con Resina Virgen (Opcional, ej. Cestera)
+  llevaResinaEnMolido         Boolean                 @default(false)
+  resinaMolidoId              String?                 // Id de la resina virgen (ej. LDPE 3003)
+  resinaMolidoKgPor100        Float?                  @default(0) // Kg de 3003 agregados por cada 100 kg producidos
+
+  // Formulación Base de Resinas Vírgenes (% sobre la base)
+  p3003                       Float?                  @default(0)
+  lineal                      Float?                  @default(0)
+  fb7000                      Float?                  @default(0)
+  p0240                       Float?                  @default(0)
+  p0348                       Float?                  @default(0)
+  p7000f                      Float?                  @default(0)
+
+  // Aditivos (%)
+  deslizante                  Float?                  @default(0)
+  masterbachBlanco            Float?                  @default(0)
+  masterbachNegro             Float?                  @default(0)
+
+  updatedAt                   DateTime                @updatedAt
 }
 
 model ParametrosSellado {
@@ -947,6 +994,7 @@ model Inventario {
   user        User?                  @relation(fields: [userId], references: [id], onDelete: Cascade)
   movimientos MovimientoInventario[]
   productosPeletizado ProductoCliente[] @relation("ProductoClientePeletizado")
+  productosResinaMolido ProductoCliente[] @relation("ProductoClienteResinaMolido")
 
   @@index([userId])
   @@index([categoria])
