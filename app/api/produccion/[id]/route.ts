@@ -60,7 +60,7 @@ export async function PUT(
     const userId = (session.user as any)?.id;
 
     const body = await request.json();
-    const { estado, completarPedido, siguienteArea, ...updateData } = body;
+    const { estado, completarPedido, siguienteArea, sobranteBobinaKg, destinoSobrante, ...updateData } = body;
 
     // Obtener la producción actual con todas sus relaciones relevantes
     const produccionActual = await prisma.produccion.findUnique({
@@ -342,7 +342,7 @@ export async function PUT(
             {
               area: prodActualizada.area,
               ordenId: prodActualizada.id,
-              loteReferencia,
+              codigoLote: loteReferencia,
               responsable: responsableNombre,
             }
           );
@@ -352,6 +352,14 @@ export async function PUT(
             data: { mermaInventarioSumada: true },
           });
           prodActualizada.mermaInventarioSumada = true;
+        }
+
+        // Liberar máquina asignada al finalizar
+        if (prodActualizada.maquinaId) {
+          await tx.maquina.updateMany({
+            where: { id: prodActualizada.maquinaId },
+            data: { estado: 'Operativa', activa: true },
+          });
         }
 
         return {

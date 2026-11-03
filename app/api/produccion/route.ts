@@ -60,6 +60,7 @@ export async function GET(request: Request) {
           registros: {
             orderBy: { fecha: 'desc' },
           },
+          productoTerminado: true,
         },
         orderBy: { createdAt: 'desc' },
         skip: (page - 1) * limit,
@@ -70,7 +71,34 @@ export async function GET(request: Request) {
 
     const produccionesConStockPrevio = await Promise.all(
       producciones.map(async (prod) => {
-        if (prod.area !== 'Extrusion') {
+        if (prod.area === 'Extrusion') {
+          const totalExtruido =
+            prod.registros?.reduce((sum, r) => sum + (Number(r.cantidad) || 0), 0) ||
+            Number(prod.cantidadProducida || 0);
+
+          let pt = (prod as any).productoTerminado;
+          if (!pt && prod.codigoLote) {
+            pt = await prisma.productoTerminado.findFirst({
+              where: {
+                ...userFilter,
+                codigoLote: prod.codigoLote,
+              },
+            });
+          }
+
+          const bobinaDisponibleKg = pt ? Number(pt.cantidadDisponible ?? totalExtruido) : totalExtruido;
+          const kgBobinaConsumidaTotal = Math.max(0, totalExtruido - bobinaDisponibleKg);
+
+          return {
+            ...prod,
+            producidoKg: totalExtruido,
+            bobinaDisponibleKg,
+            kgBobinaConsumidaTotal,
+            stockPrevio: null,
+          };
+        }
+
+        
           let previo = null;
 
           // 1. Trazabilidad exacta madre-hija: Si la orden tiene loteOrigen, buscar directamente por código de lote
@@ -224,6 +252,7 @@ export async function GET(request: Request) {
         if (previo) {
           return {
             ...prod,
+            bobinaDisponibleKg: Number(previo.cantidadDisponible || 0),
             stockPrevio: {
               id: previo.id,
               codigoLote: previo.codigoLote,
@@ -237,8 +266,7 @@ export async function GET(request: Request) {
             },
           };
         }
-      }
-      return { ...prod, stockPrevio: null };
+        return { ...prod, bobinaDisponibleKg: 0, stockPrevio: null };
     })
   );
 

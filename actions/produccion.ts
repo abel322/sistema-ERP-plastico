@@ -1,6 +1,6 @@
 'use server';
 
-import { AreaProduccion, EstadoMaquina, EstadoProduccion } from '@prisma/client';
+import { AreaProduccion, EstadoMaquina, EstadoProduccion, Turno } from '@prisma/client';
 import { prisma } from '@/lib/db';
 import { revalidatePath } from 'next/cache';
 import { resolverConsumoExtrusion, aplicarConsumoExtrusion } from '@/lib/consumo-extrusion-logic';
@@ -295,7 +295,6 @@ export async function eliminarOrdenProduccion(ordenId: string, forzar: boolean =
   }
 }
 
-
 /**
  * Motor de descuento de inventario en extrusión para consumos base virgen,
  * molido directo y resina virgen de enriquecimiento (ej. LDPE 3003 en tolva).
@@ -357,5 +356,326 @@ export async function descontarConsumoExtrusionTurno(params: {
   } catch (error: any) {
     console.error('Error al descontar consumo de extrusión:', error);
     return { success: false, error: error.message || 'Error al procesar descuento' };
+  }
+}
+
+/**
+ * Finaliza la fase de sellado procesando el destino físico del sobrante de bobina en piso
+ * (Molienda / Peletizado vs Saldo de Almacén) y liberando la máquina selladora asignada.
+ */
+export async function finalizarFaseSelladoConDestino(
+  ordenId: string,
+  destinoSobrante: 'MOLIENDA' | 'ALMACEN_BOBINA',
+  sobranteKg: number = 0
+) {
+  try {
+    const orden = await prisma.produccion.findUnique({
+      where: { id: ordenId },
+      include: {
+        maquina: true,
+        pedido: {
+          include: {
+            cliente: true,
+            productoCliente: {
+              include: { peletizado: true, resinaMolido: true },
+            },
+          },
+        },
+        productoCliente: {
+          include: { cliente: true, peletizado: true, resinaMolido: true },
+        },
+        productoTerminado: true,
+        registros: true,
+      },
+    });
+
+    if (!orden) {
+      return { success: false, error: 'No se encontró la orden de producción.' };
+    }
+
+    const remanenteReal = Math.max(0, Number(sobranteKg) || 0);
+    const prodCli = orden.pedido?.productoCliente || orden.productoCliente;
+    const loteDisplay = orden.codigoLote || orden.loteOrigen || orden.id.slice(-6).toUpperCase();
+
+    await prisma.$transaction(async (tx) => {
+      // 1. Si hay sobrante físico de bobina, registrar según la elección
+      if (remanenteReal > 0) {
+        if (destinoSobrante === 'MOLIENDA') {
+          // Buscar artículo de peletizado/molido asignado en la formulación o producto
+          let peletizadoItem = null;
+          if (prodCli?.peletizadoId) {
+            peletizadoItem = await tx.inventario.findUnique({
+              where: { id: prodCli.peletizadoId },
+            });
+          }
+
+          // Fallback inteligente según tipo de material del producto si no estaba asignado
+          if (!peletizadoItem) {
+            const nombreProdLower = (prodCli?.nombreProducto || '').toLowerCase();
+            let kw = 'transparente';
+            if (nombreProdLower.includes('blanco') || nombreProdLower.includes('pollo')) {
+              kw = 'blanco';
+            } else if (nombreProdLower.includes('color') || nombreProdLower.includes('negro') || nombreProdLower.includes('azul')) {
+              kw = 'color';
+            }
+
+            peletizadoItem = await tx.inventario.findFirst({
+              where: {
+                categoria: 'Peletizado',
+                nombre: { contains: kw, mode: 'insensitive' },
+              },
+            });
+
+            if (!peletizadoItem) {
+              peletizadoItem = await tx.inventario.findFirst({
+                where: {
+                  categoria: 'Peletizado',
+                  ...(orden.userId ? { OR: [{ userId: orden.userId }, { userId: null }] } : {}),
+                },
+              });
+            }
+          }
+
+          if (peletizadoItem) {
+            await tx.inventario.update({
+              where: { id: peletizadoItem.id },
+              data: { cantidad: { increment: remanenteReal } },
+            });
+
+            await tx.movimientoInventario.create({
+              data: {
+                inventarioId: peletizadoItem.id,
+                tipo: 'Entrada',
+                cantidad: remanenteReal,
+                motivo: `Sobrante de Bobina en Sellado enviado a Molienda - Lote ${loteDisplay}`,
+                referencia: `SELLADO-${loteDisplay}`,
+                responsable: orden.operario || 'Sistema',
+                fecha: new Date(),
+              },
+            });
+          }
+        } else {
+          // Guardar como Saldo de Bobina en Almacén
+          let itemBobina = await tx.inventario.findFirst({
+            where: {
+              OR: [
+                { codigo: 'BOB-SALDO' },
+                { nombre: { contains: 'Saldo Bobina', mode: 'insensitive' } },
+              ],
+            },
+          });
+
+          if (!itemBobina) {
+            itemBobina = await tx.inventario.create({
+              data: {
+                userId: orden.userId,
+                nombre: 'Saldo Bobina Huérfana / Remanente',
+                codigo: 'BOB-SALDO',
+                categoria: 'ProductoTerminado',
+                unidad: 'Kilogramos',
+                cantidad: remanenteReal,
+                observaciones: 'Remanente de bobina útil resguardado en almacén',
+              },
+            });
+          } else {
+            await tx.inventario.update({
+              where: { id: itemBobina.id },
+              data: { cantidad: { increment: remanenteReal } },
+            });
+          }
+
+          await tx.movimientoInventario.create({
+            data: {
+              inventarioId: itemBobina.id,
+              tipo: 'Entrada',
+              cantidad: remanenteReal,
+              motivo: `Sobrante de Bobina reservado en Almacén - Lote ${loteDisplay} (${prodCli?.nombreProducto || 'Bobina'})`,
+              referencia: `BOBINA-${loteDisplay}`,
+              responsable: orden.operario || 'Sistema',
+              fecha: new Date(),
+            },
+          });
+        }
+
+        // Actualizar el ProductoTerminado madre (bobina de origen)
+        if (orden.loteOrigen) {
+          await tx.productoTerminado.updateMany({
+            where: { codigoLote: orden.loteOrigen },
+            data: {
+              cantidadDisponible: destinoSobrante === 'ALMACEN_BOBINA' ? remanenteReal : 0,
+              siguienteArea: 'Ninguna',
+              estado: 'ListoDespacho',
+              descripcion: destinoSobrante === 'MOLIENDA'
+                ? `Bobina consumida (Remanente de ${remanenteReal.toFixed(2)} KG enviado a Molienda)`
+                : `Saldo de Bobina Huérfana disponible en almacén (${remanenteReal.toFixed(2)} KG)`,
+            },
+          });
+        }
+      } else if (orden.loteOrigen) {
+        // Toda la bobina consumida al 100%
+        await tx.productoTerminado.updateMany({
+          where: { codigoLote: orden.loteOrigen },
+          data: {
+            cantidadDisponible: 0,
+            siguienteArea: 'Ninguna',
+            estado: 'ListoDespacho',
+            descripcion: 'Bobina consumida al 100% en Sellado',
+          },
+        });
+      }
+
+      // 2. Calcular cantidad final producida en Sellado
+      const sumaRegistros = orden.registros && orden.registros.length > 0
+        ? orden.registros.reduce((sum, r) => sum + (Number(r.cantidad) || 0), 0)
+        : 0;
+      const cantidadFinal = sumaRegistros > 0 ? sumaRegistros : Number(orden.cantidadProducida || 0);
+
+      // 3. Finalizar la orden de Sellado
+      await tx.produccion.update({
+        where: { id: orden.id },
+        data: {
+          estado: EstadoProduccion.Finalizado,
+          cantidadProducida: cantidadFinal,
+          finalizadoAt: new Date(),
+          horaFin: new Date().toLocaleTimeString('es-VE', { hour12: false }),
+        },
+      });
+
+      // 4. Upsert ProductoTerminado para los paquetes/bolsas de Sellado listas para despacho
+      const clienteId = orden.pedido?.clienteId || orden.productoCliente?.clienteId;
+      if (clienteId) {
+        const ptData = {
+          userId: orden.userId,
+          codigoLote: orden.codigoLote,
+          loteOrigen: orden.loteOrigen,
+          pedidoId: orden.pedidoId || null,
+          clienteId: clienteId,
+          productoClienteId: prodCli?.id || null,
+          areaOrigen: orden.area,
+          descripcion: 'Bolsas terminadas en Sellado listas para despacho',
+          cantidadTotal: cantidadFinal,
+          cantidadDisponible: cantidadFinal,
+          unidad: orden.unidad,
+          tipoProducto: prodCli?.tipoProducto || 'Bolsa',
+          conImpresion: Boolean(prodCli?.conImpresion),
+          estado: 'ListoDespacho' as any,
+          siguienteArea: 'Ninguna' as any,
+          fechaFinalizacion: new Date(),
+        };
+
+        await tx.productoTerminado.upsert({
+          where: { produccionId: orden.id },
+          update: ptData,
+          create: {
+            ...ptData,
+            produccionId: orden.id,
+          },
+        });
+      }
+
+      // 5. Si la orden está ligada a un pedido, verificar si no quedan otras fases activas
+      if (orden.pedidoId) {
+        const otrasFasesActivas = await tx.produccion.count({
+          where: {
+            pedidoId: orden.pedidoId,
+            id: { not: orden.id },
+            estado: EstadoProduccion.EnProceso,
+          },
+        });
+
+        if (otrasFasesActivas === 0) {
+          await tx.pedido.update({
+            where: { id: orden.pedidoId },
+            data: {
+              estado: 'Completado',
+              cantidadProducida: cantidadFinal,
+            },
+          });
+        }
+      }
+
+      // 6. Liberar la máquina asignada (ej. Selladora 6)
+      if (orden.maquinaId) {
+        await tx.maquina.updateMany({
+          where: { id: orden.maquinaId },
+          data: {
+            estado: EstadoMaquina.Operativa,
+            activa: true,
+          },
+        });
+      }
+    });
+
+    // 7. Revalidar todas las rutas afectadas
+    revalidatePath('/produccion');
+    revalidatePath('/inventario');
+    revalidatePath('/inventario/movimientos');
+    revalidatePath('/maquinas');
+    revalidatePath('/dashboard/maquinas');
+    revalidatePath('/producto-terminado');
+
+    return {
+      success: true,
+      message: 'Fase de sellado finalizada y sobrante procesado correctamente.',
+    };
+  } catch (error: any) {
+    console.error('Error al finalizar sellado:', error);
+    return {
+      success: false,
+      error: error.message || 'Error interno al finalizar la fase de sellado.',
+    };
+  }
+}
+
+/**
+ * Server action para crear un registro de turno en sellado
+ * y revalidar las vistas de producción en tiempo real.
+ */
+export async function crearRegistroSellado(params: {
+  produccionId: string;
+  turno: Turno;
+  operario: string;
+  cantidad: number;
+  merma?: number;
+  reporte?: string;
+  mermaColor?: number;
+  mermaCristal?: number;
+}) {
+  try {
+    const { produccionId, turno, operario, cantidad, merma = 0, reporte, mermaColor = 0, mermaCristal = 0 } = params;
+    const produccion = await prisma.produccion.findUnique({
+      where: { id: produccionId },
+      include: {
+        productoTerminado: true,
+        pedido: { include: { productoCliente: true } },
+        productoCliente: true,
+      },
+    });
+
+    if (!produccion) {
+      return { success: false, error: 'Orden de producción no encontrada' };
+    }
+
+    const reg = await prisma.registroProduccion.create({
+      data: {
+        produccionId,
+        turno,
+        operario,
+        cantidad,
+        merma,
+        mermaColor,
+        mermaCristal,
+        mermaSinImpresion: mermaCristal,
+        mermaImpreso: mermaColor,
+        reporte,
+      },
+    });
+
+    revalidatePath('/produccion');
+    revalidatePath('/inventario');
+    return { success: true, data: reg };
+  } catch (error: any) {
+    console.error('Error al crear registro de sellado:', error);
+    return { success: false, error: error.message || 'Error al crear registro' };
   }
 }

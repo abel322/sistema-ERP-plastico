@@ -30,7 +30,8 @@ import {
   Inbox,
 } from 'lucide-react';
 import ModalDetalleConsumoMP from '@/components/produccion/ModalDetalleConsumoMP';
-import { eliminarORevertirFaseSellado, eliminarOrdenProduccion } from '@/actions/produccion';
+import { ModalFinalizarSellado } from '@/components/produccion/ModalFinalizarSellado';
+import { eliminarORevertirFaseSellado, eliminarOrdenProduccion, finalizarFaseSelladoConDestino } from '@/actions/produccion';
 import { formatNumber } from '@/lib/utils';
 import { calculateBagWeight, getPlasticDensity } from '@/lib/utils/bag-weight';
 import { calcularDesperdicioInfo } from '@/lib/utils/merma';
@@ -192,6 +193,16 @@ interface Produccion {
     tipoProducto: string;
     conImpresion: boolean;
   } | null;
+  producidoKg?: number;
+  bobinaDisponibleKg?: number;
+  kgBobinaConsumidaTotal?: number;
+  productoTerminado?: {
+    id?: string;
+    cantidadTotal?: number;
+    cantidadDisponible?: number;
+    estado?: string;
+    siguienteArea?: string;
+  } | null;
 }
 
 interface Maquina {
@@ -257,6 +268,34 @@ export function FilaProduccionHorizontal({
   const isSellado = orden.area?.toUpperCase() === 'SELLADO' || areaId === 'SELLADO';
   const disponibleKg = orden.stockPrevio?.cantidad ?? 0;
   const sinStock = (orden.area?.toUpperCase() !== 'EXTRUSION' && areaId !== 'EXTRUSION') && (!orden.stockPrevio || orden.stockPrevio.cantidad <= 0);
+
+  // Kilos brutos generados por la extrusora
+  const totalExtruidoKg = Number((orden as any).producidoKg || totalProducido || producidoKg || 0);
+
+  // Saldo físico real disponible en piso para seguir sellando
+  const bobinaDisponibleKg = Number(
+    (orden as any).bobinaDisponibleKg !== undefined
+      ? (orden as any).bobinaDisponibleKg
+      : (orden.productoTerminado?.cantidadDisponible !== undefined
+          ? orden.productoTerminado.cantidadDisponible
+          : (faseParalela?.stockPrevio?.cantidad !== undefined
+              ? faseParalela.stockPrevio.cantidad
+              : totalExtruidoKg))
+  );
+
+  // Kilos netos que Sellado ha descontado a la fecha mediante sus registros de turno
+  const totalConsumidoSelladoKg = Number(
+    (orden as any).kgBobinaConsumidaTotal !== undefined
+      ? (orden as any).kgBobinaConsumidaTotal
+      : Math.max(0, totalExtruidoKg - bobinaDisponibleKg)
+  );
+
+  // Determinar si la orden está corriendo simultáneamente en ambas áreas
+  const estaEnParalelo = Boolean(
+    faseParalela && (faseParalela.area === 'Sellado' || (faseParalela as any).area === 'SELLADO')
+  ) || Boolean(
+    (orden as any).faseExtrusion === 'EN_PROCESO' && (orden as any).faseSellado === 'EN_PROCESO'
+  );
 
   const codigoPedido = orden.pedido?.id?.slice(-5).toUpperCase() || orden.pedidoId?.slice(-5).toUpperCase() || (orden as any).codigoPedido || 'OP';
   const clienteNombre = orden.pedido?.cliente?.nombre || (orden as any).cliente?.nombre || 'PRODUCCIÓN INTERNA';
@@ -353,6 +392,22 @@ export function FilaProduccionHorizontal({
             <strong className="text-slate-700 dark:text-slate-300">{formatNumber(Number(orden.merma), { minDecimals: 1, maxDecimals: 2 })} KG</strong>
           </div>
         ) : null}
+
+        {/* Badge dinámico de balance WIP en Extrusión cuando corre en paralelo con Sellado */}
+        {areaId === 'EXTRUSION' && estaEnParalelo && (
+          <div className="mt-2 px-3 py-1.5 rounded-xl bg-blue-50 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-900 flex items-center justify-between text-xs">
+            <div className="flex items-center gap-1.5 font-bold text-blue-700 dark:text-blue-300">
+              <span className="w-2 h-2 rounded-full bg-blue-600 animate-pulse shrink-0"/>
+              <span>Bobina en Piso Disponible (WIP):</span>
+              <span className="text-slate-900 dark:text-white font-black">
+                {bobinaDisponibleKg.toLocaleString('es-VE', { minimumFractionDigits: 1, maximumFractionDigits: 2 })} KG
+              </span>
+            </div>
+            <div className="text-[11px] text-slate-500 dark:text-slate-400 font-medium">
+              Consumido por Sellado: <strong className="text-slate-700 dark:text-slate-300">{totalConsumidoSelladoKg.toFixed(1)} KG</strong>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* 3. BOTONES DE ACCIÓN HORIZONTALES */}
@@ -483,6 +538,8 @@ export function ProduccionContent() {
   // Filtros rápidos en vivo
   const [busqueda, setBusqueda] = useState('');
   const [maquinaFiltro, setMaquinaFiltro] = useState('TODAS');
+  const [ordenAFinalizar, setOrdenAFinalizar] = useState<Produccion | null>(null);
+  const [showModalFinalizarSellado, setShowModalFinalizarSellado] = useState(false);
 
   // Estado de acordeones con persistencia en localStorage
   const [areasAbiertas, setAreasAbiertas] = useState<Record<string, boolean>>(ESTADO_DEFAULT_AREAS);
@@ -890,6 +947,42 @@ export function ProduccionContent() {
       });
     } catch (error: any) {
       console.error('Error:', error);
+      toast({
+        title: "Error",
+        description: error?.message || "Error al finalizar el pedido",
+        variant: "destructive",
+      });
+    } finally {
+      setIsAvanzandoId(null);
+    }
+  };
+
+  const handleOpenFinalizarSellado = (prod: Produccion) => {
+    setOrdenAFinalizar(prod);
+    setShowModalFinalizarSellado(true);
+  };
+
+  const handleConfirmarFinalizarSellado = async (destino: 'MOLIENDA' | 'ALMACEN_BOBINA', sobranteKg: number) => {
+    if (!ordenAFinalizar) return;
+    try {
+      setIsAvanzandoId(ordenAFinalizar.id);
+      const res = await finalizarFaseSelladoConDestino(ordenAFinalizar.id, destino, sobranteKg);
+      if (res.success) {
+        toast({
+          title: "Fase de Sellado Finalizada",
+          description: res.message || "La orden de sellado fue finalizada y la máquina liberada exitosamente.",
+        });
+        await fetchProducciones();
+        router.refresh();
+      } else {
+        toast({
+          title: "Error",
+          description: res.error || "No se pudo finalizar la fase.",
+          variant: "destructive",
+        });
+      }
+    } catch (error: any) {
+      console.error('Error al finalizar sellado:', error);
       toast({
         title: "Error",
         description: error?.message || "Error al finalizar el pedido",
@@ -1451,7 +1544,7 @@ export function ProduccionContent() {
                           handleAbrirModalConsumoMP={setOrdenDetalleMP}
                           handleAvanzarFase={handleOpenAvanzarModal}
                           handleFinalizarExtrusion={handleFinalizarExtrusion}
-                          handleFinalizarSellado={handleFinalizar}
+                          handleFinalizarSellado={handleOpenFinalizarSellado}
                           handleEliminarOrden={handleEliminarOrden}
                           handleConfirmarEliminacionFase={handleConfirmarEliminacionFase}
                           faseParalela={producciones.find(
@@ -2286,6 +2379,17 @@ export function ProduccionContent() {
           </div>
         )}
       </AnimatePresence>
+
+      {/* Modal Finalizar Sellado con Destino de Sobrante */}
+      <ModalFinalizarSellado
+        isOpen={showModalFinalizarSellado}
+        orden={ordenAFinalizar}
+        onClose={() => {
+          setShowModalFinalizarSellado(false);
+          setOrdenAFinalizar(null);
+        }}
+        onConfirm={handleConfirmarFinalizarSellado}
+      />
 
       {/* Modal Detalle de Consumo de Materia Prima y Sacas */}
       {ordenDetalleMP && (
