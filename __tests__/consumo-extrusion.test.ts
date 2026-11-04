@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import { resolverConsumoExtrusion } from '@/lib/consumo-extrusion-logic';
+import { resolverConsumoExtrusion } from '../lib/consumo-extrusion-logic';
 
 describe('resolverConsumoExtrusion - Regla Real de Planta (Base 100% Virgen + Añadidura Peletizado)', () => {
   it('calcula resinas vírgenes sobre el 100% de kgProducidos sin restar el peletizado (200 kg -> 140 kg 3003, 60 kg Lineal, 20 kg Peletizado)', async () => {
@@ -57,5 +57,65 @@ describe('resolverConsumoExtrusion - Regla Real de Planta (Base 100% Virgen + A�
     const adDesl = resultado?.aditivos.find((a) => a.label === 'Deslizante');
     expect(adDesl?.kg).toBeCloseTo(4, 4);
   });
-});
+  it('calcula correctamente dosificación en KILOGRAMOS para tanda compuesta (Cestera 100 kg molido + 50 kg 3003 en 150 kg producidos)', async () => {
+    const mockTx = {
+      inventario: {
+        findUnique: vi.fn().mockImplementation(async ({ where }: any) => {
+          if (where.id === 'pel-alta-id') {
+            return {
+              id: 'pel-alta-id',
+              codigo: 'MOL-ALTA',
+              nombre: 'Peletizado Transparente Alta',
+              categoria: 'Peletizado',
+              cantidad: 1000,
+            };
+          }
+          if (where.id === 'res-3003-id') {
+            return {
+              id: 'res-3003-id',
+              codigo: 'MP-3003',
+              nombre: 'Polietileno de baja densidad 3003',
+              categoria: 'MateriaPrima',
+              cantidad: 5000,
+            };
+          }
+          return null;
+        }),
+        findFirst: vi.fn().mockImplementation(async ({ where }: any) => {
+          const str = JSON.stringify(where).toLowerCase();
+          if (str.includes('3003')) {
+            return { id: 'res-3003-id', codigo: 'MP-3003', nombre: 'Polietileno de baja densidad 3003', categoria: 'MateriaPrima' };
+          }
+          return null;
+        }),
+      },
+    };
 
+    const formulacion = {
+      tipoDosificacionMolido: 'KILOGRAMOS' as const,
+      peletizadoId: 'pel-alta-id',
+      peletizadoKgPor100: 100,
+      llevaResinaEnMolido: true,
+      resinaMolidoId: 'res-3003-id',
+      resinaMolidoKgPor100: 50,
+      form3003: 50, // 50% virgen base
+    };
+
+    const resultado = await resolverConsumoExtrusion(mockTx, formulacion, 150);
+
+    expect(resultado).not.toBeNull();
+    // Tanda = 100 + 50 = 150 kg
+    // Peletizado: 150 * (100 / 150) = 100 kg (4.0 sacas)
+    expect(resultado?.peletizado?.kg).toBeCloseTo(100, 2);
+    expect((resultado?.peletizado?.kg || 0) / 25).toBeCloseTo(4.0, 2);
+
+    // 3003 extra de corte: 150 * (50 / 150) = 50 kg (2.0 sacas)
+    expect(resultado?.resinaMolidoExtra?.kg).toBeCloseTo(50, 2);
+    expect((resultado?.resinaMolidoExtra?.kg || 0) / 25).toBeCloseTo(2.0, 2);
+
+    // 3003 base (50% de 150 kg) = 75 kg
+    const r3003 = resultado?.resinasVirgenes.find((r) => r.label === '3003');
+    expect(r3003?.kg).toBeCloseTo(75, 2);
+    expect((r3003?.kg || 0) / 25).toBeCloseTo(3.0, 2);
+  });
+});

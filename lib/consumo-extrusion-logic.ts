@@ -96,14 +96,21 @@ export async function resolverConsumoExtrusion(
     const peletizadoPct = Number(formulacion.peletizadoPorcentaje) || 0;
     kgPeletizado = peletizadoPct > 0 ? round2(kgNetos * (peletizadoPct / 100)) : 0;
   } else {
-    // KILOGRAMOS directos por cada 100 KG producidos
-    const ratio = kgNetos / 100;
-    const kgPor100 = Number(formulacion.peletizadoKgPor100) || 0;
-    kgPeletizado = kgPor100 > 0 ? round2(ratio * kgPor100) : 0;
+    // KILOGRAMOS: la proporción se basa en el peso total de la tanda de mezcla
+    const kgMolidoConfig = Number(formulacion.peletizadoKgPor100) || 0;
+    const kgResinaExtraConfig = formulacion.llevaResinaEnMolido
+      ? Number(formulacion.resinaMolidoKgPor100) || 0
+      : 0;
 
-    // Resina virgen de enriquecimiento mezclada con el molido (ej. LDPE 3003 en Cestera)
-    if (formulacion.llevaResinaEnMolido && Number(formulacion.resinaMolidoKgPor100) > 0) {
-      kgResinaMolidoExtra = round2(ratio * Number(formulacion.resinaMolidoKgPor100));
+    const pesoTotalTanda = kgMolidoConfig + kgResinaExtraConfig;
+
+    if (pesoTotalTanda > 0) {
+      // Proporción exacta sobre los kilos producidos
+      kgPeletizado = round2(kgNetos * (kgMolidoConfig / pesoTotalTanda));
+      kgResinaMolidoExtra = round2(kgNetos * (kgResinaExtraConfig / pesoTotalTanda));
+    } else {
+      kgPeletizado = kgMolidoConfig;
+      kgResinaMolidoExtra = kgResinaExtraConfig;
     }
   }
 

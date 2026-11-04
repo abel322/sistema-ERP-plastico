@@ -32,6 +32,7 @@ export async function GET(
               include: {
                 peletizado: true,
                 resinaMolido: true,
+                formulacion: true,
               },
             },
           },
@@ -41,6 +42,7 @@ export async function GET(
             cliente: true,
             peletizado: true,
             resinaMolido: true,
+            formulacion: true,
           },
         },
         registros: {
@@ -54,6 +56,7 @@ export async function GET(
     }
 
     const productoCliente = produccion.pedido?.productoCliente || produccion.productoCliente;
+    const formulaObj = (productoCliente as any)?.formulacion || productoCliente;
     const cliente = produccion.pedido?.cliente || produccion.productoCliente?.cliente;
 
     // Consultar inventario actual de materias primas, peletizados y aditivos
@@ -112,11 +115,11 @@ export async function GET(
     const sacasMeta = metaKg / 25;
 
     // 3. Balance Peletizado / Molido
-    const tipoDosif = productoCliente?.tipoDosificacionMolido || 'PORCENTAJE';
-    const peletizadoPct = Number(productoCliente?.peletizadoPorcentaje) || 0;
-    const peletizadoKgPor100 = Number(productoCliente?.peletizadoKgPor100) || 0;
-    const llevaResinaEnMolido = Boolean(productoCliente?.llevaResinaEnMolido);
-    const resinaMolidoKgPor100 = Number(productoCliente?.resinaMolidoKgPor100) || 0;
+    const tipoDosif = formulaObj?.tipoDosificacionMolido || productoCliente?.tipoDosificacionMolido || 'PORCENTAJE';
+    const peletizadoPct = Number(formulaObj?.peletizadoPorcentaje ?? productoCliente?.peletizadoPorcentaje ?? 0);
+    const peletizadoKgPor100 = Number(formulaObj?.peletizadoKgPor100 ?? productoCliente?.peletizadoKgPor100 ?? 0);
+    const llevaResinaEnMolido = Boolean(formulaObj?.llevaResinaEnMolido ?? productoCliente?.llevaResinaEnMolido);
+    const resinaMolidoKgPor100 = Number(formulaObj?.resinaMolidoKgPor100 ?? productoCliente?.resinaMolidoKgPor100 ?? 0);
 
     let peletizadoInfo = null;
 
@@ -127,20 +130,27 @@ export async function GET(
 
     if (tipoDosif === 'PORCENTAJE') {
       if (peletizadoPct > 0) {
-        kgMolidoConsumido = kgProducidos * (peletizadoPct / 100);
-        kgMolidoFaltante = kgPendientes * (peletizadoPct / 100);
+        kgMolidoConsumido = Math.round((kgProducidos * (peletizadoPct / 100) + Number.EPSILON) * 100) / 100;
+        kgMolidoFaltante = Math.round((kgPendientes * (peletizadoPct / 100) + Number.EPSILON) * 100) / 100;
       }
     } else {
-      if (peletizadoKgPor100 > 0) {
-        const ratioProducido = kgProducidos / 100;
-        const ratioPendiente = kgPendientes / 100;
-        kgMolidoConsumido = ratioProducido * peletizadoKgPor100;
-        kgMolidoFaltante = ratioPendiente * peletizadoKgPor100;
+      // KILOGRAMOS: Proporción sobre el peso total de la tanda de mezcla
+      const kgResinaExtraConfig = llevaResinaEnMolido ? resinaMolidoKgPor100 : 0;
+      const pesoTotalTanda = peletizadoKgPor100 + kgResinaExtraConfig;
+
+      if (pesoTotalTanda > 0) {
+        kgMolidoConsumido = Math.round((kgProducidos * (peletizadoKgPor100 / pesoTotalTanda) + Number.EPSILON) * 100) / 100;
+        kgMolidoFaltante = Math.round((kgPendientes * (peletizadoKgPor100 / pesoTotalTanda) + Number.EPSILON) * 100) / 100;
 
         if (llevaResinaEnMolido && resinaMolidoKgPor100 > 0) {
-          kgResinaMolidoConsumido = ratioProducido * resinaMolidoKgPor100;
-          kgResinaMolidoFaltante = ratioPendiente * resinaMolidoKgPor100;
+          kgResinaMolidoConsumido = Math.round((kgProducidos * (resinaMolidoKgPor100 / pesoTotalTanda) + Number.EPSILON) * 100) / 100;
+          kgResinaMolidoFaltante = Math.round((kgPendientes * (resinaMolidoKgPor100 / pesoTotalTanda) + Number.EPSILON) * 100) / 100;
         }
+      } else {
+        kgMolidoConsumido = peletizadoKgPor100;
+        kgMolidoFaltante = 0;
+        kgResinaMolidoConsumido = kgResinaExtraConfig;
+        kgResinaMolidoFaltante = 0;
       }
     }
 
@@ -221,7 +231,7 @@ export async function GET(
     const resinasVirgenesInfo = [];
 
     for (const resina of RESINAS_VIRGENES_CONFIG) {
-      const pct = Number((productoCliente as any)?.[resina.key] ?? (productoCliente as any)?.[resina.altKey]) || 0;
+      const pct = Number((formulaObj as any)?.[resina.key] ?? (formulaObj as any)?.[resina.altKey] ?? (productoCliente as any)?.[resina.key] ?? (productoCliente as any)?.[resina.altKey]) || 0;
       if (pct > 0) {
         const factor = pct / 100;
         const kgConsumidoBase = baseVirgenActual * factor;
@@ -307,7 +317,7 @@ export async function GET(
     const aditivosInfo = [];
 
     for (const aditivo of ADITIVOS_CONFIG) {
-      const pct = Number((productoCliente as any)?.[aditivo.key] ?? (productoCliente as any)?.[aditivo.altKey]) || 0;
+      const pct = Number((formulaObj as any)?.[aditivo.key] ?? (formulaObj as any)?.[aditivo.altKey] ?? (productoCliente as any)?.[aditivo.key] ?? (productoCliente as any)?.[aditivo.altKey]) || 0;
       if (pct > 0) {
         const kgConsumido = kgProducidos * (pct / 100);
         const kgFaltante = kgPendientes * (pct / 100);

@@ -128,6 +128,7 @@ export async function recalcularHistoricoInventario() {
           productoCliente: {
             include: {
               peletizado: true,
+              formulacion: true,
             },
           },
         },
@@ -135,6 +136,7 @@ export async function recalcularHistoricoInventario() {
       productoCliente: {
         include: {
           peletizado: true,
+          formulacion: true,
         },
       },
       registros: {
@@ -218,8 +220,35 @@ export async function recalcularHistoricoInventario() {
 
         if (kgTurno <= 0) continue;
 
-        const pct = obtenerPorcentajeSegunMovimiento(mov, formula);
-        const nuevoConsumoKg = pct > 0 ? round2(kgTurno * (pct / 100)) : 0;
+        let nuevoConsumoKg = 0;
+        const formulaData = (formula as any).formulacion || formula;
+        const tipoDosif = formulaData.tipoDosificacionMolido || 'PORCENTAJE';
+        const esMolidoMov = mov.inventario?.categoria === CategoriaInventario.Peletizado ||
+          (mov.inventario?.nombre || '').toLowerCase().includes('peletizado') ||
+          (mov.inventario?.nombre || '').toLowerCase().includes('molido') ||
+          motivoLower.includes('consumo molido') ||
+          motivoLower.includes('consumo peletizado');
+        const esEnriquecimientoMov = motivoLower.includes('enriquecimiento');
+
+        if (tipoDosif === 'KILOGRAMOS' && (esMolidoMov || esEnriquecimientoMov)) {
+          const kgMolidoConfig = Number(formulaData.peletizadoKgPor100 || 0);
+          const llevaResina = Boolean(formulaData.llevaResinaEnMolido);
+          const kgResinaExtraConfig = llevaResina ? Number(formulaData.resinaMolidoKgPor100 || 0) : 0;
+          const pesoTotalTanda = kgMolidoConfig + kgResinaExtraConfig;
+
+          if (pesoTotalTanda > 0) {
+            if (esMolidoMov) {
+              nuevoConsumoKg = round2(kgTurno * (kgMolidoConfig / pesoTotalTanda));
+            } else if (esEnriquecimientoMov) {
+              nuevoConsumoKg = round2(kgTurno * (kgResinaExtraConfig / pesoTotalTanda));
+            }
+          } else {
+            nuevoConsumoKg = esMolidoMov ? kgMolidoConfig : kgResinaExtraConfig;
+          }
+        } else {
+          const pct = obtenerPorcentajeSegunMovimiento(mov, formulaData);
+          nuevoConsumoKg = pct > 0 ? round2(kgTurno * (pct / 100)) : 0;
+        }
 
         if (nuevoConsumoKg > 0) {
           procesadosIds.add(mov.id);
