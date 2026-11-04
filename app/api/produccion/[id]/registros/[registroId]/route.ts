@@ -4,7 +4,7 @@ import { revalidatePath } from 'next/cache';
 import { prisma } from '@/lib/db';
 import { authOptions } from '@/lib/auth-options';
 import { calcularDesgloseMerma, aplicarMermaAInventario, revertirMermaDeInventario } from '@/lib/merma-logic';
-import { resolverConsumoExtrusion, aplicarConsumoExtrusion, revertirConsumoExtrusion } from '@/lib/consumo-extrusion-logic';
+import { resolverConsumoExtrusion, aplicarConsumoExtrusion, revertirConsumoExtrusion, revertirSalidasTurnoExtrusion } from '@/lib/consumo-extrusion-logic';
 import { calcularConsumoBobinaSellado } from '@/lib/consumo-sellado-logic';
 import { parseLocalDateToMiddayUTC } from '@/lib/utils/dates';
 
@@ -54,19 +54,19 @@ export async function PUT(
         const desglose = calcularDesgloseMerma(body);
 
         const registroActualizado = await prisma.$transaction(async (tx) => {
-            // Revertir consumo de Extrusión previo de este registro
+            // Revertir consumo de Extrusión previo de este registro de forma blindada
             if (produccionExistente.area === 'Extrusion' && registroExistente.cantidad > 0) {
-                const formulacionProd = produccionExistente.pedido?.productoCliente || produccionExistente.productoCliente;
-                const consumoPrevio = await resolverConsumoExtrusion(tx, formulacionProd, registroExistente.cantidad);
-                if (consumoPrevio) {
-                    await revertirConsumoExtrusion(tx, {
-                        consumo: consumoPrevio,
-                        loteCodigo: produccionExistente.codigoLote || produccionExistente.id.slice(0, 8).toUpperCase(),
-                        turno: registroExistente.turno,
-                        responsable: operario || registroExistente.operario,
-                        accion: 'Edición',
-                    });
-                }
+                const prodCli = produccionExistente.pedido?.productoCliente || produccionExistente.productoCliente;
+                const formula = (prodCli as any)?.formulacion || prodCli;
+                await revertirSalidasTurnoExtrusion(tx, {
+                    loteCodigo: produccionExistente.codigoLote || produccionExistente.id.slice(0, 8).toUpperCase(),
+                    turno: registroExistente.turno,
+                    responsable: operario || registroExistente.operario || 'Sistema',
+                    accion: 'Edición',
+                    registroFecha: registroExistente.createdAt,
+                    formula,
+                    kgTurno: registroExistente.cantidad,
+                });
             }
 
             // Revertir consumo de bobina WIP en Sellado si es Sellado
@@ -74,14 +74,14 @@ export async function PUT(
                 let previo = null;
                 if (produccionExistente.loteOrigen) {
                     previo = await tx.productoTerminado.findFirst({
-                        where: { lote: produccionExistente.loteOrigen },
+                        where: { codigoLote: produccionExistente.loteOrigen },
                     });
                 }
                 if (!previo && produccionExistente.pedidoId) {
                     previo = await tx.productoTerminado.findFirst({
                         where: {
                             pedidoId: produccionExistente.pedidoId,
-                            area: 'Extrusion',
+                            areaOrigen: 'Extrusion',
                         },
                         orderBy: { createdAt: 'desc' },
                     });
@@ -89,7 +89,11 @@ export async function PUT(
 
                 if (previo) {
                     const prodSpec = produccionExistente.pedido?.productoCliente || produccionExistente.productoCliente;
-                    const prevConsumo = calcularConsumoBobinaSellado(prodSpec, registroExistente.cantidad, registroExistente.merma || 0);
+                    const prevConsumo = calcularConsumoBobinaSellado({
+                        productoCliente: prodSpec,
+                        cantidadBolsas: registroExistente.cantidad,
+                        mermaTotal: registroExistente.merma || 0,
+                    });
                     if (prevConsumo.kgTotalConsumido > 0) {
                         await tx.productoTerminado.update({
                             where: { id: previo.id },
@@ -195,14 +199,14 @@ export async function PUT(
                     let previo = null;
                     if (produccionExistente.loteOrigen) {
                         previo = await tx.productoTerminado.findFirst({
-                            where: { lote: produccionExistente.loteOrigen },
+                            where: { codigoLote: produccionExistente.loteOrigen },
                         });
                     }
                     if (!previo && produccionExistente.pedidoId) {
                         previo = await tx.productoTerminado.findFirst({
                             where: {
                                 pedidoId: produccionExistente.pedidoId,
-                                area: 'Extrusion',
+                                areaOrigen: 'Extrusion',
                             },
                             orderBy: { createdAt: 'desc' },
                         });
@@ -210,7 +214,11 @@ export async function PUT(
 
                     if (previo) {
                         const prodSpec = produccionExistente.pedido?.productoCliente || produccionExistente.productoCliente;
-                        const nuevoConsumo = calcularConsumoBobinaSellado(prodSpec, nuevaCantidad, desglose.mermaTotal);
+                        const nuevoConsumo = calcularConsumoBobinaSellado({
+                            productoCliente: prodSpec,
+                            cantidadBolsas: nuevaCantidad,
+                            mermaTotal: desglose.mermaTotal,
+                        });
                         if (nuevoConsumo.kgTotalConsumido > 0) {
                             const disponibleActual = previo.cantidadDisponible;
                             if (nuevoConsumo.kgTotalConsumido > (disponibleActual * 1.05)) {
@@ -293,6 +301,10 @@ export async function DELETE(
             },
         });
 
+        if (!produccionExistente) {
+            return NextResponse.json({ error: 'Producción no encontrada' }, { status: 404 });
+        }
+
         const registroExistente = await prisma.registroProduccion.findUnique({
             where: { id: registroId },
         });
@@ -302,19 +314,19 @@ export async function DELETE(
         }
 
         await prisma.$transaction(async (tx) => {
-            // Revertir consumo de Extrusión de este registro al eliminar
+            // Revertir consumo de Extrusión de este registro al eliminar de forma blindada
             if (produccionExistente && produccionExistente.area === 'Extrusion' && registroExistente.cantidad > 0) {
-                const formulacionProd = produccionExistente.pedido?.productoCliente || produccionExistente.productoCliente;
-                const consumoAEliminar = await resolverConsumoExtrusion(tx, formulacionProd, registroExistente.cantidad);
-                if (consumoAEliminar) {
-                    await revertirConsumoExtrusion(tx, {
-                        consumo: consumoAEliminar,
-                        loteCodigo: produccionExistente.codigoLote || produccionExistente.id.slice(0, 8).toUpperCase(),
-                        turno: registroExistente.turno,
-                        responsable: (session.user as any)?.name || registroExistente.operario || 'Sistema',
-                        accion: 'Eliminación',
-                    });
-                }
+                const prodCli = produccionExistente.pedido?.productoCliente || produccionExistente.productoCliente;
+                const formula = (prodCli as any)?.formulacion || prodCli;
+                await revertirSalidasTurnoExtrusion(tx, {
+                    loteCodigo: produccionExistente.codigoLote || produccionExistente.id.slice(0, 8).toUpperCase(),
+                    turno: registroExistente.turno,
+                    responsable: (session.user as any)?.name || registroExistente.operario || 'Sistema',
+                    accion: 'Eliminación',
+                    registroFecha: registroExistente.createdAt,
+                    formula,
+                    kgTurno: registroExistente.cantidad,
+                });
             }
 
             // Revertir consumo de bobina WIP en Sellado al eliminar
@@ -322,14 +334,14 @@ export async function DELETE(
                 let previo = null;
                 if (produccionExistente.loteOrigen) {
                     previo = await tx.productoTerminado.findFirst({
-                        where: { lote: produccionExistente.loteOrigen },
+                        where: { codigoLote: produccionExistente.loteOrigen },
                     });
                 }
                 if (!previo && produccionExistente.pedidoId) {
                     previo = await tx.productoTerminado.findFirst({
                         where: {
                             pedidoId: produccionExistente.pedidoId,
-                            area: 'Extrusion',
+                            areaOrigen: 'Extrusion',
                         },
                         orderBy: { createdAt: 'desc' },
                     });
@@ -337,7 +349,11 @@ export async function DELETE(
 
                 if (previo) {
                     const prodSpec = produccionExistente.pedido?.productoCliente || produccionExistente.productoCliente;
-                    const consumoAEliminar = calcularConsumoBobinaSellado(prodSpec, registroExistente.cantidad, registroExistente.merma || 0);
+                    const consumoAEliminar = calcularConsumoBobinaSellado({
+                        productoCliente: prodSpec,
+                        cantidadBolsas: registroExistente.cantidad,
+                        mermaTotal: registroExistente.merma || 0,
+                    });
                     if (consumoAEliminar.kgTotalConsumido > 0) {
                         await tx.productoTerminado.update({
                             where: { id: previo.id },

@@ -419,6 +419,27 @@ export async function revertirConsumoExtrusion(
     });
   }
 
+  // 1.B Resina Virgen de Enriquecimiento para mezcla de molido (ej. LDPE 3003)
+  if (consumo.resinaMolidoExtra && consumo.resinaMolidoExtra.kg > 0) {
+    await tx.inventario.update({
+      where: { id: consumo.resinaMolidoExtra.inventarioId },
+      data: {
+        cantidad: { increment: consumo.resinaMolidoExtra.kg },
+      },
+    });
+
+    await tx.movimientoInventario.create({
+      data: {
+        inventarioId: consumo.resinaMolidoExtra.inventarioId,
+        tipo: TipoMovimiento.Entrada,
+        cantidad: consumo.resinaMolidoExtra.kg,
+        motivo: `Reversión Consumo ${consumo.resinaMolidoExtra.nombre || '3003'} (Enriquecimiento mezcla de molido) por ${accion} en Extrusión - Lote ${loteCodigo} (Turno ${turno})`,
+        referencia: loteCodigo,
+        responsable: responsable || 'Sistema',
+      },
+    });
+  }
+
   // 2. Resinas Vírgenes
   for (const resina of consumo.resinasVirgenes) {
     if (resina.kg > 0) {
@@ -464,4 +485,92 @@ export async function revertirConsumoExtrusion(
       });
     }
   }
+}
+
+
+/**
+ * Revierte de manera exacta y blindada todas las salidas de inventario
+ * generadas para un lote y turno específico.
+ * Estrategia 1: Busca directamente los movimientos de salida creados para el lote y turno
+ * y genera una entrada inversa 1 a 1 por cada salida encontrada.
+ * Estrategia 2: Fallback por formulación si no se localizaron salidas previas por timestamp.
+ */
+export async function revertirSalidasTurnoExtrusion(
+  tx: any,
+  params: {
+    loteCodigo: string;
+    turno: string;
+    responsable: string;
+    accion?: 'Edición' | 'Eliminación';
+    registroFecha?: Date;
+    formula?: FormulacionConsumo | null;
+    kgTurno?: number;
+  }
+) {
+  const { loteCodigo, turno, responsable, accion = 'Eliminación', registroFecha, formula, kgTurno } = params;
+
+  // ESTRATEGIA 1: Buscar directamente todas las salidas generadas por este lote y turno
+  const orFilters: any[] = [
+    { referencia: loteCodigo },
+    { motivo: { contains: loteCodigo } },
+  ];
+
+  const salidasDelTurno = await tx.movimientoInventario.findMany({
+    where: {
+      tipo: TipoMovimiento.Salida,
+      OR: orFilters,
+      motivo: { contains: `(Turno ${turno})` },
+      ...(registroFecha ? {
+        createdAt: {
+          gte: new Date(registroFecha.getTime() - 15 * 60 * 1000),
+          lte: new Date(registroFecha.getTime() + 15 * 60 * 1000),
+        },
+      } : {}),
+    },
+    include: {
+      inventario: true,
+    },
+    orderBy: { createdAt: 'asc' },
+  });
+
+  if (salidasDelTurno.length > 0) {
+    for (const salida of salidasDelTurno) {
+      const kgReversion = Math.abs(Number(salida.cantidad));
+      if (salida.inventarioId && kgReversion > 0) {
+        await tx.inventario.update({
+          where: { id: salida.inventarioId },
+          data: { cantidad: { increment: kgReversion } },
+        });
+
+        await tx.movimientoInventario.create({
+          data: {
+            inventarioId: salida.inventarioId,
+            tipo: TipoMovimiento.Entrada,
+            cantidad: kgReversion,
+            motivo: `Reversión ${salida.motivo ? salida.motivo.replace('Consumo ', '') : 'Materia Prima'} por ${accion} en Extrusión`,
+            referencia: loteCodigo,
+            responsable: responsable || 'Sistema',
+          },
+        });
+      }
+    }
+    return { modo: 'salidas_directas', count: salidasDelTurno.length };
+  }
+
+  // ESTRATEGIA 2: Fallback por cálculo completo si no se encontraron salidas directas
+  if (formula && (kgTurno || 0) > 0) {
+    const consumoCalculado = await resolverConsumoExtrusion(tx, formula, kgTurno || 0);
+    if (consumoCalculado) {
+      await revertirConsumoExtrusion(tx, {
+        consumo: consumoCalculado,
+        loteCodigo,
+        turno,
+        responsable,
+        accion,
+      });
+      return { modo: 'calculo_formula', count: 1 };
+    }
+  }
+
+  return { modo: 'ninguno', count: 0 };
 }

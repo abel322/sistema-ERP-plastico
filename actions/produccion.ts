@@ -1,9 +1,10 @@
 'use server';
 
-import { AreaProduccion, EstadoMaquina, EstadoProduccion, Turno } from '@prisma/client';
+import { AreaProduccion, EstadoMaquina, EstadoProduccion, TipoMovimiento, Turno } from '@prisma/client';
 import { prisma } from '@/lib/db';
 import { revalidatePath } from 'next/cache';
-import { resolverConsumoExtrusion, aplicarConsumoExtrusion } from '@/lib/consumo-extrusion-logic';
+import { resolverConsumoExtrusion, aplicarConsumoExtrusion, revertirConsumoExtrusion, revertirSalidasTurnoExtrusion } from '@/lib/consumo-extrusion-logic';
+import { revertirMermaDeInventario } from '@/lib/merma-logic';
 
 export async function eliminarORevertirFaseSellado(ordenId: string, loteSelladoCodigo?: string) {
   try {
@@ -677,5 +678,144 @@ export async function crearRegistroSellado(params: {
   } catch (error: any) {
     console.error('Error al crear registro de sellado:', error);
     return { success: false, error: error.message || 'Error al crear registro' };
+  }
+}
+
+
+/**
+ * Elimina un registro de turno de extrusión de forma blindada,
+ * revirtiendo al 100% todos los consumos de materias primas (incluyendo
+ * resina adicional de corte/enriquecimiento como LDPE 3003) mediante
+ * búsqueda directa 1-a-1 de las salidas generadas, o fallback por fórmula.
+ */
+export async function eliminarRegistroExtrusion(registroId: string) {
+  try {
+    const registro = await prisma.registroProduccion.findUnique({
+      where: { id: registroId },
+      include: {
+        produccion: {
+          include: {
+            pedido: {
+              include: {
+                productoCliente: {
+                  include: {
+                    peletizado: true,
+                    resinaMolido: true,
+                    formulacion: true,
+                  },
+                },
+              },
+            },
+            productoCliente: {
+              include: {
+                peletizado: true,
+                resinaMolido: true,
+                formulacion: true,
+              },
+            },
+            productoTerminado: true,
+          },
+        },
+      },
+    });
+
+    if (!registro) {
+      return { success: false, error: 'Registro de turno no encontrado.' };
+    }
+
+    const { produccion } = registro;
+    const loteCodigo = produccion.codigoLote || produccion.id.slice(0, 8).toUpperCase();
+    const turnoNombre = registro.turno || 'UNICO';
+    const kgTurno = Number(registro.cantidad || 0);
+    const prodCli = produccion.pedido?.productoCliente || produccion.productoCliente;
+    const formula = (prodCli as any)?.formulacion || prodCli;
+
+    await prisma.$transaction(async (tx) => {
+      // 1. Revertir consumos de Extrusión (Estrategia 1: salidas directas 1 a 1; Estrategia 2: cálculo completo)
+      if (produccion.area === 'Extrusion' && kgTurno > 0) {
+        await revertirSalidasTurnoExtrusion(tx, {
+          loteCodigo,
+          turno: turnoNombre,
+          responsable: registro.operario || 'Sistema',
+          accion: 'Eliminación',
+          registroFecha: registro.createdAt,
+          formula,
+          kgTurno,
+        });
+      }
+
+      // 2. Revertir merma del inventario si había sido sumada
+      if (registro.mermaInventarioSumada) {
+        await revertirMermaDeInventario(tx, registro, {
+          area: produccion.area,
+          ordenId: produccion.id,
+          codigoLote: produccion.codigoLote,
+          responsable: registro.operario || 'Admin',
+        });
+      }
+
+      // 3. Eliminar el registro del turno
+      await tx.registroProduccion.delete({
+        where: { id: registroId },
+      });
+
+      // 4. Recalcular acumulados en la orden de producción
+      const todosRegistros = await tx.registroProduccion.findMany({
+        where: { produccionId: produccion.id },
+      });
+
+      const totalCantidad = todosRegistros.reduce((sum, r) => sum + r.cantidad, 0);
+      const totalMerma = todosRegistros.reduce((sum, r) => sum + (r.merma || 0), 0);
+      const totalMermaAlta = todosRegistros.reduce((sum, r) => sum + ((r as any).mermaTransparenteAlta || (r as any).mermaCristal || r.mermaSinImpresion || 0), 0);
+      const totalMermaPollo = todosRegistros.reduce((sum, r) => sum + ((r as any).mermaBlancoPollo || 0), 0);
+      const totalMermaColor = todosRegistros.reduce((sum, r) => sum + ((r as any).mermaColor || r.mermaImpreso || 0), 0);
+      const totalMermaBaja = todosRegistros.reduce((sum, r) => sum + ((r as any).mermaTransparenteBaja || 0), 0);
+      const totalMermaPego = todosRegistros.reduce((sum, r) => sum + ((r as any).mermaBlancoPego || 0), 0);
+
+      await tx.produccion.update({
+        where: { id: produccion.id },
+        data: {
+          cantidadProducida: totalCantidad,
+          merma: totalMerma,
+          mermaTransparenteAlta: totalMermaAlta,
+          mermaBlancoPollo: totalMermaPollo,
+          mermaColor: totalMermaColor,
+          mermaTransparenteBaja: totalMermaBaja,
+          mermaBlancoPego: totalMermaPego,
+          mermaCristal: totalMermaAlta,
+        },
+      });
+
+      // 5. Actualizar producto terminado si existe
+      if (produccion.productoTerminado) {
+        if (produccion.area === 'Extrusion') {
+          await tx.productoTerminado.update({
+            where: { id: produccion.productoTerminado.id },
+            data: {
+              cantidadTotal: totalCantidad,
+              cantidadDisponible: { increment: -kgTurno },
+            },
+          });
+        } else {
+          await tx.productoTerminado.update({
+            where: { id: produccion.productoTerminado.id },
+            data: {
+              cantidadTotal: totalCantidad,
+              cantidadDisponible: totalCantidad,
+            },
+          });
+        }
+      }
+    });
+
+    revalidatePath('/produccion');
+    revalidatePath('/inventario');
+    revalidatePath('/inventario/movimientos');
+    revalidatePath('/produccion/historial');
+
+    return { success: true, message: 'Turno eliminado y consumos revertidos al 100%.' };
+  } catch (error: any) {
+    console.error('Error al eliminar turno de extrusión:', error);
+    return { success: false, error: error.message };
   }
 }

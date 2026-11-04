@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import { resolverConsumoExtrusion } from '../lib/consumo-extrusion-logic';
+import { resolverConsumoExtrusion, revertirConsumoExtrusion, revertirSalidasTurnoExtrusion } from '../lib/consumo-extrusion-logic';
 
 describe('resolverConsumoExtrusion - Regla Real de Planta (Base 100% Virgen + Añadidura Peletizado)', () => {
   it('calcula resinas vírgenes sobre el 100% de kgProducidos sin restar el peletizado (200 kg -> 140 kg 3003, 60 kg Lineal, 20 kg Peletizado)', async () => {
@@ -117,5 +117,78 @@ describe('resolverConsumoExtrusion - Regla Real de Planta (Base 100% Virgen + A�
     const r3003 = resultado?.resinasVirgenes.find((r) => r.label === '3003');
     expect(r3003?.kg).toBeCloseTo(75, 2);
     expect((r3003?.kg || 0) / 25).toBeCloseTo(3.0, 2);
+  });
+  it('revertirConsumoExtrusion incluye la reversión de resinaMolidoExtra (3003 de corte/enriquecimiento)', async () => {
+    const movimientosCreados: any[] = [];
+    const stockActualizado: any[] = [];
+
+    const mockTx = {
+      inventario: {
+        update: vi.fn().mockImplementation(async ({ where, data }: any) => {
+          stockActualizado.push({ id: where.id, increment: data.cantidad?.increment });
+          return { id: where.id };
+        }),
+      },
+      movimientoInventario: {
+        create: vi.fn().mockImplementation(async ({ data }: any) => {
+          movimientosCreados.push(data);
+          return { id: 'mov-' + movimientosCreados.length, ...data };
+        }),
+      },
+    };
+
+    const consumo = {
+      peletizado: {
+        inventarioId: 'pel-id',
+        nombre: 'Peletizado Transparente Alta',
+        label: 'Peletizado',
+        kg: 100,
+      },
+      resinaMolidoExtra: {
+        inventarioId: '3003-extra-id',
+        nombre: 'Polietileno de baja densidad 3003',
+        label: '3003 Extra Mezcla',
+        kg: 50,
+        esExtraMezcla: true,
+      },
+      resinasVirgenes: [
+        {
+          inventarioId: '3003-base-id',
+          nombre: '3003 Base',
+          label: '3003',
+          kg: 75,
+        },
+      ],
+      aditivos: [],
+    };
+
+    await revertirConsumoExtrusion(mockTx, {
+      consumo,
+      loteCodigo: 'EXT-TEST-001',
+      turno: 'Manana',
+      responsable: 'Tester',
+      accion: 'Eliminación',
+    });
+
+    // Se deben generar 3 entradas: Peletizado, 3003 Extra y 3003 Base
+    expect(movimientosCreados.length).toBe(3);
+
+    const movPel = movimientosCreados.find((m) => m.inventarioId === 'pel-id');
+    const movExtra = movimientosCreados.find((m) => m.inventarioId === '3003-extra-id');
+    const movBase = movimientosCreados.find((m) => m.inventarioId === '3003-base-id');
+
+    expect(movPel?.cantidad).toBe(100);
+    expect(movPel?.tipo).toBe('Entrada');
+
+    expect(movExtra?.cantidad).toBe(50);
+    expect(movExtra?.tipo).toBe('Entrada');
+    expect(movExtra?.motivo).toContain('Enriquecimiento');
+
+    expect(movBase?.cantidad).toBe(75);
+    expect(movBase?.tipo).toBe('Entrada');
+
+    // Comprobar que en stock se reintegraron los 50 kg de resina extra
+    const stockExtra = stockActualizado.find((s) => s.id === '3003-extra-id');
+    expect(stockExtra?.increment).toBe(50);
   });
 });

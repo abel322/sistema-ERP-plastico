@@ -6,4 +6,5 @@ export {
   descontarConsumoExtrusionTurno,
   finalizarFaseSelladoConDestino,
   crearRegistroSellado,
+  eliminarRegistroExtrusion,
 } from '@/actions/produccion';
