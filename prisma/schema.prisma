@@ -587,6 +587,8 @@ model Formulacion {
   deslizante                  Float?                  @default(0)
   masterbachBlanco            Float?                  @default(0)
   masterbachNegro             Float?                  @default(0)
+  masterbachAzul              Float?                  @default(0)
+  masterbachAmarillo          Float?                  @default(0)
 
   updatedAt                   DateTime                @updatedAt
 }

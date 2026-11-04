@@ -299,6 +299,38 @@ export async function POST(
       }
     });
 
+    // Persistencia de Formulación para nuevo producto
+    const f = body.formulacion || body || {};
+    const formulacionPayload = {
+      tipoDosificacionMolido: f.tipoDosificacionMolido || body.tipoDosificacionMolido || 'PORCENTAJE',
+      peletizadoId: (f.peletizadoId && f.peletizadoId !== '') ? f.peletizadoId : (body.peletizadoId || null),
+      peletizadoPorcentaje: Number(f.peletizadoPorcentaje ?? body.peletizadoPorcentaje ?? body.molido ?? 0),
+      peletizadoKgPor100: Number(f.peletizadoKgPor100 ?? body.peletizadoKgPor100 ?? 0),
+      llevaResinaEnMolido: Boolean(f.llevaResinaEnMolido ?? body.llevaResinaEnMolido),
+      resinaMolidoId: (f.resinaMolidoId && f.resinaMolidoId !== '') ? f.resinaMolidoId : (body.resinaMolidoId || null),
+      resinaMolidoKgPor100: Number(f.resinaMolidoKgPor100 ?? body.resinaMolidoKgPor100 ?? 0),
+      p3003: Number(f.p3003 ?? body.form3003 ?? 0),
+      lineal: Number(f.lineal ?? body.formLineal ?? 0),
+      fb7000: Number(f.fb7000 ?? body.formFB7000 ?? 0),
+      p0240: Number(f.p0240 ?? body.form0240 ?? 0),
+      p0348: Number(f.p0348 ?? body.form0348 ?? 0),
+      p7000f: Number(f.p7000f ?? f.p7000F ?? body.form7000F ?? 0),
+      deslizante: Number(f.deslizante ?? body.formDeslizante ?? 0),
+      masterbachBlanco: Number(f.masterbachBlanco ?? body.formMasterbachBlanco ?? 0),
+      masterbachNegro: Number(f.masterbachNegro ?? body.formMasterbachNegro ?? 0),
+      masterbachAzul: Number(f.masterbachAzul ?? body.formMasterbachAzul ?? 0),
+      masterbachAmarillo: Number(f.masterbachAmarillo ?? body.formMasterbachAmarillo ?? 0),
+    };
+
+    await prisma.formulacion.upsert({
+      where: { productoId: producto.id },
+      create: {
+        productoId: producto.id,
+        ...formulacionPayload,
+      },
+      update: formulacionPayload,
+    });
+
     return NextResponse.json(producto, { status: 201 });
   } catch (error) {
     console.error('Error al crear producto:', error);
