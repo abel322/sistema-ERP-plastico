@@ -64,6 +64,14 @@ enum AreaProduccion {
   Refilado
 }
 
+enum AreaOperador {
+  EXTRUSION
+  SELLADO
+  IMPRESION
+  REFILADO
+  PELETIZADO
+}
+
 enum Turno {
   Manana
   Tarde
@@ -1411,3 +1419,14 @@ model SesionUsuario {
   @@index([fechaInicio])
   @@index([activa])
 }
+
+model Operador {
+  id        String       @id @default(cuid())
+  nombre    String       @unique
+  cedula    String?
+  area      AreaOperador @default(EXTRUSION)
+  activo    Boolean      @default(true)
+  createdAt DateTime     @default(now())
+  updatedAt DateTime     @updatedAt
+}
+

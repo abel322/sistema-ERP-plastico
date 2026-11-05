@@ -56,6 +56,16 @@ export async function GET(
   }
 }
 
+function normalizarTurno(t: any): any {
+  if (!t) return 'Dia12H';
+  const str = String(t).toLowerCase();
+  if (str.includes('dia') || str.includes('día')) return 'Dia12H';
+  if (str.includes('noche')) return 'Noche12H';
+  if (str.includes('manana') || str.includes('mañana')) return 'Manana';
+  if (str.includes('tarde')) return 'Tarde';
+  return 'Dia12H';
+}
+
 export async function POST(
   request: Request,
   { params }: { params: { id: string } }
@@ -210,7 +220,7 @@ export async function POST(
       const reg = await tx.registroProduccion.create({
         data: {
           produccionId: id,
-          turno,
+          turno: normalizarTurno(turno),
           fecha: parseLocalDateToMiddayUTC(fecha),
           operario,
           cantidad: cantidadTurno,

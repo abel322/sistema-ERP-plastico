@@ -11,6 +11,16 @@ import { parseLocalDateToMiddayUTC } from '@/lib/utils/dates';
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
 
+function normalizarTurno(t: any): any {
+    if (!t) return 'Dia12H';
+    const str = String(t).toLowerCase();
+    if (str.includes('dia') || str.includes('día')) return 'Dia12H';
+    if (str.includes('noche')) return 'Noche12H';
+    if (str.includes('manana') || str.includes('mañana')) return 'Manana';
+    if (str.includes('tarde')) return 'Tarde';
+    return 'Dia12H';
+}
+
 export async function PUT(
     request: Request,
     { params }: { params: { id: string; registroId: string } }
@@ -119,7 +129,7 @@ export async function PUT(
             const reg = await tx.registroProduccion.update({
                 where: { id: registroId },
                 data: {
-                    turno,
+                    turno: normalizarTurno(turno),
                     fecha: parseLocalDateToMiddayUTC(fecha),
                     operario,
                     cantidad: cantidad ? parseFloat(cantidad.toString()) : 0,

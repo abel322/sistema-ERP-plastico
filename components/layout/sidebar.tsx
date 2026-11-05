@@ -7,6 +7,7 @@ import { motion } from 'framer-motion';
 import {
   LayoutDashboard,
   Users,
+  Users2,
   FileText,
   UserCircle,
   LogOut,
@@ -45,11 +46,12 @@ export function Sidebar({ userRol, isOpen = false, onClose }: SidebarProps) {
 
   const menuItems = [
     { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
-    { name: 'Clientes', href: '/clientes', icon: Users },
+    { name: 'Clientes', href: '/clientes', icon: Users2 },
     { name: 'Pedidos', href: '/pedidos', icon: FileText },
     { name: 'Producción', href: '/produccion', icon: Factory },
     { name: 'Flujos', href: '/diagramas', icon: Workflow },
     { name: 'Máquinas', href: '/dashboard/maquinas', icon: Cpu },
+    { name: 'Operadores', href: '/operadores', icon: Users },
     { name: 'Producto Terminado', href: '/producto-terminado', icon: PackageCheck },
     { name: 'Despachos', href: '/despachos', icon: Truck },
     { name: 'Muestras', href: '/muestras', icon: TestTube2 },

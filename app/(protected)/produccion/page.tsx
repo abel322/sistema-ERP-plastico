@@ -33,6 +33,7 @@ import ModalDetalleConsumoMP from '@/components/produccion/ModalDetalleConsumoMP
 import { ModalFinalizarSellado } from '@/components/produccion/ModalFinalizarSellado';
 import { ModalUnificarOrdenes } from '@/components/produccion/ModalUnificarOrdenes';
 import { ModalAvanzarSelladoMultiLinea } from '@/components/produccion/ModalAvanzarSelladoMultiLinea';
+import { ModalRegistroTurno } from '@/components/produccion/ModalRegistroTurno';
 import { eliminarORevertirFaseSellado, eliminarOrdenProduccion, finalizarFaseSelladoConDestino } from '@/actions/produccion';
 import { formatNumber } from '@/lib/utils';
 import { calculateBagWeight, getPlasticDensity } from '@/lib/utils/bag-weight';
@@ -102,11 +103,8 @@ const AREAS_CONFIG = [
 ];
 
 const TURNOS = [
-  { value: 'Manana', label: 'Mañana (6-14h)' },
-  { value: 'Tarde', label: 'Tarde (14-22h)' },
-  { value: 'Noche', label: 'Noche (22-6h)' },
-  { value: 'Dia12H', label: 'Día 12H (6-18h)' },
-  { value: 'Noche12H', label: 'Noche 12H (18-6h)' },
+  { value: 'Día (12h)', label: 'Día (12 Horas)' },
+  { value: 'Noche (12h)', label: 'Noche (12 Horas)' },
 ];
 
 interface RegistroProduccion {
@@ -734,7 +732,7 @@ export function ProduccionContent() {
   });
 
   const [registroForm, setRegistroForm] = useState({
-    turno: 'Manana',
+    turno: 'Día (12h)',
     fecha: today,
     operario: '',
     cantidad: '',
@@ -1166,7 +1164,7 @@ export function ProduccionContent() {
 
   const resetRegistroForm = () => {
     setRegistroForm({
-      turno: 'Manana',
+      turno: 'Día (12h)',
       fecha: today,
       operario: '',
       cantidad: '',
@@ -2022,292 +2020,29 @@ export function ProduccionContent() {
         })()}
       </AnimatePresence>
 
-      {/* Modal Agregar Registro */}
-      <AnimatePresence>
-        {showRegistroModal && selectedProduccion && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-sm" onClick={() => setShowRegistroModal(false)}>
-            <motion.div
-              initial={{ opacity: 0, scale: 0.95, y: 20 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.95, y: 20 }}
-              onClick={(e: React.MouseEvent) => e.stopPropagation()}
-              className="w-full max-w-lg max-h-[90vh] overflow-y-auto rounded-[2.5rem] bg-white dark:bg-slate-900 p-8 shadow-2xl border border-slate-200 dark:border-slate-800 transition-colors"
-            >
-              <div className="flex items-center gap-4 mb-8">
-                <div className="w-12 h-12 bg-indigo-600 rounded-2xl flex items-center justify-center text-white shadow-lg">
-                  <ClipboardList className="w-6 h-6" />
-                </div>
-                <div>
-                  <h2 className="text-xl font-black text-slate-900 dark:text-white leading-tight">
-                    {isEditRegistro ? 'Editar Registro' : 'Añadir Registro'}
-                  </h2>
-                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">{getAreaLabel(selectedProduccion.area)}</p>
-                </div>
-              </div>
-
-              <form onSubmit={handleAgregarRegistro} className="space-y-6">
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">Turno</label>
-                    <select
-                      required
-                      value={registroForm.turno}
-                      onChange={(e) => setRegistroForm({ ...registroForm, turno: e.target.value })}
-                      className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl px-5 py-3 text-sm font-bold text-slate-700 dark:text-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none cursor-pointer"
-                    >
-                      {TURNOS.map((t) => (
-                        <option key={t.value} value={t.value}>{t.label}</option>
-                      ))}
-                    </select>
-                  </div>
-                  <div>
-                    <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">Día</label>
-                    <input
-                      type="date"
-                      required
-                      value={registroForm.fecha}
-                      onChange={(e) => setRegistroForm({ ...registroForm, fecha: e.target.value })}
-                      className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl px-5 py-3 text-sm font-bold text-slate-700 dark:text-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none transition-all"
-                    />
-                  </div>
-                </div>
-
-                <div>
-                  <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">Operario Responsable</label>
-                  <input
-                    type="text"
-                    required
-                    value={registroForm.operario}
-                    onChange={(e) => setRegistroForm({ ...registroForm, operario: e.target.value })}
-                    className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl px-5 py-3 text-sm font-bold text-slate-700 dark:text-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none transition-all"
-                  />
-                </div>
-
-                {/* Cantidad Producida */}
-                <div>
-                  <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">Cantidad Producida</label>
-                  <div className="relative">
-                    <input
-                      type="number"
-                      required
-                      min="0"
-                      step="0.01"
-                      value={registroForm.cantidad}
-                      onChange={(e) => setRegistroForm({ ...registroForm, cantidad: e.target.value })}
-                      className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl px-5 py-3 text-sm font-black text-slate-900 dark:text-white focus:ring-2 focus:ring-indigo-500 outline-none transition-all"
-                    />
-                    <span className="absolute right-5 top-1/2 -translate-y-1/2 text-[10px] font-black text-slate-400 uppercase">{selectedProduccion.unidad === 'Kilogramos' ? 'KG' : 'UND'}</span>
-                  </div>
-                </div>
-
-                {/* Clasificación Dinámica e Inteligente de Merma / Scrap */}
-                <div className="space-y-3 pt-1">
-                  <div className="flex items-center justify-between ml-1">
-                    <label className="text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest flex items-center gap-1.5">
-                      <span className="w-2 h-2 rounded-full bg-rose-500" />
-                      Clasificación de Merma / Scrap (kg)
-                    </label>
-                    <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">
-                      {camposMermaVisibles.length === 1
-                        ? '1 campo aplicable'
-                        : `${camposMermaVisibles.length} campos aplicables`}
-                    </span>
-                  </div>
-
-                  <div className={`grid grid-cols-1 ${camposMermaVisibles.length > 1 ? 'sm:grid-cols-2' : ''} gap-3`}>
-                    {camposMermaVisibles.map((item) => {
-                      const val = (registroForm as any)[item.key] || '';
-                      return (
-                        <div key={item.key} className="space-y-1">
-                          <label className="text-[10px] font-bold text-slate-600 dark:text-slate-300 flex items-center justify-between px-1">
-                            <span className="flex items-center gap-1.5">
-                              <span className={`w-2 h-2 rounded-full ${item.colorClass} shrink-0`} />
-                              <span className="font-semibold">{item.label}</span>
-                            </span>
-                            <span className="text-[9px] font-semibold text-slate-400 uppercase tracking-wider shrink-0 ml-1">
-                              {item.molidoBadge}
-                            </span>
-                          </label>
-                          <div className="relative">
-                            <input
-                              type="number"
-                              min="0"
-                              step="0.01"
-                              placeholder="0.00"
-                              value={val}
-                              onChange={(e) => setRegistroForm({ ...registroForm, [item.key]: e.target.value })}
-                              className={`w-full bg-slate-50 dark:bg-slate-800 border ${item.borderClass} rounded-2xl px-4 py-2.5 text-sm font-black text-slate-900 dark:text-white outline-none transition-all`}
-                            />
-                            <span className="absolute right-4 top-1/2 -translate-y-1/2 text-[10px] font-black text-slate-400 uppercase">KG</span>
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-
-                  {/* Totalizador en Vivo de Merma */}
-                  {(() => {
-                    const mTotalLive = camposMermaVisibles.reduce(
-                      (sum, c) => sum + (parseFloat((registroForm as any)[c.key] || '0') || 0),
-                      0
-                    );
-                    return (
-                      <div className="p-3 bg-slate-50 dark:bg-slate-800/60 rounded-xl border border-slate-100 dark:border-slate-800 flex items-center justify-between">
-                        <span className="font-bold text-slate-500 dark:text-slate-400 text-[10px] uppercase tracking-wider">
-                          Total Merma del Turno:
-                        </span>
-                        <span className="font-black text-rose-600 dark:text-rose-400 text-xs">
-                          {formatNumber(mTotalLive, { minDecimals: 2, maxDecimals: 2 })} KG
-                        </span>
-                      </div>
-                    );
-                  })()}
-                </div>
-
-                {/* Cálculo Dinámico de Bobina en Proceso (WIP) para Sellado */}
-                {(() => {
-                  if (selectedProduccion.area !== 'Sellado') return null;
-
-                  const prodCliente = selectedProduccion.pedido?.productoCliente || selectedProduccion.productoCliente;
-                  let pesoGramos = prodCliente?.pesoPorUnidad || 0;
-                  if (!pesoGramos && prodCliente?.ancho && prodCliente?.largo && prodCliente?.calibre) {
-                    const densidad = getPlasticDensity(prodCliente.material);
-                    pesoGramos = calculateBagWeight({
-                      tipoBolsa:
-                        prodCliente.anchoValvula && prodCliente.anchoValvula > 0
-                          ? 'valvula'
-                          : prodCliente.anchoFuelle && prodCliente.anchoFuelle > 0
-                          ? 'fuelle'
-                          : 'sencilla',
-                      ancho: prodCliente.ancho,
-                      largo: prodCliente.largo,
-                      calibre: prodCliente.calibre,
-                      fuelle: prodCliente.anchoFuelle,
-                      solapa: prodCliente.anchoSolapa,
-                      densidad,
-                    });
-                  }
-
-                  const bolsas = parseFloat(registroForm.cantidad || '0') || 0;
-                  const kgBolsas = pesoGramos > 0 ? (bolsas * pesoGramos) / 1000 : 0;
-                  const mTotalLive = camposMermaVisibles.reduce(
-                    (sum, c) => sum + (parseFloat((registroForm as any)[c.key] || '0') || 0),
-                    0
-                  );
-                  const kgConsumoTotal = kgBolsas + mTotalLive;
-                  const bobinaDisponible = selectedProduccion.stockPrevio?.cantidad ?? 0;
-                  const maxPermitido = bobinaDisponible * 1.05; // 5% de margen de tolerancia
-                  const saldoInsuficiente = kgConsumoTotal > maxPermitido;
-                  const saldoRestanteEstimado = Math.max(0, bobinaDisponible - kgConsumoTotal);
-
-                  return (
-                    <div className={`p-4 rounded-2xl border transition-all ${
-                      saldoInsuficiente
-                        ? 'bg-rose-50 dark:bg-rose-950/30 border-rose-300 dark:border-rose-900/60'
-                        : 'bg-indigo-50/60 dark:bg-indigo-950/20 border-indigo-100 dark:border-indigo-900/40'
-                    }`}>
-                      <div className="flex items-center justify-between mb-2">
-                        <span className="text-[10px] font-black uppercase tracking-wider text-slate-700 dark:text-slate-300">
-                          Equivalente Consumido de Bobina (WIP)
-                        </span>
-                        <span className={`text-xs font-black ${saldoInsuficiente ? 'text-rose-600 dark:text-rose-400' : 'text-indigo-600 dark:text-indigo-400'}`}>
-                          {formatNumber(kgConsumoTotal, { minDecimals: 2, maxDecimals: 2 })} KG
-                        </span>
-                      </div>
-
-                      <div className="text-[10px] font-medium text-slate-600 dark:text-slate-400 space-y-1">
-                        <div className="flex justify-between">
-                          <span>Bolsas producidas ({bolsas.toLocaleString('es-ES')} unds × {pesoGramos.toFixed(2)} g):</span>
-                          <span className="font-bold">{formatNumber(kgBolsas, { minDecimals: 2, maxDecimals: 2 })} kg</span>
-                        </div>
-                        <div className="flex justify-between">
-                          <span>Merma / Scrap de sellado:</span>
-                          <span className="font-bold">{formatNumber(mTotalLive, { minDecimals: 2, maxDecimals: 2 })} kg</span>
-                        </div>
-                        <div className="flex justify-between pt-1 border-t border-slate-200/60 dark:border-slate-800">
-                          <span>Bobina disponible en piso:</span>
-                          <span className="font-bold text-slate-800 dark:text-slate-200">{formatNumber(bobinaDisponible, { minDecimals: 2, maxDecimals: 2 })} kg</span>
-                        </div>
-                        {!saldoInsuficiente && (
-                          <div className="flex justify-between">
-                            <span>Saldo restante proyectado:</span>
-                            <span className="font-bold text-emerald-600 dark:text-emerald-400">{formatNumber(saldoRestanteEstimado, { minDecimals: 2, maxDecimals: 2 })} kg</span>
-                          </div>
-                        )}
-                      </div>
-
-                      {saldoInsuficiente && (
-                        <div className="mt-3 p-2.5 rounded-xl bg-rose-100 dark:bg-rose-900/40 text-rose-800 dark:text-rose-200 text-xs font-bold flex items-start gap-2">
-                          <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5 text-rose-600 dark:text-rose-400" />
-                          <span>
-                            No hay suficiente bobina en piso. Requerido: {kgConsumoTotal.toFixed(2)} kg. Disponible de Extrusión: {bobinaDisponible.toFixed(2)} kg. Extrusión debe registrar más bobinas antes de continuar.
-                          </span>
-                        </div>
-                      )}
-                    </div>
-                  );
-                })()}
-
-                {(() => {
-                  let isBloqueado = false;
-                  if (selectedProduccion.area === 'Sellado') {
-                    const prodCliente = selectedProduccion.pedido?.productoCliente || selectedProduccion.productoCliente;
-                    let pesoGramos = prodCliente?.pesoPorUnidad || 0;
-                    if (!pesoGramos && prodCliente?.ancho && prodCliente?.largo && prodCliente?.calibre) {
-                      const densidad = getPlasticDensity(prodCliente.material);
-                      pesoGramos = calculateBagWeight({
-                        tipoBolsa:
-                          prodCliente.anchoValvula && prodCliente.anchoValvula > 0
-                            ? 'valvula'
-                            : prodCliente.anchoFuelle && prodCliente.anchoFuelle > 0
-                            ? 'fuelle'
-                            : 'sencilla',
-                        ancho: prodCliente.ancho,
-                        largo: prodCliente.largo,
-                        calibre: prodCliente.calibre,
-                        fuelle: prodCliente.anchoFuelle,
-                        solapa: prodCliente.anchoSolapa,
-                        densidad,
-                      });
-                    }
-                    const bolsas = parseFloat(registroForm.cantidad || '0') || 0;
-                    const kgBolsas = pesoGramos > 0 ? (bolsas * pesoGramos) / 1000 : 0;
-                    const mTotalLive = camposMermaVisibles.reduce(
-                      (sum, c) => sum + (parseFloat((registroForm as any)[c.key] || '0') || 0),
-                      0
-                    );
-                    const kgConsumoTotal = kgBolsas + mTotalLive;
-                    const bobinaDisponible = selectedProduccion.stockPrevio?.cantidad ?? 0;
-                    if (kgConsumoTotal > bobinaDisponible * 1.05) {
-                      isBloqueado = true;
-                    }
-                  }
-
-                  return (
-                    <div className="flex gap-4 pt-4">
-                      <button
-                        type="button"
-                        onClick={() => { setShowRegistroModal(false); resetRegistroForm(); }}
-                        className="flex-1 px-6 py-4 rounded-2xl border border-slate-200 dark:border-slate-700 text-xs font-black uppercase tracking-widest text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 transition-all"
-                      >
-                        Cancelar
-                      </button>
-                      <button
-                        type="submit"
-                        disabled={saving || isBloqueado}
-                        className="flex-[2] flex items-center justify-center gap-3 px-6 py-4 rounded-2xl bg-indigo-600 text-xs font-black uppercase tracking-widest text-white hover:bg-indigo-700 disabled:opacity-50 transition-all shadow-xl shadow-indigo-100 dark:shadow-none cursor-pointer disabled:cursor-not-allowed"
-                      >
-                        {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
-                        {saving ? 'GUARDANDO...' : (isEditRegistro ? 'ACTUALIZAR' : 'GUARDAR')}
-                      </button>
-                    </div>
-                  );
-                })()}
-              </form>
-            </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
+      {/* Modal Agregar / Editar Registro de Turno */}
+      <ModalRegistroTurno
+        isOpen={showRegistroModal}
+        onClose={() => {
+          setShowRegistroModal(false);
+          resetRegistroForm();
+        }}
+        onSuccess={async () => {
+          setShowRegistroModal(false);
+          setShowRegistrosListModal(false);
+          resetRegistroForm();
+          try {
+            await fetchProducciones();
+            router.refresh();
+          } catch (err) {
+            console.error("Error al actualizar la lista de producciones tras guardar el registro:", err);
+          }
+        }}
+        orden={selectedProduccion}
+        isEdit={isEditRegistro}
+        editRegistroId={editRegistroId}
+        initialData={registroForm}
+      />
 
       {/* Modal de Lista de Registros */}
       <AnimatePresence>
