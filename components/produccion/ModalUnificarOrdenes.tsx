@@ -2,7 +2,7 @@
 
 import React, { useState, useMemo } from 'react';
 import { Layers, CheckCircle2, AlertTriangle, Loader2, X, Sparkles, Scale, Info } from 'lucide-react';
-import { unificarOrdenesExtrusionAction } from '@/app/actions/produccion';
+import { unificarOrdenesExtrusionAction } from '@/actions/produccion';
 import { useToast } from '@/hooks/use-toast';
 
 interface Props {

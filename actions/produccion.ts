@@ -7,6 +7,7 @@ import { resolverConsumoExtrusion, aplicarConsumoExtrusion, revertirConsumoExtru
 import { revertirMermaDeInventario } from '@/lib/merma-logic';
 import { generarCodigoLoteUnico } from '@/lib/utils/lote';
 import { parseLocalDateToMiddayUTC } from '@/lib/utils/dates';
+import type { LineaSelladoConfig, UnificarOrdenesExtrusionParams } from '@/types/produccion';
 
 export async function eliminarORevertirFaseSellado(ordenId: string, loteSelladoCodigo?: string) {
   try {
@@ -822,12 +823,6 @@ export async function eliminarRegistroExtrusion(registroId: string) {
   }
 }
 
-export interface UnificarOrdenesExtrusionParams {
-  ordenesIds: string[];
-  ordenPrincipalId?: string;
-  nombreUnificado?: string;
-}
-
 /**
  * Unifica 2 o más órdenes activas de extrusión en una Orden Madre.
  * Suma la meta combinada en KG y marca las órdenes secundarias como Unificadas,
@@ -950,15 +945,6 @@ export async function unificarOrdenesExtrusionAction(params: UnificarOrdenesExtr
       error: error.message || 'Error interno al unificar órdenes.',
     };
   }
-}
-
-export interface LineaSelladoConfig {
-  nombreVariante: string;
-  maquinaId: string;
-  metaKg?: number;
-  metaUnidades?: number;
-  operario?: string;
-  turno?: Turno;
 }
 
 /**

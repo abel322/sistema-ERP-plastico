@@ -15,7 +15,8 @@ import {
   Info,
   CheckCircle2,
 } from 'lucide-react';
-import { avanzarASelladoMultiLineaAction, LineaSelladoConfig } from '@/app/actions/produccion';
+import { avanzarASelladoMultiLineaAction } from '@/actions/produccion';
+import type { LineaSelladoConfig } from '@/types/produccion';
 import { useToast } from '@/hooks/use-toast';
 
 interface Props {
