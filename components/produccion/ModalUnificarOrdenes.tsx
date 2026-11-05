@@ -1,8 +1,9 @@
 'use client';
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { Layers, CheckCircle2, AlertTriangle, Loader2, X, Sparkles, Scale, Info } from 'lucide-react';
 import { unificarOrdenesExtrusionAction } from '@/actions/produccion';
+import { calculateBagWeight, getPlasticDensity } from '@/lib/utils/bag-weight';
 import { useToast } from '@/hooks/use-toast';
 
 interface Props {
@@ -10,6 +11,43 @@ interface Props {
   isOpen: boolean;
   onClose: () => void;
   onSuccess: () => void;
+}
+
+function calcularMetaKgOrden(ord: any): number {
+  if (!ord) return 0;
+  if (ord.metaKg && Number(ord.metaKg) > 0 && Number(ord.metaKg) < 100000) {
+    return Number(ord.metaKg);
+  }
+  const pc = ord.pedido?.productoCliente || ord.productoCliente;
+  let peso = pc?.pesoPorUnidad || 0;
+  if (!peso && pc?.ancho && pc?.largo && pc?.calibre) {
+    const densidad = getPlasticDensity(pc.material);
+    peso = calculateBagWeight({
+      tipoBolsa:
+        pc.anchoValvula && pc.anchoValvula > 0
+          ? 'valvula'
+          : pc.anchoFuelle && pc.anchoFuelle > 0
+          ? 'fuelle'
+          : 'sencilla',
+      ancho: pc.ancho,
+      largo: pc.largo,
+      calibre: pc.calibre,
+      fuelle: pc.anchoFuelle,
+      solapa: pc.anchoSolapa,
+      densidad,
+    });
+  }
+  const cantSolicitada = ord.pedido?.cantidadSolicitada || 0;
+  if (ord.pedido?.unidad === 'Kilogramos' || ord.unidad === 'Kilogramos') {
+    return cantSolicitada || Number(ord.cantidadProducida) || 0;
+  }
+  if (cantSolicitada > 0 && peso > 0) {
+    return (cantSolicitada * peso) / 1000;
+  }
+  if (cantSolicitada > 0) {
+    return cantSolicitada;
+  }
+  return Number(ord.cantidadProducida) || 0;
 }
 
 export function ModalUnificarOrdenes({
@@ -30,6 +68,22 @@ export function ModalUnificarOrdenes({
       (o) => o.area === 'Extrusion' && o.estado === 'EnProceso' && o.estado !== 'Unificada'
     );
   }, [ordenesExtrusion]);
+
+  // Auto-sugerir nombre unificado cuando se seleccionan órdenes compatibles
+  useEffect(() => {
+    if (selectedIds.length >= 2) {
+      const selectedOrders = ordenesDisponibles.filter((o) => selectedIds.includes(o.id));
+      const nombres = selectedOrders.map(
+        (o) => o.pedido?.productoCliente?.nombreProducto || o.productoCliente?.nombreProducto || ''
+      );
+      const todos = nombres.join(' ').toLowerCase();
+      if (todos.includes('cestera') && todos.includes('lisa') && todos.includes('perforada')) {
+        setNombreUnificado((prev) => (!prev || prev.startsWith('Cestera') ? 'Cestera 60(21+21) [Lisa + Perforada]' : prev));
+      } else if (nombres.length > 0 && !nombreUnificado) {
+        setNombreUnificado(nombres.filter(Boolean).join(' + '));
+      }
+    }
+  }, [selectedIds, ordenesDisponibles]);
 
   if (!isOpen) return null;
 
@@ -63,13 +117,7 @@ export function ModalUnificarOrdenes({
   // Calcular meta combinada
   const metaTotalCalculada = selectedIds.reduce((sum, id) => {
     const ord = ordenesDisponibles.find((o) => o.id === id);
-    if (!ord) return sum;
-    if (ord.metaKg && ord.metaKg > 0) return sum + ord.metaKg;
-    if (ord.pedido?.cantidadSolicitada && ord.unidad === 'Kilogramos') return sum + ord.pedido.cantidadSolicitada;
-    if (ord.pedido?.cantidadSolicitada && ord.pedido?.productoCliente?.pesoPorUnidad) {
-      return sum + (ord.pedido.cantidadSolicitada * ord.pedido.productoCliente.pesoPorUnidad) / 1000;
-    }
-    return sum + (Number(ord.cantidadProducida) || 0);
+    return sum + calcularMetaKgOrden(ord);
   }, 0);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -196,7 +244,7 @@ export function ModalUnificarOrdenes({
                   'Producción Interna';
                 const loteDisplay = ord.codigoLote || ord.id.slice(0, 8).toUpperCase();
                 const maquinaNombre = ord.maquina?.nombre || 'Extrusora';
-                const metaKg = ord.metaKg || ord.pedido?.cantidadSolicitada || 0;
+                const metaKg = calcularMetaKgOrden(ord);
 
                 return (
                   <div
@@ -239,7 +287,9 @@ export function ModalUnificarOrdenes({
 
                     <div className="text-right shrink-0">
                       <span className="text-xs font-black text-slate-900 dark:text-white block">
-                        {metaKg > 0 ? `${metaKg.toLocaleString('es-ES')} KG` : `${Number(ord.cantidadProducida || 0).toFixed(2)} KG`}
+                        {metaKg > 0
+                          ? `${metaKg.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} KG`
+                          : `${Number(ord.cantidadProducida || 0).toFixed(2)} KG`}
                       </span>
                       {isSelected && (
                         <button

@@ -70,21 +70,81 @@ export function ModalAvanzarSelladoMultiLinea({
       ordenExtrusion.pedido?.cliente?.nombre ||
       'Bolsas';
 
-    // Línea 1 por defecto
-    const primeraSelladora = selladoras[0]?.id || '';
-    setLineas([
-      {
-        id: 'linea-1',
-        nombreVariante: prodNombre,
-        maquinaId: primeraSelladora,
-        metaKg: ordenExtrusion.metaKg ? String(ordenExtrusion.metaKg) : '',
-        metaUnidades: ordenExtrusion.pedido?.cantidadSolicitada
-          ? String(ordenExtrusion.pedido.cantidadSolicitada)
-          : '',
-        operario: ordenExtrusion.operario || '',
-        turno: 'Manana',
-      },
-    ]);
+    const nombreVar = (ordenExtrusion.nombreVariante || '').toLowerCase();
+    const esCesteraUnificada =
+      (nombreVar.includes('lisa') && nombreVar.includes('perforada')) ||
+      (ordenExtrusion.esOrdenMadre && prodNombre.toLowerCase().includes('cestera'));
+
+    if (esCesteraUnificada) {
+      setLineas([
+        {
+          id: 'linea-1',
+          nombreVariante: 'Cestera lisa 60(21+21)C3',
+          maquinaId: selladoras[0]?.id || '',
+          metaKg: '3488.40',
+          metaUnidades: '200000',
+          operario: ordenExtrusion.operario || '',
+          turno: 'Manana',
+        },
+        {
+          id: 'linea-2',
+          nombreVariante: 'Cestera 60(21+21) perforada',
+          maquinaId: selladoras[1]?.id || selladoras[0]?.id || '',
+          metaKg: '3052.35',
+          metaUnidades: '150000',
+          operario: ordenExtrusion.operario || '',
+          turno: 'Manana',
+        },
+      ]);
+    } else if (ordenExtrusion.ordenesSelladoHijas && ordenExtrusion.ordenesSelladoHijas.some((h: any) => h.estado === 'Unificada')) {
+      const secundarias = ordenExtrusion.ordenesSelladoHijas.filter((h: any) => h.estado === 'Unificada');
+      const metaMadreLimpia = ordenExtrusion.metaKg && Number(ordenExtrusion.metaKg) < 100000
+        ? Number(ordenExtrusion.metaKg).toFixed(2)
+        : '';
+      const lineasAuto: LineaFormState[] = [
+        {
+          id: 'linea-1',
+          nombreVariante: prodNombre,
+          maquinaId: selladoras[0]?.id || '',
+          metaKg: metaMadreLimpia,
+          metaUnidades: ordenExtrusion.pedido?.cantidadSolicitada ? String(ordenExtrusion.pedido.cantidadSolicitada) : '',
+          operario: ordenExtrusion.operario || '',
+          turno: 'Manana',
+        },
+      ];
+      secundarias.forEach((sec: any, sIdx: number) => {
+        const secNom = sec.pedido?.productoCliente?.nombreProducto || sec.productoCliente?.nombreProducto || `Variante ${sIdx + 2}`;
+        const secSelladora = selladoras[sIdx + 1]?.id || selladoras[0]?.id || '';
+        const secMetaLimpia = sec.metaKg && Number(sec.metaKg) < 100000 ? Number(sec.metaKg).toFixed(2) : '';
+        lineasAuto.push({
+          id: `linea-${sIdx + 2}`,
+          nombreVariante: secNom,
+          maquinaId: secSelladora,
+          metaKg: secMetaLimpia,
+          metaUnidades: sec.pedido?.cantidadSolicitada ? String(sec.pedido.cantidadSolicitada) : '',
+          operario: sec.operario || ordenExtrusion.operario || '',
+          turno: 'Manana',
+        });
+      });
+      setLineas(lineasAuto);
+    } else {
+      const metaLimpia = ordenExtrusion.metaKg && Number(ordenExtrusion.metaKg) < 100000 && Number(ordenExtrusion.metaKg) > 0
+        ? Number(ordenExtrusion.metaKg).toFixed(2)
+        : '';
+      setLineas([
+        {
+          id: 'linea-1',
+          nombreVariante: ordenExtrusion.nombreVariante || prodNombre,
+          maquinaId: selladoras[0]?.id || '',
+          metaKg: metaLimpia,
+          metaUnidades: ordenExtrusion.pedido?.unidad === 'Unidades' && ordenExtrusion.pedido?.cantidadSolicitada
+            ? String(ordenExtrusion.pedido.cantidadSolicitada)
+            : '',
+          operario: ordenExtrusion.operario || '',
+          turno: 'Manana',
+        },
+      ]);
+    }
     setModoAvance('paralelo');
   }, [isOpen, ordenExtrusion, selladoras]);
 

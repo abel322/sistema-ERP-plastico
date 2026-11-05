@@ -358,9 +358,17 @@ export function FilaProduccionHorizontal({
         </div>
 
         {/* NOMBRE DEL PRODUCTO EN GRANDE Y NEGRITA (SIN LOTE VISIBLE) */}
-        <h4 className="text-base font-black text-slate-900 dark:text-white tracking-tight leading-snug truncate" title={productoNombre}>
-          {productoNombre}
+        <h4 className="text-base font-black text-slate-900 dark:text-white tracking-tight leading-snug truncate" title={orden.nombreVariante || productoNombre}>
+          {orden.nombreVariante || productoNombre}
         </h4>
+
+        {/* Subtexto: si es orden madre, indicar las líneas combinadas */}
+        {orden.esOrdenMadre && (
+          <div className="flex items-center gap-1.5 mt-0.5 text-[11px] font-bold text-indigo-600 dark:text-indigo-400">
+            <span className="w-1.5 h-1.5 rounded-full bg-indigo-600 shrink-0"/>
+            <span>Producción Unificada: Alimenta Sellado Lisa y Perforada</span>
+          </div>
+        )}
 
         {/* Cliente y Máquina como subtexto ordenado */}
         <div className="flex items-center gap-2.5 text-xs text-slate-500 dark:text-slate-400 mt-1">
@@ -1377,7 +1385,10 @@ export function ProduccionContent() {
     let displayUnit = originalDisplayUnit;
 
     if (prod.area !== 'Sellado') {
-      if (productoCliente?.tipoProducto === 'Bolsa' && unidadPedido === 'Unidades') {
+      if (prod.metaKg && prod.metaKg > 0) {
+        targetAmount = prod.metaKg;
+        displayUnit = 'kg';
+      } else if (productoCliente?.tipoProducto === 'Bolsa' && unidadPedido === 'Unidades') {
         if (peso > 0) {
            targetAmount = (targetAmount * peso) / 1000;
            displayUnit = 'kg';
@@ -1388,6 +1399,9 @@ export function ProduccionContent() {
         displayUnit = 'kg';
       }
     } else {
+      if (prod.metaUnidades && prod.metaUnidades > 0) {
+        targetAmount = prod.metaUnidades;
+      }
       displayUnit = 'und';
     }
     return { targetAmount, displayTotal: totalProducido, displayUnit, isCompleted: targetAmount > 0 && totalProducido >= targetAmount, originalTargetAmount, originalDisplayUnit };

@@ -877,12 +877,20 @@ export async function unificarOrdenesExtrusionAction(params: UnificarOrdenesExtr
     // 2. Sumar meta combinada en KG
     let metaTotalKg = 0;
     for (const ord of ordenes) {
-      if (ord.metaKg && ord.metaKg > 0) {
+      const pc = ord.pedido?.productoCliente || ord.productoCliente;
+      const pesoUnidad = pc?.pesoPorUnidad || 0;
+      const cantSolicitada = ord.pedido?.cantidadSolicitada || 0;
+
+      if (ord.metaKg && ord.metaKg > 0 && ord.metaKg < 100000) {
         metaTotalKg += ord.metaKg;
-      } else if (ord.pedido?.cantidadSolicitada && ord.unidad === 'Kilogramos') {
-        metaTotalKg += ord.pedido.cantidadSolicitada;
-      } else if (ord.pedido?.cantidadSolicitada && ord.pedido?.productoCliente?.pesoPorUnidad) {
-        metaTotalKg += (ord.pedido.cantidadSolicitada * ord.pedido.productoCliente.pesoPorUnidad) / 1000;
+      } else if (cantSolicitada > 0) {
+        if (ord.pedido?.unidad === 'Kilogramos' || ord.unidad === 'Kilogramos') {
+          metaTotalKg += cantSolicitada;
+        } else if (pesoUnidad > 0) {
+          metaTotalKg += (cantSolicitada * pesoUnidad) / 1000;
+        } else {
+          metaTotalKg += cantSolicitada;
+        }
       } else if (ord.cantidadProducida > 0) {
         metaTotalKg += ord.cantidadProducida;
       }
@@ -894,11 +902,25 @@ export async function unificarOrdenesExtrusionAction(params: UnificarOrdenesExtr
         ? `${ordenMadre.observaciones ? ordenMadre.observaciones + ' | ' : ''}Unificada: ${nombreUnificado} (Agrupa ${ordenesSecundarias.length} órdenes)`
         : ordenMadre.observaciones;
 
+      const prodMadreNom = ordenMadre.pedido?.productoCliente?.nombreProducto || ordenMadre.productoCliente?.nombreProducto || 'Extrusión';
+      const prodSecNoms = ordenesSecundarias.map((o) => o.pedido?.productoCliente?.nombreProducto || o.productoCliente?.nombreProducto || 'Secundaria');
+
+      let nombreVarianteMadre = nombreUnificado?.trim();
+      if (!nombreVarianteMadre) {
+        const todosNombres = [prodMadreNom, ...prodSecNoms].join(' ').toLowerCase();
+        if (todosNombres.includes('lisa') && todosNombres.includes('perforada')) {
+          nombreVarianteMadre = 'Cestera 60(21+21) [Lisa + Perforada]';
+        } else {
+          nombreVarianteMadre = `${prodMadreNom} + ${prodSecNoms.join(' + ')}`;
+        }
+      }
+
       await tx.produccion.update({
         where: { id: ordenMadre.id },
         data: {
           esOrdenMadre: true,
-          metaKg: metaTotalKg > 0 ? metaTotalKg : (ordenMadre.metaKg || null),
+          metaKg: metaTotalKg > 0 ? Number(metaTotalKg.toFixed(2)) : (ordenMadre.metaKg || null),
+          nombreVariante: nombreVarianteMadre,
           observaciones: obsMadre,
         },
       });
@@ -1065,10 +1087,36 @@ export async function avanzarASelladoMultiLineaAction(params: {
         });
       }
 
+      // Buscar órdenes secundarias unificadas vinculadas para emparejar producto/pedido exactos
+      const secundariasUnificadas = await tx.produccion.findMany({
+        where: { ordenExtrusionOrigenId: orden.id },
+        include: {
+          pedido: { include: { productoCliente: true } },
+          productoCliente: true,
+        },
+      });
+
       // 3. Crear cada línea de sellado hija
       for (let i = 0; i < lineas.length; i++) {
         const linea = lineas[i];
         const loteSellado = await generarCodigoLoteUnico(tx, AreaProduccion.Sellado, new Date());
+
+        let finalProductoClienteId = prodCli?.id || orden.productoClienteId || null;
+        let finalPedidoId = orden.pedidoId || null;
+
+        // Si la variante coincide con una orden secundaria unificada, vincular su productoCliente y pedido
+        const lNom = (linea.nombreVariante || '').toLowerCase();
+        const secMatch = secundariasUnificadas.find((s) => {
+          const sNom = (s.pedido?.productoCliente?.nombreProducto || s.productoCliente?.nombreProducto || '').toLowerCase();
+          return (sNom && lNom && (sNom.includes(lNom) || lNom.includes(sNom))) ||
+            (sNom.includes('perforada') && lNom.includes('perforada')) ||
+            (sNom.includes('lisa') && lNom.includes('lisa'));
+        });
+
+        if (secMatch) {
+          finalProductoClienteId = secMatch.productoClienteId || secMatch.pedido?.productoClienteId || finalProductoClienteId;
+          finalPedidoId = secMatch.pedidoId || finalPedidoId;
+        }
 
         await tx.produccion.create({
           data: {
@@ -1084,8 +1132,8 @@ export async function avanzarASelladoMultiLineaAction(params: {
             area: AreaProduccion.Sellado,
             maquinaId: linea.maquinaId,
             operario: linea.operario?.trim() || 'Operario',
-            pedidoId: orden.pedidoId || null,
-            productoClienteId: prodCli?.id || orden.productoClienteId || null,
+            pedidoId: finalPedidoId,
+            productoClienteId: finalProductoClienteId,
             cantidadProducida: 0,
             unidad: 'Unidades',
             merma: 0,
