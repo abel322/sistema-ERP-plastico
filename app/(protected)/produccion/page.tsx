@@ -31,6 +31,8 @@ import {
 } from 'lucide-react';
 import ModalDetalleConsumoMP from '@/components/produccion/ModalDetalleConsumoMP';
 import { ModalFinalizarSellado } from '@/components/produccion/ModalFinalizarSellado';
+import { ModalUnificarOrdenes } from '@/components/produccion/ModalUnificarOrdenes';
+import { ModalAvanzarSelladoMultiLinea } from '@/components/produccion/ModalAvanzarSelladoMultiLinea';
 import { eliminarORevertirFaseSellado, eliminarOrdenProduccion, finalizarFaseSelladoConDestino } from '@/actions/produccion';
 import { formatNumber } from '@/lib/utils';
 import { calculateBagWeight, getPlasticDensity } from '@/lib/utils/bag-weight';
@@ -125,6 +127,13 @@ interface Produccion {
   id: string;
   codigoLote?: string | null;
   loteOrigen?: string | null;
+  esOrdenMadre?: boolean;
+  ordenExtrusionOrigenId?: string | null;
+  nombreVariante?: string | null;
+  metaKg?: number | null;
+  metaUnidades?: number | null;
+  ordenesSelladoHijas?: any[];
+  ordenExtrusionOrigen?: any;
   fecha: string;
   turno: string;
   area: string;
@@ -313,13 +322,31 @@ export function FilaProduccionHorizontal({
           <span className={`px-2 py-0.5 text-[10px] font-black rounded-md uppercase tracking-tight ${
             esCompletado
               ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/70 dark:text-emerald-300'
+              : orden.estado === 'Unificada'
+              ? 'bg-slate-200 text-slate-700 dark:bg-slate-800 dark:text-slate-300'
               : 'bg-amber-100 text-amber-800 dark:bg-amber-950/70 dark:text-amber-300'
           }`}>
             {esCompletado ? 'COMPLETADO' : (orden.estado || 'EN PROCESO')}
           </span>
+          {orden.esOrdenMadre && (
+            <span className="px-2 py-0.5 text-[10px] font-black rounded-md uppercase tracking-tight bg-indigo-100 text-indigo-800 dark:bg-indigo-950/70 dark:text-indigo-300 flex items-center gap-1 border border-indigo-200 dark:border-indigo-800" title="Orden Madre de Extrusión">
+              <Layers className="w-3 h-3 text-indigo-600" />
+              <span>Orden Madre</span>
+              {orden.ordenesSelladoHijas && orden.ordenesSelladoHijas.length > 0 && (
+                <span className="ml-0.5 px-1 rounded-full bg-indigo-200 dark:bg-indigo-800 text-[9px]">
+                  {orden.ordenesSelladoHijas.length} {orden.ordenesSelladoHijas.length === 1 ? 'línea' : 'líneas'}
+                </span>
+              )}
+            </span>
+          )}
+          {orden.nombreVariante && (
+            <span className="px-2 py-0.5 text-[10px] font-bold rounded-md bg-purple-100 text-purple-800 dark:bg-purple-950/70 dark:text-purple-300 border border-purple-200 dark:border-purple-800" title={`Variante de producto: ${orden.nombreVariante}`}>
+              Variante: {orden.nombreVariante}
+            </span>
+          )}
           {orden.loteOrigen && (
             <span className="text-[9px] font-mono text-amber-800 dark:text-amber-300 bg-amber-50 dark:bg-amber-950/40 px-1.5 py-0.5 rounded border border-amber-200 dark:border-amber-900/60 shrink-0" title={`Bobina de origen: ${orden.loteOrigen}`}>
-              Origen: {orden.loteOrigen}
+              {orden.ordenExtrusionOrigenId ? `Pozo Madre: ${orden.loteOrigen}` : `Origen: ${orden.loteOrigen}`}
             </span>
           )}
           {faseParalela && (
@@ -430,15 +457,27 @@ export function FilaProduccionHorizontal({
         {/* Botón Dinámico de Secuencia Técnica */}
         {areaId === 'EXTRUSION' && (
           faseParalela ? (
-            <button
-              type="button"
-              onClick={() => handleFinalizarExtrusion(orden)}
-              disabled={isAvanzandoId === orden.id}
-              className="inline-flex items-center justify-center gap-1.5 py-2 px-3 text-xs font-bold rounded-xl text-white bg-slate-800 hover:bg-slate-900 dark:bg-slate-700 dark:hover:bg-slate-600 transition-colors disabled:opacity-50 cursor-pointer"
-            >
-              <CheckCircle className="w-3.5 h-3.5 text-emerald-400"/>
-              <span>Finalizar Extrusión</span>
-            </button>
+            <div className="flex items-center gap-1.5">
+              <button
+                type="button"
+                onClick={() => handleAvanzarFase(orden)}
+                disabled={isAvanzandoId === orden.id}
+                className="inline-flex items-center justify-center gap-1 py-2 px-2.5 text-xs font-bold rounded-xl text-indigo-700 bg-indigo-50 hover:bg-indigo-100 dark:bg-indigo-950/60 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800 transition-colors disabled:opacity-50 cursor-pointer"
+                title="Añadir otra línea de Sellado para esta bobina"
+              >
+                <Plus className="w-3.5 h-3.5" />
+                <span>+ Selladora</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => handleFinalizarExtrusion(orden)}
+                disabled={isAvanzandoId === orden.id}
+                className="inline-flex items-center justify-center gap-1.5 py-2 px-3 text-xs font-bold rounded-xl text-white bg-slate-800 hover:bg-slate-900 dark:bg-slate-700 dark:hover:bg-slate-600 transition-colors disabled:opacity-50 cursor-pointer"
+              >
+                <CheckCircle className="w-3.5 h-3.5 text-emerald-400"/>
+                <span>Finalizar Extrusión</span>
+              </button>
+            </div>
           ) : (
             <button
               type="button"
@@ -652,6 +691,9 @@ export function ProduccionContent() {
 
   const [showAvanzarModal, setShowAvanzarModal] = useState(false);
   const [avanzarProd, setAvanzarProd] = useState<Produccion | null>(null);
+  const [showModalUnificar, setShowModalUnificar] = useState(false);
+  const [showAvanzarSelladoMultiModal, setShowAvanzarSelladoMultiModal] = useState(false);
+  const [ordenAvanzarMulti, setOrdenAvanzarMulti] = useState<Produccion | null>(null);
   const [modoAvance, setModoAvance] = useState<'paralelo' | 'finalizar'>('paralelo');
   const [avanzarMaquinaId, setAvanzarMaquinaId] = useState('');
   const [avanzarOperario, setAvanzarOperario] = useState('');
@@ -1135,6 +1177,11 @@ export function ProduccionContent() {
 
   const handleOpenAvanzarModal = (prod: Produccion) => {
     const nextArea = getNextArea(prod);
+    if (nextArea === 'Sellado' || prod.area === 'Extrusion') {
+      setOrdenAvanzarMulti(prod);
+      setShowAvanzarSelladoMultiModal(true);
+      return;
+    }
     if (!nextArea) return;
     setAvanzarProd(prod);
     setModoAvance('paralelo');
@@ -1513,6 +1560,20 @@ export function ProduccionContent() {
                 </div>
 
                 <div className="flex items-center gap-2">
+                  {area.id === 'EXTRUSION' && ordenesArea.length >= 2 && (
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setShowModalUnificar(true);
+                      }}
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-indigo-50 hover:bg-indigo-100 dark:bg-indigo-950/60 dark:hover:bg-indigo-900/80 text-indigo-700 dark:text-indigo-300 text-xs font-black uppercase tracking-wider border border-indigo-200 dark:border-indigo-800 transition-all cursor-pointer shadow-xs mr-2"
+                      title="Fusionar 2 o más órdenes compatibles en una Orden Madre"
+                    >
+                      <Layers className="w-3.5 h-3.5" />
+                      <span>Unificar Órdenes</span>
+                    </button>
+                  )}
                   <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">
                     {estaAbierto ? 'Ocultar' : 'Mostrar'}
                   </span>
@@ -2389,6 +2450,32 @@ export function ProduccionContent() {
           setOrdenAFinalizar(null);
         }}
         onConfirm={handleConfirmarFinalizarSellado}
+      />
+
+      {/* Modal Unificar Órdenes en Extrusión */}
+      <ModalUnificarOrdenes
+        isOpen={showModalUnificar}
+        ordenesExtrusion={producciones.filter((p) => p.area === 'Extrusion')}
+        onClose={() => setShowModalUnificar(false)}
+        onSuccess={() => {
+          fetchProducciones();
+          router.refresh();
+        }}
+      />
+
+      {/* Modal Avanzar a Sellado Multi-Línea con Pozo Compartido */}
+      <ModalAvanzarSelladoMultiLinea
+        isOpen={showAvanzarSelladoMultiModal}
+        ordenExtrusion={ordenAvanzarMulti}
+        maquinas={maquinas}
+        onClose={() => {
+          setShowAvanzarSelladoMultiModal(false);
+          setOrdenAvanzarMulti(null);
+        }}
+        onSuccess={() => {
+          fetchProducciones();
+          router.refresh();
+        }}
       />
 
       {/* Modal Detalle de Consumo de Materia Prima y Sacas */}

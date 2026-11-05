@@ -5,6 +5,8 @@ import { prisma } from '@/lib/db';
 import { revalidatePath } from 'next/cache';
 import { resolverConsumoExtrusion, aplicarConsumoExtrusion, revertirConsumoExtrusion, revertirSalidasTurnoExtrusion } from '@/lib/consumo-extrusion-logic';
 import { revertirMermaDeInventario } from '@/lib/merma-logic';
+import { generarCodigoLoteUnico } from '@/lib/utils/lote';
+import { parseLocalDateToMiddayUTC } from '@/lib/utils/dates';
 
 export async function eliminarORevertirFaseSellado(ordenId: string, loteSelladoCodigo?: string) {
   try {
@@ -817,5 +819,320 @@ export async function eliminarRegistroExtrusion(registroId: string) {
   } catch (error: any) {
     console.error('Error al eliminar turno de extrusión:', error);
     return { success: false, error: error.message };
+  }
+}
+
+export interface UnificarOrdenesExtrusionParams {
+  ordenesIds: string[];
+  ordenPrincipalId?: string;
+  nombreUnificado?: string;
+}
+
+/**
+ * Unifica 2 o más órdenes activas de extrusión en una Orden Madre.
+ * Suma la meta combinada en KG y marca las órdenes secundarias como Unificadas,
+ * liberando sus máquinas asignadas si eran distintas.
+ */
+export async function unificarOrdenesExtrusionAction(params: UnificarOrdenesExtrusionParams) {
+  try {
+    const { ordenesIds, ordenPrincipalId, nombreUnificado } = params;
+    if (!ordenesIds || ordenesIds.length < 2) {
+      return {
+        success: false,
+        error: 'Debe seleccionar al menos 2 órdenes activas de extrusión para unificar.',
+      };
+    }
+
+    const ordenes = await prisma.produccion.findMany({
+      where: {
+        id: { in: ordenesIds },
+        area: AreaProduccion.Extrusion,
+      },
+      include: {
+        pedido: { include: { cliente: true, productoCliente: true } },
+        productoCliente: true,
+        registros: true,
+        maquina: true,
+        productoTerminado: true,
+      },
+    });
+
+    if (ordenes.length < 2) {
+      return {
+        success: false,
+        error: 'No se encontraron al menos 2 órdenes válidas en Extrusión.',
+      };
+    }
+
+    // 1. Determinar orden madre como constante para narrow typing en closures
+    const ordenMadre =
+      (ordenPrincipalId ? ordenes.find((o) => o.id === ordenPrincipalId) : undefined) ||
+      ordenes.find((o) => o.esOrdenMadre) ||
+      ordenes[0];
+
+    if (!ordenMadre) {
+      return {
+        success: false,
+        error: 'No se pudo determinar la orden madre para la unificación.',
+      };
+    }
+
+    const ordenesSecundarias = ordenes.filter((o) => o.id !== ordenMadre.id);
+
+    // 2. Sumar meta combinada en KG
+    let metaTotalKg = 0;
+    for (const ord of ordenes) {
+      if (ord.metaKg && ord.metaKg > 0) {
+        metaTotalKg += ord.metaKg;
+      } else if (ord.pedido?.cantidadSolicitada && ord.unidad === 'Kilogramos') {
+        metaTotalKg += ord.pedido.cantidadSolicitada;
+      } else if (ord.pedido?.cantidadSolicitada && ord.pedido?.productoCliente?.pesoPorUnidad) {
+        metaTotalKg += (ord.pedido.cantidadSolicitada * ord.pedido.productoCliente.pesoPorUnidad) / 1000;
+      } else if (ord.cantidadProducida > 0) {
+        metaTotalKg += ord.cantidadProducida;
+      }
+    }
+
+    await prisma.$transaction(async (tx) => {
+      // 3. Actualizar orden madre
+      const obsMadre = nombreUnificado
+        ? `${ordenMadre.observaciones ? ordenMadre.observaciones + ' | ' : ''}Unificada: ${nombreUnificado} (Agrupa ${ordenesSecundarias.length} órdenes)`
+        : ordenMadre.observaciones;
+
+      await tx.produccion.update({
+        where: { id: ordenMadre.id },
+        data: {
+          esOrdenMadre: true,
+          metaKg: metaTotalKg > 0 ? metaTotalKg : (ordenMadre.metaKg || null),
+          observaciones: obsMadre,
+        },
+      });
+
+      // 4. Actualizar órdenes secundarias
+      for (const sec of ordenesSecundarias) {
+        const obsSec = `${sec.observaciones ? sec.observaciones + ' | ' : ''}Unificada en orden madre ${ordenMadre.codigoLote || ordenMadre.id.slice(0, 8).toUpperCase()}`;
+
+        await tx.produccion.update({
+          where: { id: sec.id },
+          data: {
+            estado: EstadoProduccion.Unificada,
+            ordenExtrusionOrigenId: ordenMadre.id,
+            observaciones: obsSec,
+          },
+        });
+
+        // Si la orden secundaria estaba asignada a una máquina distinta, liberarla
+        if (sec.maquinaId && sec.maquinaId !== ordenMadre.maquinaId) {
+          await tx.maquina.updateMany({
+            where: { id: sec.maquinaId },
+            data: {
+              estado: EstadoMaquina.Operativa,
+              activa: true,
+            },
+          });
+        }
+      }
+    });
+
+    revalidatePath('/produccion');
+    revalidatePath('/dashboard/maquinas');
+    revalidatePath('/maquinas');
+
+    return {
+      success: true,
+      message: `Órdenes unificadas exitosamente en la Orden Madre ${ordenMadre.codigoLote || ordenMadre.id.slice(0, 8)}. Meta total combinada: ${metaTotalKg.toFixed(2)} KG.`,
+      ordenMadreId: ordenMadre.id,
+    };
+  } catch (error: any) {
+    console.error('Error al unificar órdenes de extrusión:', error);
+    return {
+      success: false,
+      error: error.message || 'Error interno al unificar órdenes.',
+    };
+  }
+}
+
+export interface LineaSelladoConfig {
+  nombreVariante: string;
+  maquinaId: string;
+  metaKg?: number;
+  metaUnidades?: number;
+  operario?: string;
+  turno?: Turno;
+}
+
+/**
+ * Avanza una orden de extrusión distribuyendo su bobina en N líneas de sellado hijas concurrentes.
+ * Todas las líneas hijas comparten el mismo pozo de bobina en tiempo real.
+ */
+export async function avanzarASelladoMultiLineaAction(params: {
+  ordenExtrusionId: string;
+  lineas: LineaSelladoConfig[];
+  modoAvance?: 'paralelo' | 'finalizar';
+}) {
+  try {
+    const { ordenExtrusionId, lineas, modoAvance = 'paralelo' } = params;
+
+    if (!lineas || lineas.length === 0) {
+      return { success: false, error: 'Debe configurar al menos una línea de sellado.' };
+    }
+
+    for (let i = 0; i < lineas.length; i++) {
+      if (!lineas[i].maquinaId) {
+        return { success: false, error: `La línea ${i + 1} no tiene una máquina selladora seleccionada.` };
+      }
+    }
+
+    const orden = await prisma.produccion.findUnique({
+      where: { id: ordenExtrusionId },
+      include: {
+        pedido: {
+          include: {
+            cliente: true,
+            productoCliente: true,
+          },
+        },
+        productoCliente: true,
+        registros: true,
+        productoTerminado: true,
+        maquina: true,
+      },
+    });
+
+    if (!orden) {
+      return { success: false, error: 'Orden de extrusión no encontrada.' };
+    }
+
+    const prodCli = orden.pedido?.productoCliente || orden.productoCliente;
+    const clienteId = orden.pedido?.clienteId || orden.productoCliente?.clienteId;
+    const totalExtruido =
+      orden.registros?.reduce((sum, r) => sum + (Number(r.cantidad) || 0), 0) ||
+      Number(orden.cantidadProducida || 0);
+
+    const todayDate = parseLocalDateToMiddayUTC(new Date().toISOString().split('T')[0]);
+
+    await prisma.$transaction(async (tx) => {
+      // 1. Marcar la orden de extrusión como madre
+      const updateData: any = {
+        esOrdenMadre: true,
+      };
+
+      if (modoAvance === 'finalizar') {
+        updateData.estado = EstadoProduccion.Finalizado;
+        updateData.finalizadoAt = new Date();
+        updateData.horaFin = new Date().toLocaleTimeString('es-VE', { hour12: false });
+        updateData.siguienteArea = AreaProduccion.Sellado;
+
+        if (orden.maquinaId) {
+          await tx.maquina.updateMany({
+            where: { id: orden.maquinaId },
+            data: {
+              estado: EstadoMaquina.Operativa,
+              activa: true,
+            },
+          });
+        }
+      }
+
+      await tx.produccion.update({
+        where: { id: orden.id },
+        data: updateData,
+      });
+
+      // 2. Garantizar ProductoTerminado para la bobina compartida
+      let pt = orden.productoTerminado;
+      if (!pt && orden.codigoLote) {
+        pt = await tx.productoTerminado.findFirst({
+          where: { codigoLote: orden.codigoLote },
+        });
+      }
+
+      if (!pt && orden.codigoLote && clienteId) {
+        pt = await tx.productoTerminado.create({
+          data: {
+            userId: orden.userId,
+            codigoLote: orden.codigoLote,
+            produccionId: orden.id,
+            pedidoId: orden.pedidoId,
+            clienteId: clienteId,
+            productoClienteId: prodCli?.id || orden.productoClienteId || null,
+            areaOrigen: orden.area,
+            descripcion: `Bobina WIP compartida - ${orden.codigoLote}`,
+            cantidadTotal: totalExtruido,
+            cantidadDisponible: totalExtruido,
+            unidad: 'Kilogramos',
+            tipoProducto: 'Bobina',
+            conImpresion: Boolean(prodCli?.conImpresion),
+            estado: 'PendienteArea' as any,
+            siguienteArea: 'Sellado' as any,
+          },
+        });
+      } else if (pt && pt.cantidadDisponible === 0 && totalExtruido > 0) {
+        await tx.productoTerminado.update({
+          where: { id: pt.id },
+          data: {
+            cantidadTotal: totalExtruido,
+            cantidadDisponible: totalExtruido,
+            estado: 'PendienteArea' as any,
+            siguienteArea: 'Sellado' as any,
+          },
+        });
+      }
+
+      // 3. Crear cada línea de sellado hija
+      for (let i = 0; i < lineas.length; i++) {
+        const linea = lineas[i];
+        const loteSellado = await generarCodigoLoteUnico(tx, AreaProduccion.Sellado, new Date());
+
+        await tx.produccion.create({
+          data: {
+            userId: orden.userId,
+            codigoLote: loteSellado,
+            loteOrigen: orden.codigoLote,
+            ordenExtrusionOrigenId: orden.id,
+            nombreVariante: linea.nombreVariante?.trim() || null,
+            metaKg: linea.metaKg ? Number(linea.metaKg) : null,
+            metaUnidades: linea.metaUnidades ? Number(linea.metaUnidades) : 0,
+            fecha: todayDate,
+            turno: linea.turno || Turno.Manana,
+            area: AreaProduccion.Sellado,
+            maquinaId: linea.maquinaId,
+            operario: linea.operario?.trim() || 'Operario',
+            pedidoId: orden.pedidoId || null,
+            productoClienteId: prodCli?.id || orden.productoClienteId || null,
+            cantidadProducida: 0,
+            unidad: 'Unidades',
+            merma: 0,
+            estado: EstadoProduccion.EnProceso,
+            observaciones: `Línea ${i + 1} de Sellado vinculada al lote madre ${orden.codigoLote}${linea.nombreVariante ? ` (${linea.nombreVariante})` : ''}`,
+          },
+        });
+
+        // Activar máquina selladora
+        await tx.maquina.updateMany({
+          where: { id: linea.maquinaId },
+          data: {
+            estado: EstadoMaquina.Operativa,
+            activa: true,
+          },
+        });
+      }
+    });
+
+    revalidatePath('/produccion');
+    revalidatePath('/dashboard/maquinas');
+    revalidatePath('/maquinas');
+    revalidatePath('/producto-terminado');
+
+    return {
+      success: true,
+      message: `Se iniciaron exitosamente ${lineas.length} líneas de sellado compartiendo el pozo de bobina de ${orden.codigoLote}.`,
+    };
+  } catch (error: any) {
+    console.error('Error al avanzar a sellado multi-línea:', error);
+    return {
+      success: false,
+      error: error.message || 'Error al iniciar líneas de sellado.',
+    };
   }
 }

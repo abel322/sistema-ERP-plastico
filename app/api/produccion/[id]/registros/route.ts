@@ -128,6 +128,12 @@ export async function POST(
         });
       }
 
+      if (!previo && (produccion as any).ordenExtrusionOrigenId) {
+        previo = await prisma.productoTerminado.findFirst({
+          where: { produccionId: (produccion as any).ordenExtrusionOrigenId },
+        });
+      }
+
       if (!previo && produccion.pedidoId) {
         previo = await prisma.productoTerminado.findFirst({
           where: {
@@ -157,6 +163,12 @@ export async function POST(
       if (produccion.loteOrigen) {
         previo = await prisma.productoTerminado.findFirst({
           where: { codigoLote: produccion.loteOrigen },
+        });
+      }
+
+      if (!previo && (produccion as any).ordenExtrusionOrigenId) {
+        previo = await prisma.productoTerminado.findFirst({
+          where: { produccionId: (produccion as any).ordenExtrusionOrigenId },
         });
       }
       if (!previo && produccion.pedidoId) {

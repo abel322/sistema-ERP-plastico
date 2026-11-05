@@ -75,6 +75,7 @@ enum Turno {
 enum EstadoProduccion {
   EnProceso
   Finalizado
+  Unificada
 }
 
 enum EstadoDespacho {
@@ -800,7 +801,19 @@ model Produccion {
   productoTerminado   ProductoTerminado?
   registros           RegistroProduccion[]
 
+  // Unificación de órdenes y Multi-Líneas de Sellado
+  esOrdenMadre            Boolean              @default(false)
+  ordenExtrusionOrigenId  String?
+  ordenExtrusionOrigen    Produccion?          @relation("ExtrusionHijos", fields: [ordenExtrusionOrigenId], references: [id], onDelete: SetNull)
+  ordenesSelladoHijas     Produccion[]         @relation("ExtrusionHijos")
+
+  nombreVariante          String?
+  metaKg                  Float?
+  metaUnidades            Int?                 @default(0)
+
   @@index([userId])
+  @@index([esOrdenMadre])
+  @@index([ordenExtrusionOrigenId])
   @@index([fecha])
   @@index([area])
   @@index([maquinaId])

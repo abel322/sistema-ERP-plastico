@@ -61,6 +61,19 @@ export async function GET(request: Request) {
             orderBy: { fecha: 'desc' },
           },
           productoTerminado: true,
+          ordenesSelladoHijas: {
+            include: {
+              maquina: true,
+              registros: { orderBy: { fecha: 'desc' } },
+            },
+          },
+          ordenExtrusionOrigen: {
+            include: {
+              maquina: true,
+              registros: { orderBy: { fecha: 'desc' } },
+              productoTerminado: true,
+            },
+          },
         },
         orderBy: { createdAt: 'desc' },
         skip: (page - 1) * limit,
@@ -120,6 +133,19 @@ export async function GET(request: Request) {
                 },
               });
             }
+          }
+
+          // 1b. Si tiene ordenExtrusionOrigenId y no se halló por loteOrigen directo
+          if (!previo && prod.ordenExtrusionOrigenId) {
+            previo = await prisma.productoTerminado.findFirst({
+              where: {
+                ...userFilter,
+                OR: [
+                  { produccionId: prod.ordenExtrusionOrigenId },
+                  ...(prod.ordenExtrusionOrigen?.codigoLote ? [{ codigoLote: prod.ordenExtrusionOrigen.codigoLote }] : []),
+                ],
+              },
+            });
           }
 
           // 2. Fallback heurístico para órdenes legacy que no posean loteOrigen
@@ -307,6 +333,11 @@ export async function POST(request: Request) {
       observaciones,
       codigoLote,
       loteOrigen,
+      nombreVariante,
+      metaKg,
+      metaUnidades,
+      ordenExtrusionOrigenId,
+      esOrdenMadre,
     } = body;
 
     if (!area || !maquinaId) {
@@ -347,6 +378,11 @@ export async function POST(request: Request) {
         horaInicio,
         horaFin,
         observaciones,
+        nombreVariante: nombreVariante ? String(nombreVariante).trim() : null,
+        metaKg: metaKg ? parseFloat(metaKg.toString()) : null,
+        metaUnidades: metaUnidades ? parseInt(metaUnidades.toString()) : 0,
+        ordenExtrusionOrigenId: ordenExtrusionOrigenId || null,
+        esOrdenMadre: Boolean(esOrdenMadre),
       },
       include: {
         maquina: true,
